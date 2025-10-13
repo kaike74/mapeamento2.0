@@ -1,0 +1,15 @@
+{
+  "name": "mapeamento-radio-2",
+  "version": "2.0.0",
+  "description": "Sistema de visualização de cobertura de rádios - Mapeamento 2.0",
+  "scripts": {
+    "dev": "wrangler pages dev .",
+    "deploy": "wrangler pages deploy . --project-name=mapeamento-radio-2"
+  },
+  "devDependencies": {
+    "wrangler": "^4.42.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
