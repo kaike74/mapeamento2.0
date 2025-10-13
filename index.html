@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapeamento de Cobertura 2.0 - E-MÍDIAS</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Estilos do projeto -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- CABEÇALHO SUPERIOR COM LOGO -->
+    <div class="top-header">
+        <img src="https://raw.githubusercontent.com/kaike74/distribuicaoemidias/main/logo%20E-MIDIAS%20png%20fundo%20escuro%20HORIZONTAL%20(1).png" 
+             alt="E-MÍDIAS Logo" 
+             class="top-logo"
+             onerror="this.style.display='none'">
+    </div>
+
+  <div class="container">
+    <!-- HEADER -->
+    <div class="header">
+      <div class="header-content">
+        <div class="header-main">
+          <h1 class="header-title" id="radio-name">
+            Carregando...
+            <img class="header-logo" id="header-logo" src="" alt="Logo" style="display: none;">
+          </h1>
+          <div class="header-subtitle">
+            <span id="radio-info">Mapeamento de Cobertura 2.0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div id="loading" class="loading">
+      <div class="loading-spinner"></div>
+      <p>Carregando dados e processando arquivos KMZ/KML...</p>
+    </div>
+
+    <!-- ERROR -->
+    <div id="error" class="error" style="display: none;">
+      <div id="error-message"></div>
+      <div id="error-details" class="error-details" style="display: none;"></div>
+    </div>
+
+    <!-- CARDS DE INFORMAÇÕES TÉCNICAS -->
+    <div id="info-section" class="info-grid" style="display: none;">
+      <!-- Card 1: Informações Básicas -->
+      <div class="info-card">
+        <h3 class="card-title">📻 Informações da Rádio</h3>
+        <div class="info-item">
+          <span class="info-label">Dial:</span>
+          <span class="info-value highlight" id="info-dial">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Região:</span>
+          <span class="info-value" id="info-region">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Praça:</span>
+          <span class="info-value" id="info-praca">-</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Dados Técnicos da Antena -->
+      <div class="info-card">
+        <h3 class="card-title">📡 Dados Técnicos</h3>
+        <div class="info-item">
+          <span class="info-label">Frequência:</span>
+          <span class="info-value" id="info-frequencia">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Potência:</span>
+          <span class="info-value" id="info-potencia">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">ERP:</span>
+          <span class="info-value" id="info-erp">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Altura:</span>
+          <span class="info-value" id="info-altura">-</span>
+        </div>
+      </div>
+
+      <!-- Card 3: Cobertura -->
+      <div class="info-card">
+        <h3 class="card-title">🌍 Cobertura</h3>
+        <div class="info-item">
+          <span class="info-label">População Total:</span>
+          <span class="info-value" id="info-pop-total">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">População Coberta:</span>
+          <span class="info-value" id="info-pop-coberta">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Cidades:</span>
+          <span class="info-value" id="info-cidades-count">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAPA -->
+    <div id="map-section" class="map-container" style="display: none;">
+        <div class="map-layout">
+            <div class="map-content" id="map-content">
+                <div id="map"></div>
+                
+                <!-- LEGENDA DE CORES -->
+                <div class="map-legend" id="map-legend" style="display: none;">
+                    <h4>Legenda de Sinal</h4>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #00FF00;"></span>
+                        <span>Excelente</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #00FFFF;"></span>
+                        <span>Ótimo</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #0000FF;"></span>
+                        <span>Fraco</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CIDADES -->
+    <div id="cidades-section" class="cidades-container" style="display: none;">
+      <div class="cidades-header">
+        <h2 class="cidades-title">
+          🏙️ Cidades de Cobertura
+          <span class="cidade-count" id="cidade-count">0</span>
+        </h2>
+        <div class="cidades-actions">
+          <button class="excel-export-btn" onclick="exportToExcel()" title="Exportar cidades para Excel">
+            📊 Exportar Excel (.xlsx)
+          </button>
+        </div>
+      </div>
+      <div class="search-box">
+        <input type="text" class="search-input" id="city-search" placeholder="🔍 Buscar cidade, estado ou qualidade de sinal...">
+      </div>
+      <div class="cidades-list" id="cidades-list"></div>
+    </div>
+
+    <!-- RODAPÉ -->
+    <div class="footer">
+      <p class="footer-text">Plataforma de Mapeamento de Cobertura 2.0 • E-MÍDIAS</p>
+    </div>
+  </div>
+
+  <!-- Bibliotecas externas -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <!-- Script do projeto -->
+  <script src="script.js"></script>
+</body>
+</html>
