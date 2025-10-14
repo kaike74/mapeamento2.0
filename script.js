@@ -265,7 +265,7 @@ function parseAntennaData(htmlDescription) {
         if (match) data.erp = match[1];
         
         // Altura
-        match = text.match /(\d+\.?\d*)\s*m\b/i);
+        match = text.match(/(\d+\.?\d*)\s*m\b/i);
         if (match) data.altura = `${match[1]}m`;
     }
     
