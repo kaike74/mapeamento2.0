@@ -1,5 +1,5 @@
 /* =============================================================================
-    🎨 IDENTIDADE VISUAL E-MÍDIAS - MAPEAMENTO 2.0 - CORRIGIDO
+    🎨 IDENTIDADE VISUAL E-MÍDIAS - MAPEAMENTO 2.0 - HEADER MELHORADO
     ============================================================================= */
 
 :root {
@@ -59,7 +59,7 @@ body {
 }
 
 /* =============================================================================
-    🎨 HEADER
+    🎨 HEADER MELHORADO - LAYOUT OTIMIZADO
     ============================================================================= */
 .top-header {
     background: var(--emidias-primary);
@@ -87,7 +87,7 @@ body {
 .header {
     background: var(--emidias-white);
     color: var(--emidias-primary);
-    padding: 32px 24px;
+    padding: 28px 24px;
     border-radius: 16px;
     margin-bottom: 16px;
     box-shadow: var(--shadow-lg);
@@ -113,38 +113,47 @@ body {
     100% { left: 100%; }
 }
 
+/* 🎯 HEADER TITLE MELHORADO - ALINHAMENTO PERFEITO */
 .header-title {
-    font-size: 28px;
+    font-size: 32px;
     font-weight: var(--font-weight-bold);
     margin-bottom: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
+    gap: 20px;
     position: relative;
     z-index: 1;
+    flex-wrap: wrap;
 }
 
+/* 🖼️ LOGO DO HEADER OTIMIZADA - SEM BORDAS, TAMANHO PROPORCIONAL */
 .header-logo {
-    width: 120px;
-    height: 90px;
-    object-fit: contain;
-    border-radius: 12px;
-    box-shadow: var(--shadow-md);
-    transition: transform 0.3s ease;
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 50%;
+    /* Removido: border-radius: 12px; box-shadow */
+    border: 3px solid var(--emidias-primary);
+    transition: all 0.3s ease;
+    background: var(--emidias-white);
+    flex-shrink: 0;
 }
 
 .header-logo:hover {
-    transform: scale(1.05);
+    transform: scale(1.08);
+    border-color: var(--emidias-magenta);
+    box-shadow: 0 4px 16px rgba(6, 5, 91, 0.2);
 }
 
 .header-subtitle {
-    font-size: 16px;
-    opacity: 0.8;
+    font-size: 17px;
+    opacity: 0.85;
     font-weight: var(--font-weight-medium);
     position: relative;
     z-index: 1;
     color: var(--emidias-gray);
+    margin-top: 4px;
 }
 
 /* =============================================================================
@@ -595,17 +604,31 @@ body {
 }
 
 /* =============================================================================
-    📱 RESPONSIVIDADE
+    📱 RESPONSIVIDADE MELHORADA
     ============================================================================= */
 @media (max-width: 768px) {
     .container {
         padding: 16px;
     }
     
+    .header {
+        padding: 20px 16px;
+    }
+    
     .header-title {
-        font-size: 20px;
+        font-size: 24px;
         flex-direction: column;
-        gap: 12px;
+        gap: 16px;
+        text-align: center;
+    }
+    
+    .header-logo {
+        width: 56px;
+        height: 56px;
+    }
+    
+    .header-subtitle {
+        font-size: 15px;
     }
     
     .info-grid {
@@ -631,6 +654,22 @@ body {
     .leaflet-control-layers-expanded {
         min-width: 120px !important;
         font-size: 13px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-title {
+        font-size: 20px;
+        gap: 12px;
+    }
+    
+    .header-logo {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .header-subtitle {
+        font-size: 14px;
     }
 }
 
