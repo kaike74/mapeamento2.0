@@ -1,5 +1,5 @@
 // =========================================================================
-// 📡 CLOUDFLARE PAGES FUNCTION - RADIO DATA API 2.0
+// 📡 CLOUDFLARE PAGES FUNCTION - RADIO DATA API 2.0 - COM ÍCONE
 // =========================================================================
 
 export async function onRequest(context) {
@@ -23,6 +23,7 @@ export async function onRequest(context) {
     // Obter parâmetros da URL
     const url = new URL(context.request.url);
     const id = url.searchParams.get('id');
+    const includeIcon = url.searchParams.get('include_icon') === 'true';
     
     if (!id) {
       return new Response(JSON.stringify({ 
@@ -105,7 +106,8 @@ async function processRadioData(notionData) {
   console.log('✅ Processando rádio:', {
     id: notionData.id,
     object: notionData.object,
-    propertiesKeys: Object.keys(notionData.properties || {})
+    propertiesKeys: Object.keys(notionData.properties || {}),
+    hasIcon: !!notionData.icon
   });
 
   const properties = notionData.properties || {};
@@ -153,8 +155,8 @@ async function processRadioData(notionData) {
     kmz2Url: extractValue(properties['KMZ2'] || properties['kmz2'], '', 'KMZ2'),
     kml2Url: extractValue(properties['KML2'] || properties['kml2'], '', 'KML2'),
     
-    // URLs e mídias
-    imageUrl: extractValue(properties['Imagem'] || properties['imagem'], 'https://via.placeholder.com/100x75/06055B/white?text=FM', 'Imagem'),
+    // URLs e mídias - remover placeholder inválido
+    imageUrl: extractValue(properties['Imagem'] || properties['imagem'], '', 'Imagem'),
     
     // Metadata
     source: 'notion',
@@ -162,11 +164,38 @@ async function processRadioData(notionData) {
     lastUpdate: new Date().toISOString()
   };
 
+  // EXTRAIR ÍCONE DA PÁGINA
+  if (notionData.icon) {
+    console.log('🖼️ Ícone encontrado no Notion:', notionData.icon);
+    
+    if (notionData.icon.type === 'file' && notionData.icon.file) {
+      radioData.icon = {
+        type: 'file',
+        url: notionData.icon.file.url
+      };
+      console.log('✅ Ícone de arquivo extraído:', radioData.icon.url);
+    } else if (notionData.icon.type === 'emoji') {
+      radioData.icon = {
+        type: 'emoji',
+        emoji: notionData.icon.emoji
+      };
+      console.log('✅ Emoji extraído:', radioData.icon.emoji);
+    } else if (notionData.icon.type === 'external' && notionData.icon.external) {
+      radioData.icon = {
+        type: 'external',
+        url: notionData.icon.external.url
+      };
+      console.log('✅ Ícone externo extraído:', radioData.icon.url);
+    }
+  }
+
   console.log('📊 Valores extraídos:', {
     name: radioData.name,
     dial: radioData.dial,
+    uf: radioData.uf,
     kmz2Url: radioData.kmz2Url ? 'Sim' : 'Não',
-    kml2Url: radioData.kml2Url ? 'Sim' : 'Não'
+    kml2Url: radioData.kml2Url ? 'Sim' : 'Não',
+    hasIcon: !!radioData.icon
   });
 
   // Validar URLs
