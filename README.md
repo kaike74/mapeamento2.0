@@ -7,12 +7,14 @@ Sistema avançado para visualização interativa da cobertura geográfica de rá
 ### ✨ Recursos Principais
 
 - **🗺️ Processamento de KMZ**: Extração automática de imagens de cobertura (GroundOverlay) e legendas (ScreenOverlay)
+- **🖼️ Logo Automática**: Extração da logo da rádio diretamente do KMZ para header e mapa
 - **📊 Dados Técnicos**: Extração de informações da antena (frequência, potência, ERP, altura, sensibilidade)
 - **🏙️ Análise Populacional**: Processamento de KML com dados detalhados de população por cidade
-- **🎨 Qualidade de Sinal**: Marcadores coloridos por qualidade (Excelente/Ótimo/Fraco)
+- **🎨 Qualidade de Sinal**: Marcadores coloridos por qualidade (Excelente/Ótimo/Fraco) - **ordenados por prioridade**
 - **📈 Estatísticas Avançadas**: População total, coberta, distribuição por gênero e faixa etária
+- **🗺️ Mapas Duplos**: Opções Satélite (padrão) e Padrão com divisórias dos estados brasileiros
 - **📍 Visualização Interativa**: Mapa Leaflet com imagem de cobertura sobreposta
-- **📊 Exportação Excel**: Lista completa de cidades com todos os dados
+- **📊 Exportação Excel**: Lista completa de cidades com UF correta
 
 ## 📋 Estrutura do Projeto
 
@@ -22,7 +24,8 @@ mapeamento-radio-2/
 ├── style.css               # Estilos com identidade E-MÍDIAS
 ├── script.js               # Lógica principal (processamento KMZ/KML)
 ├── functions/
-│   └── radio-data.js       # Cloudflare Function (API Notion)
+│   ├── api/radio-data.js   # Cloudflare Function (API Notion)
+│   └── api/proxy.js        # Proxy CORS para Google Drive
 ├── wrangler.toml           # Configuração Cloudflare Pages
 ├── package.json            # Dependências
 ├── _headers                # Configuração CORS
@@ -32,11 +35,12 @@ mapeamento-radio-2/
 ## 🔧 Tecnologias Utilizadas
 
 - **Frontend**: HTML5, CSS3, JavaScript ES6+
-- **Mapas**: Leaflet + OpenStreetMap
+- **Mapas**: Leaflet + OpenStreetMap/Esri Satellite
 - **Processamento**: JSZip (arquivos KMZ), DOMParser (XML/KML)
 - **Exportação**: SheetJS (Excel)
 - **Backend**: Cloudflare Pages Functions
 - **Banco de Dados**: Notion API
+- **GeoData**: GeoJSON dos estados brasileiros (IBGE)
 
 ## 📦 Instalação
 
@@ -60,10 +64,11 @@ git init
 # - README.md
 
 # Criar pasta functions
-mkdir functions
+mkdir functions/api
 
-# Criar function (copie o conteúdo do artifact)
-# - functions/radio-data.js
+# Criar functions (copie o conteúdo dos artifacts)
+# - functions/api/radio-data.js
+# - functions/api/proxy.js
 
 # Adicionar ao git
 git add .
@@ -148,7 +153,7 @@ Seu database no Notion deve ter os seguintes campos:
 | **Praça** | Text | Cidade principal |
 | **KMZ2** | URL | Link do Google Drive para arquivo KMZ |
 | **KML2** | URL | Link do Google Drive para arquivo KML |
-| **Imagem** | URL | Logo da rádio (opcional) |
+| **Imagem** | URL | Logo da rádio (opcional - fallback se KMZ não tiver) |
 
 ### Compartilhar Arquivos do Google Drive
 
@@ -194,6 +199,7 @@ O sistema extrai automaticamente:
 
 - **GroundOverlay**: Imagem da cobertura de rádio com coordenadas geográficas
 - **ScreenOverlay**: Legenda de cores (RAINBOW.dBm.key.png)
+- **Logo da Rádio**: Extraída do IconStyle e descrição HTML automaticamente
 - **Placemark**: Localização da antena e dados técnicos:
   - Frequência
   - Potência
@@ -206,7 +212,7 @@ O sistema extrai automaticamente:
 
 Cada cidade contém:
 
-- **Identificação**: Nome e estado
+- **Identificação**: Nome e UF (extraída automaticamente)
 - **População**: Total e coberta (com percentual)
 - **Demografia**: Distribuição por gênero
 - **Faixas Etárias**: População por idade
@@ -216,37 +222,40 @@ Cada cidade contém:
 
 ### 3. Mapa Interativo
 
+- **Duas Opções de Visualização**:
+  - 🛰️ **Satélite** (padrão): Imagens de alta resolução
+  - 🗺️ **Padrão**: OpenStreetMap tradicional
+- **Divisórias dos Estados**: Linhas tracejadas brancas com nomes
 - **Imagem de Cobertura**: Sobreposta no mapa com transparência ajustável
-- **Marcador da Antena**: Vermelho com dados técnicos no popup
+- **Marcador da Antena**: Com logo da rádio (se disponível) e dados técnicos
 - **Marcadores de Cidades**: Coloridos por qualidade de sinal:
   - 🟢 Verde: Excelente
-  - 🔵 Ciano: Ótimo
+  - 🔵 Ciano: Ótimo  
   - 🔵 Azul: Fraco
 - **Legenda**: Exibida no canto inferior direito
 - **Zoom Automático**: Ajusta para mostrar toda a cobertura
 
-### 4. Lista de Cidades
+### 4. Lista de Cidades (Ordenação Inteligente)
 
-- **Busca em Tempo Real**: Por nome, estado ou qualidade
-- **Ordenação**: Por nome (alfabética)
+- **Ordenação por Qualidade**: Excelente → Ótimo → Fraco (depois alfabética)
+- **Busca em Tempo Real**: Por nome, UF ou qualidade
 - **Detalhes Visíveis**:
   - População total e coberta
   - Percentual de cobertura
   - Qualidade do sinal
-  - Número de setores
+  - UF correta
 - **Clique para Destacar**: Centraliza no mapa e abre popup
 
 ### 5. Exportação Excel
 
 Colunas exportadas:
 
-1. **Cidade**
-2. **UF**
+1. **Cidade** (sem UF)
+2. **UF** (extraída corretamente)
 3. **População Total**
 4. **População Coberta**
 5. **% Cobertura**
-6. **Qualidade**
-7. **Setores**
+6. **Qualidade** (com acento: Ótimo)
 
 ## 🎨 Identidade Visual
 
@@ -262,6 +271,29 @@ O sistema mantém a identidade E-MÍDIAS:
 - **Gradientes**: Utilizados em botões e destaques
 - **Sombras**: Sutis para profundidade
 
+## 🆕 Novidades da Última Atualização
+
+### ✅ **Logo Automática**
+- ✅ Extração automática da logo do KMZ
+- ✅ Exibição no header ao lado do nome da rádio
+- ✅ Marcador personalizado no mapa com a logo
+- ✅ Fallback para campo "Imagem" se KMZ não tiver logo
+
+### ✅ **Mapas Simplificados**  
+- ✅ Apenas 2 opções: Satélite (padrão) e Padrão
+- ✅ Divisórias dos estados brasileiros
+- ✅ Tooltips com nomes dos estados
+
+### ✅ **Lista Ordenada**
+- ✅ Ordenação por qualidade: Excelente → Ótimo → Fraco
+- ✅ UF correta extraída do nome da cidade
+- ✅ Excel com dados completos e corretos
+
+### ✅ **Performance**
+- ✅ Código otimizado - removido processamento desnecessário
+- ✅ Logs detalhados para debug
+- ✅ Carregamento mais rápido
+
 ## 🐛 Troubleshooting
 
 ### Erro: "ID do Notion inválido"
@@ -272,14 +304,14 @@ O sistema mantém a identidade E-MÍDIAS:
 
 **Solução**: Configure a variável de ambiente `NOTION_TOKEN` no Cloudflare.
 
-### Erro: "Não foi possível processar KMZ"
+### Logo não aparece
 
 **Causas possíveis**:
-1. Arquivo não está público no Google Drive
-2. URL incorreta no Notion
-3. Arquivo corrompido
+1. KMZ não contém logo no IconStyle ou descrição
+2. URL da logo está inválida/expirada
+3. Problema de CORS com a imagem
 
-**Solução**: Verifique as permissões do arquivo e tente novamente.
+**Solução**: Verifique se o KMZ tem a logo e se está acessível.
 
 ### Imagem de cobertura não aparece
 
@@ -299,16 +331,30 @@ O sistema mantém a identidade E-MÍDIAS:
 
 **Solução**: Verifique o KML2 no Google Earth ou editor XML.
 
+### Divisórias dos estados não aparecem
+
+**Solução**: Normal - se a internet estiver lenta ou o GeoJSON indisponível, o mapa funciona normalmente sem as divisórias.
+
 ## 📞 Suporte
 
 Para problemas ou dúvidas:
 
-1. Verifique o console do navegador (F12)
+1. Verifique o console do navegador (F12) - logs detalhados
 2. Verifique os logs do Cloudflare Pages
 3. Revise a estrutura do Notion
 4. Teste com outro ID de registro
 
 ## 📝 Changelog
+
+### v2.1.0 (2025-01-14) - NOVA VERSÃO
+
+- ✨ **Logo automática**: Extração da logo do KMZ para header e mapa
+- ✨ **Mapas otimizados**: Apenas Satélite (padrão) e Padrão
+- ✨ **Divisórias dos estados**: Linhas tracejadas com tooltips
+- ✨ **Ordenação inteligente**: Cidades por qualidade (Excelente → Ótimo → Fraco)
+- ✨ **UF correta**: Extraída do nome da cidade no Excel
+- 🐛 **Bugs corrigidos**: Erro de propriedades undefined
+- ⚡ **Performance**: Código otimizado e mais rápido
 
 ### v2.0.0 (2025-01-13)
 
