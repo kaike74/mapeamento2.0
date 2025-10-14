@@ -41,7 +41,7 @@ async function loadRadioData() {
     
     console.log('📡 Buscando dados do Notion:', notionId);
     
-    const response = await fetch(`/functions/radio-data?id=${notionId}`);
+    const response = await fetch(`/api/radio-data?id=${notionId}`);
     
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
