@@ -1,5 +1,5 @@
 // =========================================================================
-// 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO CORRIGIDA
+// 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO FINAL CORRIGIDA
 // =========================================================================
 
 let map;
@@ -51,8 +51,30 @@ async function loadRadioData() {
     radioData = await response.json();
     console.log('✅ Dados carregados:', radioData);
     
+    // Processar ícone do Notion se disponível
+    processNotionIcon();
+    
     // Atualizar header
     updateHeader();
+}
+
+// =========================================================================
+// 🖼️ PROCESSAR ÍCONE DO NOTION
+// =========================================================================
+function processNotionIcon() {
+    // O ícone já vem nos dados da API, apenas processar
+    if (radioData.icon) {
+        if (radioData.icon.type === 'file' && radioData.icon.url) {
+            radioData.notionIcon = radioData.icon.url;
+            console.log('✅ Ícone do Notion processado:', radioData.notionIcon);
+        } else if (radioData.icon.type === 'emoji') {
+            radioData.notionEmoji = radioData.icon.emoji;
+            console.log('✅ Emoji do Notion processado:', radioData.notionEmoji);
+        } else if (radioData.icon.type === 'external' && radioData.icon.url) {
+            radioData.notionIcon = radioData.icon.url;
+            console.log('✅ Ícone externo do Notion processado:', radioData.notionIcon);
+        }
+    }
 }
 
 // =========================================================================
@@ -113,7 +135,8 @@ async function processKMZ(driveUrl) {
         
     } catch (error) {
         console.error('❌ Erro ao processar KMZ:', error);
-        throw error;
+        // Não lançar erro, continuar sem imagem de cobertura
+        console.warn('⚠️ Continuando sem imagem de cobertura');
     }
 }
 
@@ -206,7 +229,7 @@ async function parseKMZContent(kmlText, zip) {
 }
 
 // =========================================================================
-// 📊 EXTRAIR DADOS TÉCNICOS DA ANTENA (MELHORADO)
+// 📊 EXTRAIR DADOS TÉCNICOS DA ANTENA (SIMPLIFICADO)
 // =========================================================================
 function parseAntennaData(htmlDescription) {
     console.log('📊 Extraindo dados técnicos...');
@@ -224,8 +247,6 @@ function parseAntennaData(htmlDescription) {
             const key = cells[0].textContent.trim().toLowerCase();
             const value = cells[1].textContent.trim();
             
-            console.log('📋 Campo encontrado:', key, '=', value);
-            
             if (key.includes('frequência') || key.includes('frequency')) {
                 data.frequencia = value;
             } else if (key.includes('potência') || key.includes('rf power') || key.includes('power')) {
@@ -234,50 +255,33 @@ function parseAntennaData(htmlDescription) {
                 data.erp = value;
             } else if (key.includes('altura') || key.includes('height') || key.includes('tx height')) {
                 data.altura = value;
-            } else if (key.includes('antena') || key.includes('antenna') || key.includes('tx antenna')) {
-                data.antena = value;
-            } else if (key.includes('sensibilidade') || key.includes('sensitivity') || key.includes('rx sensitivity')) {
-                data.sensibilidade = value;
-            } else if (key.includes('eirp')) {
-                data.eirp = value;
-            } else if (key.includes('gain') || key.includes('ganho')) {
-                data.ganho = value;
             }
         }
     });
     
     // Método 2: Tentar extrair por regex se não encontrou na tabela
     if (Object.keys(data).length === 0) {
-        console.log('📋 Tentando extrair por regex...');
-        
         const text = htmlDescription;
         
-        // Frequência
         let match = text.match(/(\d+\.?\d*)\s*(MHz|mhz)/i);
         if (match) data.frequencia = `${match[1]} ${match[2]}`;
         
-        // Potência
         match = text.match(/(\d+\.?\d*)\s*(W|watts?)\b/i);
         if (match) data.potencia = `${match[1]} ${match[2]}`;
         
-        // ERP
         match = text.match(/ERP[:\s]*(\d+\.?\d*\s*[Ww])/i);
         if (match) data.erp = match[1];
         
-        // Altura
         match = text.match(/(\d+\.?\d*)\s*m\b/i);
         if (match) data.altura = `${match[1]}m`;
     }
     
     radioData.antennaData = data;
     console.log('📊 Dados técnicos extraídos:', data);
-    
-    // Atualizar UI
-    updateTechnicalInfo(data);
 }
 
 // =========================================================================
-// 🔧 EXTRAIR DADOS TÉCNICOS DO JSON (NOVO)
+// 🔧 EXTRAIR DADOS TÉCNICOS DO JSON
 // =========================================================================
 function extractTechnicalFromJson(jsonData) {
     console.log('🔧 Extraindo dados do JSON técnico...');
@@ -288,14 +292,9 @@ function extractTechnicalFromJson(jsonData) {
     if (jsonData.txw) data.potencia = `${jsonData.txw} W`;
     if (jsonData.erp) data.erp = `${jsonData.erp} W`;
     if (jsonData.txh) data.altura = `${jsonData.txh} m`;
-    if (jsonData.txg) data.ganho = `${jsonData.txg} dBi`;
-    if (jsonData.rxs) data.sensibilidade = `${jsonData.rxs} dBm`;
-    if (jsonData.ant) data.antena = `Padrão ${jsonData.ant}`;
     
     radioData.antennaData = data;
     console.log('✅ Dados do JSON extraídos:', data);
-    
-    updateTechnicalInfo(data);
 }
 
 // =========================================================================
@@ -322,7 +321,7 @@ async function processKML(driveUrl) {
 }
 
 // =========================================================================
-// 🔍 PROCESSAR CIDADES DO KML (MELHORADO)
+// 🔍 PROCESSAR CIDADES DO KML
 // =========================================================================
 async function parseKMLCities(kmlText) {
     const parser = new DOMParser();
@@ -363,7 +362,6 @@ async function parseKMLCities(kmlText) {
             cityData.coordinates = { lat, lng };
             cityData.quality = getSignalQuality(styleUrl);
             
-            // Log dos dados extraídos
             console.log(`📊 Dados de ${name}:`, {
                 totalPop: cityData.totalPopulation,
                 coveredPop: cityData.coveredPopulation,
@@ -390,7 +388,7 @@ async function parseKMLCities(kmlText) {
 }
 
 // =========================================================================
-// 📊 EXTRAIR DADOS DO EXTENDED DATA (NOVO)
+// 📊 EXTRAIR DADOS DO EXTENDED DATA
 // =========================================================================
 function parseExtendedData(placemark) {
     const data = {};
@@ -405,8 +403,6 @@ function parseExtendedData(placemark) {
             const value = dataEl.querySelector('value')?.textContent;
             
             if (name && value) {
-                console.log(`📊 Campo ExtendedData: ${name} = ${value}`);
-                
                 switch (name) {
                     case 'População_Total':
                     case 'PopulaÃ§Ã£o_Total':
@@ -419,36 +415,16 @@ function parseExtendedData(placemark) {
                     case 'Percentual_Pop_Coberta':
                         data.coveragePercent = `${parseFloat(value).toFixed(1)}%`;
                         break;
-                    case 'Homens':
-                        data.male = parseInt(value) || 0;
-                        break;
-                    case 'Mulheres':
-                        data.female = parseInt(value) || 0;
-                        break;
-                    case 'Total_Setores':
-                        data.totalSectors = parseInt(value) || 0;
-                        break;
-                    case 'Setores_Cobertos':
-                        data.coveredSectors = parseInt(value) || 0;
-                        break;
-                    case 'dBm_Medio':
-                        data.averageSignal = `${value} dBm`;
-                        break;
                 }
             }
         });
-        
-        // Montar string de setores
-        if (data.coveredSectors && data.totalSectors) {
-            data.sectors = `${data.coveredSectors}/${data.totalSectors}`;
-        }
     }
     
     return data;
 }
 
 // =========================================================================
-// 📊 EXTRAIR DADOS DE UMA CIDADE DA DESCRIÇÃO HTML (MELHORADO)
+// 📊 EXTRAIR DADOS DE UMA CIDADE DA DESCRIÇÃO HTML
 // =========================================================================
 function parseCityDescription(htmlDescription) {
     const parser = new DOMParser();
@@ -456,7 +432,7 @@ function parseCityDescription(htmlDescription) {
     
     const data = {};
     
-    // Método 1: Extrair de divs estruturados
+    // Extrair de divs estruturados
     const divs = doc.querySelectorAll('div');
     divs.forEach(div => {
         const text = div.textContent;
@@ -474,48 +450,13 @@ function parseCityDescription(htmlDescription) {
             }
         }
         
-        // Gênero
-        if (text.includes('Gênero') || text.includes('GÃªnero')) {
-            const femaleMatch = text.match(/F:\s*([0-9.]+)%/);
-            const maleMatch = text.match(/M:\s*([0-9.]+)%/);
-            if (femaleMatch) data.femalePercent = `${femaleMatch[1]}%`;
-            if (maleMatch) data.malePercent = `${maleMatch[1]}%`;
-        }
-        
         // Qualidade do sinal
         if (text.includes('Sinal')) {
             if (text.includes('Excelente')) data.qualityText = 'Excelente';
             else if (text.includes('Ótimo') || text.includes('Ã"timo')) data.qualityText = 'Ótimo';
             else if (text.includes('Fraco')) data.qualityText = 'Fraco';
         }
-        
-        // Setores
-        if (text.includes('Setores:')) {
-            const sectorMatch = text.match(/Setores:\s*(\d+\/\d+)/);
-            if (sectorMatch) data.sectors = sectorMatch[1];
-        }
     });
-    
-    // Método 2: Extrair de tabela (fallback)
-    if (!data.totalPopulation) {
-        const rows = doc.querySelectorAll('tr');
-        rows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length >= 2) {
-                const key = cells[0].textContent.trim().toLowerCase();
-                const value = cells[1].textContent.trim();
-                
-                if (key.includes('população total')) {
-                    data.totalPopulation = parseInt(value.replace(/\D/g, '')) || 0;
-                } else if (key.includes('população coberta')) {
-                    const match = value.match(/(\d+)/);
-                    if (match) {
-                        data.coveredPopulation = parseInt(match[1]) || 0;
-                    }
-                }
-            }
-        });
-    }
     
     return data;
 }
@@ -536,35 +477,46 @@ function getSignalQuality(styleUrl) {
 function initializeMap() {
     console.log('🗺️ Inicializando mapa...');
     
-    const center = radioData.antennaLocation || { lat: -15.7942, lng: -47.8822 };
+    // Zoom padrão para enquadrar o Brasil
+    const center = { lat: -14.2350, lng: -51.9253 }; // Centro do Brasil
+    const zoom = 5; // Zoom para mostrar todo o Brasil
     
-    map = L.map('map').setView([center.lat, center.lng], 10);
+    map = L.map('map').setView([center.lat, center.lng], zoom);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 18
     }).addTo(map);
     
-    // Adicionar imagem de cobertura
-    if (radioData.coverageImage) {
-        addCoverageImage();
-    }
-    
-    // Adicionar marcador da antena
-    if (radioData.antennaLocation) {
-        addAntennaMarker();
-    }
-    
-    // Adicionar marcadores de cidades
-    addCityMarkers();
-    
-    // Ajustar zoom
-    fitMapBounds();
-    
-    // Mostrar legenda
-    if (legendImage) {
-        document.getElementById('map-legend').style.display = 'block';
-    }
+    // Aguardar um pouco para o mapa renderizar
+    setTimeout(() => {
+        // Invalidar tamanho do mapa para garantir renderização
+        map.invalidateSize();
+        
+        // Adicionar imagem de cobertura
+        if (radioData.coverageImage) {
+            addCoverageImage();
+        }
+        
+        // Adicionar marcador da antena
+        if (radioData.antennaLocation) {
+            addAntennaMarker();
+        }
+        
+        // Adicionar marcadores de cidades
+        addCityMarkers();
+        
+        // Ajustar zoom se há dados para mostrar
+        if (citiesData.length > 0 || radioData.antennaLocation || radioData.coverageImage) {
+            fitMapBounds();
+        }
+        
+        // Mostrar legenda se disponível
+        if (legendImage) {
+            document.getElementById('map-legend').style.display = 'block';
+        }
+        
+    }, 500);
     
     // Mostrar mapa
     document.getElementById('map-section').style.display = 'block';
@@ -638,6 +590,8 @@ function addAntennaMarker() {
 // 🏙️ ADICIONAR MARCADORES DAS CIDADES
 // =========================================================================
 function addCityMarkers() {
+    cityMarkers = []; // Limpar marcadores existentes
+    
     citiesData.forEach(city => {
         const color = getQualityColor(city.quality);
         
@@ -664,8 +618,6 @@ function addCityMarkers() {
                     <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
                     <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()} ${city.coveragePercent ? `(${city.coveragePercent})` : ''}</p>
                     ${city.qualityText ? `<p style="margin: 4px 0;"><strong>Qualidade:</strong> ${city.qualityText}</p>` : ''}
-                    ${city.sectors ? `<p style="margin: 4px 0;"><strong>Setores:</strong> ${city.sectors}</p>` : ''}
-                    ${city.averageSignal ? `<p style="margin: 4px 0;"><strong>Sinal Médio:</strong> ${city.averageSignal}</p>` : ''}
                 </div>
             </div>
         `;
@@ -696,7 +648,7 @@ function getQualityColor(quality) {
 // 🗺️ AJUSTAR ZOOM DO MAPA
 // =========================================================================
 function fitMapBounds() {
-    if (citiesData.length === 0 && !radioData.antennaLocation) return;
+    if (citiesData.length === 0 && !radioData.antennaLocation && !radioData.coverageImage) return;
     
     const bounds = L.latLngBounds();
     
@@ -752,10 +704,6 @@ function updateCitiesList() {
                     <span>✅ ${(city.coveredPopulation || 0).toLocaleString()} cobertos ${city.coveragePercent ? `(${city.coveragePercent})` : ''}</span>
                     ${city.quality ? `<span class="cidade-badge badge-${city.quality}">📶 ${city.quality.toUpperCase()}</span>` : ''}
                 </div>
-            </div>
-            <div class="cidade-stats">
-                ${city.sectors ? `<div class="stat-item">🏢 ${city.sectors}</div>` : ''}
-                ${city.averageSignal ? `<div class="stat-item">📊 ${city.averageSignal}</div>` : ''}
             </div>
         </div>
     `).join('');
@@ -814,7 +762,7 @@ function highlightCity(cityName) {
 // =========================================================================
 function exportToExcel() {
     const excelData = [
-        ['Cidade', 'UF', 'População Total', 'População Coberta', '% Cobertura', 'Qualidade', 'Setores', 'Sinal Médio']
+        ['Cidade', 'UF', 'População Total', 'População Coberta', '% Cobertura', 'Qualidade']
     ];
     
     filteredCities.forEach(city => {
@@ -828,9 +776,7 @@ function exportToExcel() {
             city.totalPopulation || 0,
             city.coveredPopulation || 0,
             city.coveragePercent || '0%',
-            city.qualityText || city.quality || '-',
-            city.sectors || '-',
-            city.averageSignal || '-'
+            city.qualityText || city.quality || '-'
         ]);
     });
     
@@ -844,9 +790,7 @@ function exportToExcel() {
         { wch: 15 }, // Pop Total
         { wch: 15 }, // Pop Coberta
         { wch: 12 }, // % Cobertura
-        { wch: 15 }, // Qualidade
-        { wch: 15 }, // Setores
-        { wch: 15 }  // Sinal Médio
+        { wch: 15 }  // Qualidade
     ];
     
     XLSX.utils.book_append_sheet(wb, ws, 'Cidades de Cobertura');
@@ -863,7 +807,6 @@ function exportToExcel() {
 function convertGoogleDriveUrl(url) {
     if (!url) return '';
     
-    // Se já é uma URL direta, retorna
     if (url.includes('drive.google.com/uc?')) {
         return url;
     }
@@ -888,28 +831,36 @@ function updateHeader() {
         radioInfo.textContent = `${radioData.dial || ''} • ${radioData.praca || ''} - ${radioData.uf || ''}`;
     }
     
-    if (headerLogo && radioData.imageUrl) {
-        headerLogo.src = radioData.imageUrl;
-        headerLogo.style.display = 'block';
+    // Tentar usar ícone do Notion primeiro, depois URL da imagem
+    if (headerLogo) {
+        if (radioData.notionIcon) {
+            headerLogo.src = radioData.notionIcon;
+            headerLogo.style.display = 'block';
+            console.log('✅ Logo do Notion carregada');
+        } else if (radioData.imageUrl && !radioData.imageUrl.includes('via.placeholder.com')) {
+            headerLogo.src = radioData.imageUrl;
+            headerLogo.style.display = 'block';
+        } else if (radioData.notionEmoji) {
+            // Se há emoji, criar um div com o emoji
+            headerLogo.style.display = 'none';
+            const emojiDiv = document.createElement('div');
+            emojiDiv.innerHTML = radioData.notionEmoji;
+            emojiDiv.style.fontSize = '60px';
+            emojiDiv.className = 'header-emoji';
+            radioName.appendChild(emojiDiv);
+        }
     }
 }
 
-function updateTechnicalInfo(data) {
-    document.getElementById('info-dial').textContent = radioData.dial || '-';
-    document.getElementById('info-region').textContent = radioData.region || '-';
-    document.getElementById('info-praca').textContent = radioData.praca || '-';
-    document.getElementById('info-frequencia').textContent = data.frequencia || '-';
-    document.getElementById('info-potencia').textContent = data.potencia || '-';
-    document.getElementById('info-erp').textContent = data.erp || '-';
-    document.getElementById('info-altura').textContent = data.altura || '-';
-    
-    document.getElementById('info-section').style.display = 'grid';
-}
-
 function updateCoverageInfo() {
+    document.getElementById('info-dial').textContent = radioData.dial || '-';
+    document.getElementById('info-uf').textContent = radioData.uf || '-';
+    document.getElementById('info-praca').textContent = radioData.praca || '-';
     document.getElementById('info-pop-total').textContent = (radioData.totalPopulation || 0).toLocaleString();
     document.getElementById('info-pop-coberta').textContent = (radioData.coveredPopulation || 0).toLocaleString();
     document.getElementById('info-cidades-count').textContent = radioData.citiesCount || 0;
+    
+    document.getElementById('info-section').style.display = 'grid';
 }
 
 function hideLoading() {
