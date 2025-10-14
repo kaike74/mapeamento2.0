@@ -69,6 +69,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         initializeMap();
         renderCities();
         setupSearch();
+        
+        // 🖼️ ATUALIZAR LOGO NO FINAL (GARANTIR QUE DOM ESTÁ PRONTO)
+        setTimeout(() => {
+            updateHeaderLogoFinal();
+        }, 1000);
+        
         hideLoading();
     } catch (error) {
         console.error('❌ Erro na inicialização:', error);
@@ -99,26 +105,38 @@ async function loadRadioData() {
     radioData = await response.json();
     console.log('✅ Dados carregados:', radioData);
     
+    // 🖼️ PROCESSAR ÍCONE DO NOTION IMEDIATAMENTE
+    processNotionIcon();
+    
     // Atualizar header inicial (sem logo - virá do KMZ)
     updateHeaderBasic();
 }
 
 // =========================================================================
-// 🖼️ PROCESSAR ÍCONE DO NOTION
+// 🖼️ PROCESSAR ÍCONE DO NOTION (MELHORADO)
 // =========================================================================
 function processNotionIcon() {
-    // O ícone já vem nos dados da API, apenas processar
+    console.log('🖼️ Processando ícone do Notion...');
+    
     if (radioData.icon) {
         if (radioData.icon.type === 'file' && radioData.icon.url) {
-            radioData.notionIcon = radioData.icon.url;
-            console.log('✅ Ícone do Notion processado:', radioData.notionIcon);
+            radioData.notionIconUrl = radioData.icon.url;
+            console.log('✅ Ícone do Notion (file) processado:', radioData.notionIconUrl);
+        } else if (radioData.icon.type === 'external' && radioData.icon.url) {
+            radioData.notionIconUrl = radioData.icon.url;
+            console.log('✅ Ícone do Notion (external) processado:', radioData.notionIconUrl);
         } else if (radioData.icon.type === 'emoji') {
             radioData.notionEmoji = radioData.icon.emoji;
             console.log('✅ Emoji do Notion processado:', radioData.notionEmoji);
-        } else if (radioData.icon.type === 'external' && radioData.icon.url) {
-            radioData.notionIcon = radioData.icon.external.url;
-            console.log('✅ Ícone externo do Notion processado:', radioData.notionIcon);
         }
+    } else {
+        console.log('ℹ️ Nenhum ícone encontrado no Notion');
+    }
+    
+    // 🖼️ FALLBACK PARA CAMPO IMAGEM SE NÃO TEM ÍCONE
+    if (!radioData.notionIconUrl && radioData.imageUrl && !radioData.imageUrl.includes('placeholder')) {
+        radioData.notionIconUrl = radioData.imageUrl;
+        console.log('✅ Usando campo Imagem como fallback:', radioData.notionIconUrl);
     }
 }
 
@@ -245,19 +263,13 @@ async function parseKMZContent(kmlText, zip) {
         
         // 🖼️ EXTRAIR LOGO DO ICONSTYLE PRIMEIRO
         const iconStyle = placemark.querySelector('Style IconStyle Icon href');
-        console.log('🔍 IconStyle encontrado:', !!iconStyle);
-        
         if (iconStyle) {
             const logoUrl = iconStyle.textContent.trim();
             console.log('🔍 URL encontrada no IconStyle:', logoUrl);
             if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
                 radioData.logoUrlFromKMZ = logoUrl;
                 console.log('✅ Logo extraída do IconStyle KMZ:', logoUrl);
-                // Atualizar header IMEDIATAMENTE com a logo
-                updateHeaderLogo();
             }
-        } else {
-            console.log('⚠️ IconStyle não encontrado, buscando na descrição...');
         }
         
         const description = placemark.querySelector('description')?.textContent;
@@ -287,49 +299,37 @@ async function parseKMZContent(kmlText, zip) {
                 console.warn('⚠️ Não foi possível extrair JSON dos dados técnicos');
             }
         }
-        
-        // 🖼️ VERIFICAÇÃO FINAL DA LOGO
-        if (radioData.logoUrlFromKMZ) {
-            console.log('🎯 LOGO FINAL EXTRAÍDA:', radioData.logoUrlFromKMZ);
-            updateHeaderLogo();
-        } else {
-            console.warn('⚠️ Nenhuma logo encontrada no KMZ');
-        }
     }
+    
+    console.log('🎯 LOGOS DISPONÍVEIS APÓS KMZ:', {
+        kmzLogo: !!radioData.logoUrlFromKMZ,
+        notionIcon: !!radioData.notionIconUrl,
+        imageUrl: !!radioData.imageUrl
+    });
 }
 
 // =========================================================================
-// 📊 EXTRAIR DADOS TÉCNICOS DA ANTENA (CORRIGIDO COM LOGO)
+// 📊 EXTRAIR DADOS TÉCNICOS DA ANTENA (MELHORADO PARA LOGO)
 // =========================================================================
 function parseAntennaData(htmlDescription) {
     console.log('📊 Extraindo dados técnicos e logo...');
-    console.log('📄 Conteúdo da descrição (primeiros 500 chars):', htmlDescription.substring(0, 500));
     
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlDescription, 'text/html');
     
     const data = {};
     
-    // 🖼️ EXTRAIR LOGO DA DESCRIÇÃO HTML (IMPLEMENTAÇÃO NOVA)
-    const imgTag = doc.querySelector('img');
-    console.log('🔍 Tag img encontrada:', imgTag);
-    
-    if (imgTag) {
-        const logoUrl = imgTag.getAttribute('src');
-        console.log('🔍 URL encontrada na descrição HTML:', logoUrl);
-        if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
-            // Se não temos logo do IconStyle, usar da descrição
-            if (!radioData.logoUrlFromKMZ) {
+    // 🖼️ EXTRAIR LOGO DA DESCRIÇÃO HTML SE NÃO ACHOU NO ICONSTYLE
+    if (!radioData.logoUrlFromKMZ) {
+        const imgTag = doc.querySelector('img');
+        if (imgTag) {
+            const logoUrl = imgTag.getAttribute('src');
+            console.log('🔍 URL encontrada na descrição HTML:', logoUrl);
+            if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
                 radioData.logoUrlFromKMZ = logoUrl;
                 console.log('✅ Logo extraída da descrição HTML:', logoUrl);
-                // Atualizar header IMEDIATAMENTE com a logo
-                updateHeaderLogo();
-            } else {
-                console.log('ℹ️ Logo do IconStyle já existe, mantendo:', radioData.logoUrlFromKMZ);
             }
         }
-    } else {
-        console.log('⚠️ Nenhuma tag <img> encontrada na descrição');
     }
     
     // Método 1: Tentar extrair de tabela HTML
@@ -695,10 +695,11 @@ function addCoverageImage() {
 // 📍 ADICIONAR MARCADOR DA ANTENA (CORRIGIDO COM LOGO)
 // =========================================================================
 function addAntennaMarker() {
-    // 🖼️ USAR LOGO DO KMZ SE DISPONÍVEL (IMPLEMENTAÇÃO NOVA)
+    // 🖼️ USAR LOGO PRIORITÁRIA (KMZ → NOTION → PADRÃO)
     let antennaIcon;
+    let logoUrl = radioData.logoUrlFromKMZ || radioData.notionIconUrl;
     
-    if (radioData.logoUrlFromKMZ) {
+    if (logoUrl) {
         // Criar ícone personalizado com a logo
         antennaIcon = L.divIcon({
             html: `
@@ -714,7 +715,7 @@ function addAntennaMarker() {
                     align-items: center;
                     justify-content: center;
                 ">
-                    <img src="${radioData.logoUrlFromKMZ}" 
+                    <img src="${logoUrl}" 
                          style="width: 34px; height: 34px; object-fit: cover; border-radius: 50%;"
                          onerror="this.parentElement.innerHTML='📡'; this.parentElement.style.color='#FF0000'; this.parentElement.style.fontSize='20px';">
                 </div>
@@ -723,7 +724,7 @@ function addAntennaMarker() {
             iconSize: [40, 40],
             iconAnchor: [20, 20]
         });
-        console.log('✅ Marcador da antena com logo personalizada');
+        console.log('✅ Marcador da antena com logo:', logoUrl);
     } else {
         // Ícone padrão vermelho
         antennaIcon = L.divIcon({
@@ -997,6 +998,10 @@ function convertGoogleDriveUrl(url) {
     return `https://drive.google.com/uc?export=download&id=${fileId}`;
 }
 
+// =========================================================================
+// 🖼️ FUNÇÕES DE ATUALIZAÇÃO DO HEADER - CORRIGIDAS
+// =========================================================================
+
 // ATUALIZAR HEADER BÁSICO (SEM LOGO)
 function updateHeaderBasic() {
     const radioName = document.getElementById('radio-name');
@@ -1013,56 +1018,80 @@ function updateHeaderBasic() {
     console.log('✅ Header básico atualizado');
 }
 
-// ATUALIZAR APENAS A LOGO DO HEADER
-function updateHeaderLogo() {
+// 🖼️ ATUALIZAR LOGO NO HEADER - FUNÇÃO PRINCIPAL CORRIGIDA
+function updateHeaderLogoFinal() {
     const headerLogo = document.getElementById('header-logo');
     
-    if (headerLogo && radioData.logoUrlFromKMZ) {
-        console.log('🖼️ Atualizando logo no header:', radioData.logoUrlFromKMZ);
-        
-        headerLogo.src = radioData.logoUrlFromKMZ;
+    if (!headerLogo) {
+        console.warn('⚠️ Elemento header-logo não encontrado');
+        return;
+    }
+    
+    // 🎯 PRIORIDADE: KMZ → NOTION ICON → CAMPO IMAGEM → OCULTAR
+    let logoUrl = null;
+    let source = '';
+    
+    if (radioData.logoUrlFromKMZ) {
+        logoUrl = radioData.logoUrlFromKMZ;
+        source = 'KMZ';
+    } else if (radioData.notionIconUrl) {
+        logoUrl = radioData.notionIconUrl;
+        source = 'Notion Icon';
+    } else if (radioData.imageUrl && !radioData.imageUrl.includes('placeholder')) {
+        logoUrl = radioData.imageUrl;
+        source = 'Campo Imagem';
+    }
+    
+    console.log('🖼️ LOGOS DISPONÍVEIS:', {
+        kmzLogo: radioData.logoUrlFromKMZ || 'Não encontrada',
+        notionIcon: radioData.notionIconUrl || 'Não encontrado',
+        imageUrl: radioData.imageUrl || 'Não encontrado',
+        escolhida: logoUrl ? `${source}: ${logoUrl}` : 'Nenhuma'
+    });
+    
+    if (logoUrl) {
+        headerLogo.src = logoUrl;
         headerLogo.style.display = 'block';
         
-        // Adicionar tratamento de erro para CORS
-        headerLogo.onerror = function() {
-            console.warn('⚠️ Erro ao carregar logo (possível CORS):', radioData.logoUrlFromKMZ);
-            this.style.display = 'none';
-        };
-        
         headerLogo.onload = function() {
-            console.log('✅ Logo carregada com sucesso no header!');
+            console.log(`✅ Logo do ${source} carregada com sucesso no header!`);
         };
         
-        console.log('✅ Logo do header configurada');
+        headerLogo.onerror = function() {
+            console.warn(`⚠️ Erro ao carregar logo do ${source}:`, logoUrl);
+            this.style.display = 'none';
+            
+            // Tentar próxima opção se falhar
+            if (source === 'KMZ' && radioData.notionIconUrl) {
+                setTimeout(() => {
+                    radioData.logoUrlFromKMZ = null; // Marcar como falha
+                    updateHeaderLogoFinal(); // Tentar novamente
+                }, 100);
+            } else if (source === 'Notion Icon' && radioData.imageUrl) {
+                setTimeout(() => {
+                    radioData.notionIconUrl = null; // Marcar como falha
+                    updateHeaderLogoFinal(); // Tentar novamente
+                }, 100);
+            }
+        };
+        
+        console.log(`✅ Logo do ${source} configurada no header`);
     } else {
+        headerLogo.style.display = 'none';
         console.log('ℹ️ Nenhuma logo disponível para o header');
     }
 }
 
-// ATUALIZAR HEADER COMPLETO (FALLBACK)
+// ATUALIZAR APENAS A LOGO DO HEADER (LEGACY - COMPATIBILIDADE)
+function updateHeaderLogo() {
+    // Chamar a função principal
+    updateHeaderLogoFinal();
+}
+
+// ATUALIZAR HEADER COMPLETO (LEGACY - COMPATIBILIDADE)
 function updateHeader() {
     updateHeaderBasic();
-    
-    const headerLogo = document.getElementById('header-logo');
-    
-    // 🖼️ LOGO: KMZ → Campo Imagem → Ocultar
-    if (headerLogo) {
-        if (radioData.logoUrlFromKMZ) {
-            // Prioridade 1: Logo do KMZ
-            headerLogo.src = radioData.logoUrlFromKMZ;
-            headerLogo.style.display = 'block';
-            console.log('✅ Logo do KMZ carregada no header');
-        } else if (radioData.imageUrl && !radioData.imageUrl.includes('via.placeholder.com')) {
-            // Prioridade 2: Campo Imagem
-            headerLogo.src = radioData.imageUrl;
-            headerLogo.style.display = 'block';
-            console.log('✅ Logo do campo Imagem carregada no header');
-        } else {
-            // Sem logo disponível
-            headerLogo.style.display = 'none';
-            console.log('ℹ️ Nenhuma logo disponível');
-        }
-    }
+    updateHeaderLogoFinal();
 }
 
 function updateCoverageInfo() {
