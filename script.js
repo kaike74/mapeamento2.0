@@ -1,4 +1,51 @@
 // =========================================================================
+// 🗺️ ADICIONAR DIVISÓRIAS DOS ESTADOS BRASILEIROS
+// =========================================================================
+async function addStateBorders() {
+    try {
+        console.log('🗺️ Carregando divisórias dos estados...');
+        
+        // URL do GeoJSON dos estados brasileiros (IBGE)
+        const geoJsonUrl = 'https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson';
+        
+        const response = await fetch(geoJsonUrl);
+        if (!response.ok) {
+            console.warn('⚠️ Não foi possível carregar divisórias dos estados');
+            return;
+        }
+        
+        const statesData = await response.json();
+        
+        // Adicionar layer dos estados com estilo
+        L.geoJSON(statesData, {
+            style: {
+                color: '#FFFFFF',        // Linha branca
+                weight: 2,               // Espessura da linha
+                opacity: 0.8,            // Opacidade da linha
+                fillOpacity: 0,          // Sem preenchimento
+                dashArray: '5, 5'        // Linha tracejada
+            },
+            onEachFeature: function(feature, layer) {
+                // Adicionar tooltip com nome do estado
+                if (feature.properties && feature.properties.name) {
+                    layer.bindTooltip(feature.properties.name, {
+                        permanent: false,
+                        direction: 'center',
+                        className: 'state-tooltip'
+                    });
+                }
+            }
+        }).addTo(map);
+        
+        console.log('✅ Divisórias dos estados adicionadas');
+        
+    } catch (error) {
+        console.warn('⚠️ Erro ao carregar divisórias dos estados:', error);
+        // Continuar sem as divisórias
+    }
+}
+
+// =========================================================================
 // 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO CORRIGIDA COMPLETA
 // =========================================================================
 
@@ -208,6 +255,8 @@ async function parseKMZContent(kmlText, zip) {
             if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
                 radioData.logoUrlFromKMZ = logoUrl;
                 console.log('✅ Logo extraída do IconStyle KMZ:', logoUrl);
+                // Atualizar header assim que a logo for extraída
+                updateHeader();
             }
         }
         
@@ -255,8 +304,10 @@ function parseAntennaData(htmlDescription) {
             // Se não temos logo do IconStyle, usar da descrição
             if (!radioData.logoUrlFromKMZ) {
                 radioData.logoUrlFromKMZ = logoUrl;
+                console.log('✅ Logo extraída da descrição HTML:', logoUrl);
+                // Atualizar header assim que a logo for extraída
+                updateHeader();
             }
-            console.log('✅ Logo extraída da descrição HTML:', logoUrl);
         }
     }
     
@@ -544,28 +595,23 @@ function initializeMap() {
     
     map = L.map('map').setView([center.lat, center.lng], zoom);
     
-    // 🗺️ DEFINIR MÚLTIPLAS CAMADAS DE MAPA (NOVO)
+    // 🗺️ DEFINIR APENAS 2 CAMADAS DE MAPA (SATÉLITE COMO PADRÃO)
     baseLayers = {
-        'Padrão': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 18
-        }),
-        'Relevo': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '© Esri',
-            maxZoom: 16
-        }),
         'Satélite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: '© Esri',
             maxZoom: 18
         }),
-        'Terreno': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenTopoMap',
-            maxZoom: 17
+        'Padrão': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
         })
     };
     
-    // Adicionar camada padrão (Relevo para destacar melhor)
-    baseLayers['Relevo'].addTo(map);
+    // Adicionar camada padrão (Satélite primeiro)
+    baseLayers['Satélite'].addTo(map);
+    
+    // Adicionar divisórias dos estados brasileiros
+    addStateBorders();
     
     // Adicionar controle de layers
     L.control.layers(baseLayers).addTo(map);
@@ -603,7 +649,7 @@ function initializeMap() {
     // Mostrar mapa
     document.getElementById('map-section').style.display = 'block';
     
-    console.log('✅ Mapa inicializado com múltiplas camadas');
+    console.log('✅ Mapa inicializado com Satélite como padrão e divisórias dos estados');
 }
 
 // =========================================================================
