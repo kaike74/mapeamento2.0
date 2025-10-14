@@ -83,9 +83,11 @@ async function processFiles() {
 async function processKMZ(driveUrl) {
     try {
         const directUrl = convertGoogleDriveUrl(driveUrl);
-        console.log('📦 Baixando KMZ:', directUrl);
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
         
-        const response = await fetch(directUrl);
+        console.log('📦 Baixando KMZ via proxy:', proxyUrl);
+        
+        const response = await fetch(proxyUrl);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const arrayBuffer = await response.arrayBuffer();
@@ -220,9 +222,11 @@ function parseAntennaData(htmlDescription) {
 async function processKML(driveUrl) {
     try {
         const directUrl = convertGoogleDriveUrl(driveUrl);
-        console.log('🏙️ Baixando KML:', directUrl);
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
         
-        const response = await fetch(directUrl);
+        console.log('��️ Baixando KML via proxy:', proxyUrl);
+        
+        const response = await fetch(proxyUrl);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const kmlText = await response.text();
