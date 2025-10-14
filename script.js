@@ -99,8 +99,8 @@ async function loadRadioData() {
     radioData = await response.json();
     console.log('✅ Dados carregados:', radioData);
     
-    // Atualizar header (logo virá do KMZ)
-    updateHeader();
+    // Atualizar header inicial (sem logo - virá do KMZ)
+    updateHeaderBasic();
 }
 
 // =========================================================================
@@ -243,21 +243,31 @@ async function parseKMZContent(kmlText, zip) {
     if (placemark) {
         console.log('📡 Processando dados da antena...');
         
-        const description = placemark.querySelector('description')?.textContent;
-        if (description) {
-            parseAntennaData(description);
-        }
+    // Extrair dados da antena (Placemark)
+    const placemark = xmlDoc.querySelector('Placemark');
+    if (placemark) {
+        console.log('📡 Processando dados da antena...');
         
-        // 🖼️ EXTRAIR LOGO DO ICONSTYLE (IMPLEMENTAÇÃO NOVA)
+        // 🖼️ EXTRAIR LOGO DO ICONSTYLE PRIMEIRO
         const iconStyle = placemark.querySelector('Style IconStyle Icon href');
+        console.log('🔍 IconStyle encontrado:', !!iconStyle);
+        
         if (iconStyle) {
             const logoUrl = iconStyle.textContent.trim();
+            console.log('🔍 URL encontrada no IconStyle:', logoUrl);
             if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
                 radioData.logoUrlFromKMZ = logoUrl;
                 console.log('✅ Logo extraída do IconStyle KMZ:', logoUrl);
-                // Atualizar header assim que a logo for extraída
-                updateHeader();
+                // Atualizar header IMEDIATAMENTE com a logo
+                updateHeaderLogo();
             }
+        } else {
+            console.log('⚠️ IconStyle não encontrado, buscando na descrição...');
+        }
+        
+        const description = placemark.querySelector('description')?.textContent;
+        if (description) {
+            parseAntennaData(description);
         }
         
         // Coordenadas da antena
@@ -282,6 +292,14 @@ async function parseKMZContent(kmlText, zip) {
                 console.warn('⚠️ Não foi possível extrair JSON dos dados técnicos');
             }
         }
+        
+        // 🖼️ VERIFICAÇÃO FINAL DA LOGO
+        if (radioData.logoUrlFromKMZ) {
+            console.log('🎯 LOGO FINAL EXTRAÍDA:', radioData.logoUrlFromKMZ);
+            updateHeaderLogo();
+        } else {
+            console.warn('⚠️ Nenhuma logo encontrada no KMZ');
+        }
     }
 }
 
@@ -289,7 +307,8 @@ async function parseKMZContent(kmlText, zip) {
 // 📊 EXTRAIR DADOS TÉCNICOS DA ANTENA (CORRIGIDO COM LOGO)
 // =========================================================================
 function parseAntennaData(htmlDescription) {
-    console.log('📊 Extraindo dados técnicos...');
+    console.log('📊 Extraindo dados técnicos e logo...');
+    console.log('📄 Conteúdo da descrição (primeiros 500 chars):', htmlDescription.substring(0, 500));
     
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlDescription, 'text/html');
@@ -298,17 +317,24 @@ function parseAntennaData(htmlDescription) {
     
     // 🖼️ EXTRAIR LOGO DA DESCRIÇÃO HTML (IMPLEMENTAÇÃO NOVA)
     const imgTag = doc.querySelector('img');
+    console.log('🔍 Tag img encontrada:', imgTag);
+    
     if (imgTag) {
         const logoUrl = imgTag.getAttribute('src');
+        console.log('🔍 URL encontrada na descrição HTML:', logoUrl);
         if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
             // Se não temos logo do IconStyle, usar da descrição
             if (!radioData.logoUrlFromKMZ) {
                 radioData.logoUrlFromKMZ = logoUrl;
                 console.log('✅ Logo extraída da descrição HTML:', logoUrl);
-                // Atualizar header assim que a logo for extraída
-                updateHeader();
+                // Atualizar header IMEDIATAMENTE com a logo
+                updateHeaderLogo();
+            } else {
+                console.log('ℹ️ Logo do IconStyle já existe, mantendo:', radioData.logoUrlFromKMZ);
             }
         }
+    } else {
+        console.log('⚠️ Nenhuma tag <img> encontrada na descrição');
     }
     
     // Método 1: Tentar extrair de tabela HTML
@@ -976,11 +1002,10 @@ function convertGoogleDriveUrl(url) {
     return `https://drive.google.com/uc?export=download&id=${fileId}`;
 }
 
-// ATUALIZAR HEADER (SIMPLIFICADO - LOGO APENAS DO KMZ)
-function updateHeader() {
+// ATUALIZAR HEADER BÁSICO (SEM LOGO)
+function updateHeaderBasic() {
     const radioName = document.getElementById('radio-name');
     const radioInfo = document.getElementById('radio-info');
-    const headerLogo = document.getElementById('header-logo');
     
     if (radioName) {
         radioName.textContent = radioData.name || 'Rádio';
@@ -989,6 +1014,41 @@ function updateHeader() {
     if (radioInfo) {
         radioInfo.textContent = `${radioData.dial || ''} • ${radioData.praca || ''} - ${radioData.uf || ''}`;
     }
+    
+    console.log('✅ Header básico atualizado');
+}
+
+// ATUALIZAR APENAS A LOGO DO HEADER
+function updateHeaderLogo() {
+    const headerLogo = document.getElementById('header-logo');
+    
+    if (headerLogo && radioData.logoUrlFromKMZ) {
+        console.log('🖼️ Atualizando logo no header:', radioData.logoUrlFromKMZ);
+        
+        headerLogo.src = radioData.logoUrlFromKMZ;
+        headerLogo.style.display = 'block';
+        
+        // Adicionar tratamento de erro para CORS
+        headerLogo.onerror = function() {
+            console.warn('⚠️ Erro ao carregar logo (possível CORS):', radioData.logoUrlFromKMZ);
+            this.style.display = 'none';
+        };
+        
+        headerLogo.onload = function() {
+            console.log('✅ Logo carregada com sucesso no header!');
+        };
+        
+        console.log('✅ Logo do header configurada');
+    } else {
+        console.log('ℹ️ Nenhuma logo disponível para o header');
+    }
+}
+
+// ATUALIZAR HEADER COMPLETO (FALLBACK)
+function updateHeader() {
+    updateHeaderBasic();
+    
+    const headerLogo = document.getElementById('header-logo');
     
     // 🖼️ LOGO: KMZ → Campo Imagem → Ocultar
     if (headerLogo) {
