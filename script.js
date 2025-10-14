@@ -72,8 +72,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // 🖼️ ATUALIZAR LOGO NO FINAL (GARANTIR QUE DOM ESTÁ PRONTO)
         setTimeout(() => {
-            updateHeaderLogoFinal();
-        }, 1000);
+            updateHeaderLogoFinal(0);
+        }, 2000);
         
         hideLoading();
     } catch (error) {
@@ -269,6 +269,8 @@ async function parseKMZContent(kmlText, zip) {
             if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
                 radioData.logoUrlFromKMZ = logoUrl;
                 console.log('✅ Logo extraída do IconStyle KMZ:', logoUrl);
+                // 🚀 FORÇAR ATUALIZAÇÃO IMEDIATA DO HEADER
+                forceUpdateHeaderLogo();
             }
         }
         
@@ -328,6 +330,8 @@ function parseAntennaData(htmlDescription) {
             if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
                 radioData.logoUrlFromKMZ = logoUrl;
                 console.log('✅ Logo extraída da descrição HTML:', logoUrl);
+                // 🚀 FORÇAR ATUALIZAÇÃO IMEDIATA DO HEADER
+                forceUpdateHeaderLogo();
             }
         }
     }
@@ -999,7 +1003,7 @@ function convertGoogleDriveUrl(url) {
 }
 
 // =========================================================================
-// 🖼️ FUNÇÕES DE ATUALIZAÇÃO DO HEADER - CORRIGIDAS
+// 🖼️ FUNÇÕES DE ATUALIZAÇÃO DO HEADER - CORRIGIDAS COM RETRY
 // =========================================================================
 
 // ATUALIZAR HEADER BÁSICO (SEM LOGO)
@@ -1018,14 +1022,48 @@ function updateHeaderBasic() {
     console.log('✅ Header básico atualizado');
 }
 
-// 🖼️ ATUALIZAR LOGO NO HEADER - FUNÇÃO PRINCIPAL CORRIGIDA
-function updateHeaderLogoFinal() {
+// 🖼️ ATUALIZAR LOGO NO HEADER - FUNÇÃO PRINCIPAL COM RETRY
+function updateHeaderLogoFinal(retryCount = 0) {
+    const maxRetries = 5;
+    
+    console.log(`🔍 Tentativa ${retryCount + 1}/${maxRetries + 1} de encontrar header-logo...`);
+    
     const headerLogo = document.getElementById('header-logo');
     
     if (!headerLogo) {
-        console.warn('⚠️ Elemento header-logo não encontrado');
-        return;
+        if (retryCount < maxRetries) {
+            console.warn(`⚠️ Elemento header-logo não encontrado, tentando novamente em 500ms... (${retryCount + 1}/${maxRetries + 1})`);
+            setTimeout(() => {
+                updateHeaderLogoFinal(retryCount + 1);
+            }, 500);
+            return;
+        } else {
+            console.error('❌ Elemento header-logo não foi encontrado após 5 tentativas!');
+            
+            // 🛠️ TENTAR CRIAR O ELEMENTO SE NÃO EXISTIR
+            const radioNameElement = document.getElementById('radio-name');
+            if (radioNameElement) {
+                console.log('🛠️ Tentando criar elemento header-logo...');
+                const logoImg = document.createElement('img');
+                logoImg.id = 'header-logo';
+                logoImg.className = 'header-logo';
+                logoImg.style.display = 'none';
+                logoImg.alt = 'Logo';
+                radioNameElement.appendChild(logoImg);
+                
+                // Tentar novamente após criar
+                setTimeout(() => {
+                    updateHeaderLogoFinal(0);
+                }, 200);
+                return;
+            } else {
+                console.error('❌ Nem radio-name nem header-logo foram encontrados!');
+                return;
+            }
+        }
     }
+    
+    console.log('✅ Elemento header-logo encontrado!');
     
     // 🎯 PRIORIDADE: KMZ → NOTION ICON → CAMPO IMAGEM → OCULTAR
     let logoUrl = null;
@@ -1050,6 +1088,8 @@ function updateHeaderLogoFinal() {
     });
     
     if (logoUrl) {
+        console.log(`🎯 Configurando logo do ${source} no header:`, logoUrl);
+        
         headerLogo.src = logoUrl;
         headerLogo.style.display = 'block';
         
@@ -1063,14 +1103,16 @@ function updateHeaderLogoFinal() {
             
             // Tentar próxima opção se falhar
             if (source === 'KMZ' && radioData.notionIconUrl) {
+                console.log('🔄 Tentando Notion Icon como fallback...');
                 setTimeout(() => {
                     radioData.logoUrlFromKMZ = null; // Marcar como falha
-                    updateHeaderLogoFinal(); // Tentar novamente
+                    updateHeaderLogoFinal(0); // Tentar novamente
                 }, 100);
             } else if (source === 'Notion Icon' && radioData.imageUrl) {
+                console.log('🔄 Tentando Campo Imagem como fallback...');
                 setTimeout(() => {
                     radioData.notionIconUrl = null; // Marcar como falha
-                    updateHeaderLogoFinal(); // Tentar novamente
+                    updateHeaderLogoFinal(0); // Tentar novamente
                 }, 100);
             }
         };
@@ -1082,16 +1124,26 @@ function updateHeaderLogoFinal() {
     }
 }
 
+// 🚀 FORÇAR ATUALIZAÇÃO DA LOGO QUANDO DETECTADA NO KMZ
+function forceUpdateHeaderLogo() {
+    console.log('🚀 FORÇANDO atualização da logo no header...');
+    
+    // Aguardar um pouco para garantir que o DOM está pronto
+    setTimeout(() => {
+        updateHeaderLogoFinal(0);
+    }, 200);
+}
+
 // ATUALIZAR APENAS A LOGO DO HEADER (LEGACY - COMPATIBILIDADE)
 function updateHeaderLogo() {
     // Chamar a função principal
-    updateHeaderLogoFinal();
+    updateHeaderLogoFinal(0);
 }
 
 // ATUALIZAR HEADER COMPLETO (LEGACY - COMPATIBILIDADE)
 function updateHeader() {
     updateHeaderBasic();
-    updateHeaderLogoFinal();
+    updateHeaderLogoFinal(0);
 }
 
 function updateCoverageInfo() {
