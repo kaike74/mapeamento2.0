@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         console.log('🚀 Iniciando Mapeamento 2.0...');
         await loadRadioData();
-        await processFiles();
+        await processFiles(); // Logo será extraída do KMZ automaticamente
         initializeMap();
         renderCities();
         setupSearch();
@@ -52,10 +52,7 @@ async function loadRadioData() {
     radioData = await response.json();
     console.log('✅ Dados carregados:', radioData);
     
-    // Processar ícone do Notion se disponível
-    processNotionIcon();
-    
-    // Atualizar header
+    // Atualizar header (logo virá do KMZ)
     updateHeader();
 }
 
@@ -933,7 +930,7 @@ function convertGoogleDriveUrl(url) {
     return `https://drive.google.com/uc?export=download&id=${fileId}`;
 }
 
-// ATUALIZAR HEADER (CORRIGIDO COM LOGO DO KMZ)
+// ATUALIZAR HEADER (SIMPLIFICADO - LOGO APENAS DO KMZ)
 function updateHeader() {
     const radioName = document.getElementById('radio-name');
     const radioInfo = document.getElementById('radio-info');
@@ -947,32 +944,22 @@ function updateHeader() {
         radioInfo.textContent = `${radioData.dial || ''} • ${radioData.praca || ''} - ${radioData.uf || ''}`;
     }
     
-    // 🖼️ HIERARQUIA DE LOGO CORRIGIDA: KMZ → Notion → Campo Imagem
+    // 🖼️ LOGO: KMZ → Campo Imagem → Ocultar
     if (headerLogo) {
         if (radioData.logoUrlFromKMZ) {
             // Prioridade 1: Logo do KMZ
             headerLogo.src = radioData.logoUrlFromKMZ;
             headerLogo.style.display = 'block';
             console.log('✅ Logo do KMZ carregada no header');
-        } else if (radioData.notionIcon) {
-            // Prioridade 2: Ícone do Notion
-            headerLogo.src = radioData.notionIcon;
-            headerLogo.style.display = 'block';
-            console.log('✅ Logo do Notion carregada no header');
         } else if (radioData.imageUrl && !radioData.imageUrl.includes('via.placeholder.com')) {
-            // Prioridade 3: Campo Imagem
+            // Prioridade 2: Campo Imagem
             headerLogo.src = radioData.imageUrl;
             headerLogo.style.display = 'block';
             console.log('✅ Logo do campo Imagem carregada no header');
-        } else if (radioData.notionEmoji) {
-            // Prioridade 4: Emoji do Notion
+        } else {
+            // Sem logo disponível
             headerLogo.style.display = 'none';
-            const emojiDiv = document.createElement('div');
-            emojiDiv.innerHTML = radioData.notionEmoji;
-            emojiDiv.style.fontSize = '60px';
-            emojiDiv.className = 'header-emoji';
-            radioName.appendChild(emojiDiv);
-            console.log('✅ Emoji do Notion usado no header');
+            console.log('ℹ️ Nenhuma logo disponível');
         }
     }
 }
