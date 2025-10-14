@@ -1,5 +1,5 @@
 /* =============================================================================
-    🎨 IDENTIDADE VISUAL E-MÍDIAS - MAPEAMENTO 2.0
+    🎨 IDENTIDADE VISUAL E-MÍDIAS - MAPEAMENTO 2.0 - CORRIGIDO
     ============================================================================= */
 
 :root {
@@ -164,6 +164,7 @@ body {
     box-shadow: var(--shadow-md);
     border-left: 4px solid var(--emidias-primary);
     transition: all 0.3s ease;
+    position: relative;
 }
 
 .info-card::before {
@@ -223,7 +224,7 @@ body {
 }
 
 /* =============================================================================
-    🗺️ MAPA E LEGENDA
+    🗺️ MAPA E LEGENDA - CORRIGIDO COM CONTROLES
     ============================================================================= */
 .map-container {
     background: var(--emidias-white);
@@ -241,6 +242,62 @@ body {
     min-height: 600px;
     position: relative;
     z-index: 1;
+}
+
+/* 🗺️ CONTROLE DE LAYERS PERSONALIZADO - NOVO */
+.leaflet-control-layers {
+    background: var(--emidias-white) !important;
+    border: 2px solid var(--emidias-primary) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--shadow-lg) !important;
+    font-family: var(--font-primary) !important;
+}
+
+.leaflet-control-layers-toggle {
+    background-image: none !important;
+    background-color: var(--emidias-primary) !important;
+    border-radius: 8px !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 16px !important;
+    width: 40px !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.leaflet-control-layers-toggle::before {
+    content: '🗺️' !important;
+    color: white !important;
+    font-size: 18px !important;
+}
+
+.leaflet-control-layers-expanded {
+    padding: 16px !important;
+    min-width: 160px !important;
+}
+
+.leaflet-control-layers-base label {
+    font-size: 14px !important;
+    font-weight: var(--font-weight-medium) !important;
+    color: var(--emidias-dark) !important;
+    margin-bottom: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    padding: 6px 0 !important;
+    border-bottom: 1px solid var(--emidias-light-gray) !important;
+}
+
+.leaflet-control-layers-base label:last-child {
+    border-bottom: none !important;
+}
+
+.leaflet-control-layers-base input[type="radio"] {
+    accent-color: var(--emidias-primary) !important;
+    margin-right: 8px !important;
 }
 
 /* Legenda de cores */
@@ -285,7 +342,7 @@ body {
 }
 
 /* =============================================================================
-    🏙️ LISTA DE CIDADES
+    🏙️ LISTA DE CIDADES - CORRIGIDA
     ============================================================================= */
 .cidades-container {
     background: var(--emidias-white);
@@ -294,6 +351,7 @@ body {
     margin-bottom: 24px;
     border: 1px solid var(--emidias-light-gray);
     overflow: hidden;
+    position: relative;
 }
 
 .cidades-container::before {
@@ -435,29 +493,41 @@ body {
     flex-wrap: wrap;
 }
 
+/* 🎨 BADGES DE QUALIDADE CORRIGIDOS */
 .cidade-badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 16px;
+    font-size: 12px;
     font-weight: var(--font-weight-bold);
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
 }
 
 .badge-excelente {
-    background: rgba(0, 255, 0, 0.2);
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.15) 0%, rgba(0, 200, 0, 0.25) 100%);
     color: #006400;
+    border-color: rgba(0, 255, 0, 0.3);
 }
 
 .badge-otimo {
-    background: rgba(0, 255, 255, 0.2);
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.15) 0%, rgba(0, 200, 200, 0.25) 100%);
     color: #008B8B;
+    border-color: rgba(0, 255, 255, 0.3);
 }
 
 .badge-fraco {
-    background: rgba(0, 0, 255, 0.2);
+    background: linear-gradient(135deg, rgba(0, 0, 255, 0.15) 0%, rgba(0, 0, 200, 0.25) 100%);
     color: #00008B;
+    border-color: rgba(0, 0, 255, 0.3);
+}
+
+.badge-desconhecido {
+    background: linear-gradient(135deg, rgba(128, 128, 128, 0.15) 0%, rgba(100, 100, 100, 0.25) 100%);
+    color: #555555;
+    border-color: rgba(128, 128, 128, 0.3);
 }
 
 .cidade-stats {
@@ -556,10 +626,16 @@ body {
         flex-direction: column;
         align-items: stretch;
     }
+    
+    /* Controle de layers em mobile */
+    .leaflet-control-layers-expanded {
+        min-width: 140px !important;
+        font-size: 13px !important;
+    }
 }
 
 /* =============================================================================
-    🗺️ CUSTOMIZAÇÕES LEAFLET
+    🗺️ CUSTOMIZAÇÕES LEAFLET - CORRIGIDAS
     ============================================================================= */
 .leaflet-popup-content-wrapper {
     border-radius: 12px;
@@ -572,7 +648,33 @@ body {
     border: none !important;
 }
 
-.antenna-marker {
+.antenna-marker, .antenna-marker-logo {
     background: transparent !important;
     border: none !important;
+}
+
+/* Personalização do controle de zoom */
+.leaflet-control-zoom {
+    border: none !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.leaflet-control-zoom a {
+    background: var(--emidias-white) !important;
+    border: 1px solid var(--emidias-primary) !important;
+    color: var(--emidias-primary) !important;
+    font-size: 16px !important;
+    font-weight: bold !important;
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 34px !important;
+    border-radius: 8px !important;
+    margin: 2px !important;
+    transition: all 0.3s ease !important;
+}
+
+.leaflet-control-zoom a:hover {
+    background: var(--emidias-primary) !important;
+    color: var(--emidias-white) !important;
+    transform: scale(1.05) !important;
 }
