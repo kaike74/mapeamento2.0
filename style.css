@@ -629,7 +629,7 @@ body {
     
     /* Controle de layers em mobile */
     .leaflet-control-layers-expanded {
-        min-width: 140px !important;
+        min-width: 120px !important;
         font-size: 13px !important;
     }
 }
@@ -677,4 +677,21 @@ body {
     background: var(--emidias-primary) !important;
     color: var(--emidias-white) !important;
     transform: scale(1.05) !important;
+}
+
+/* 🗺️ TOOLTIP DOS ESTADOS */
+.state-tooltip {
+    background: rgba(6, 5, 91, 0.9) !important;
+    color: var(--emidias-white) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 6px 12px !important;
+    font-family: var(--font-primary) !important;
+    font-size: 12px !important;
+    font-weight: var(--font-weight-semibold) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.state-tooltip::before {
+    border-top-color: rgba(6, 5, 91, 0.9) !important;
 }
