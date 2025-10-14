@@ -41,6 +41,7 @@ async function loadRadioData() {
     
     console.log('📡 Buscando dados do Notion:', notionId);
     
+    // CORREÇÃO: URL correta da API
     const response = await fetch(`/api/radio-data?id=${notionId}`);
     
     if (!response.ok) {
@@ -177,7 +178,7 @@ async function parseKMZContent(kmlText, zip) {
         if (coordinates) {
             const [lng, lat] = coordinates.trim().split(',').map(parseFloat);
             radioData.antennaLocation = { lat, lng };
-            console.log('📍 Localização da antena:', radioData.antennaLocation);
+            console.log('�� Localização da antena:', radioData.antennaLocation);
         }
     }
 }
@@ -333,7 +334,7 @@ function getSignalQuality(styleUrl) {
 // 🗺️ INICIALIZAR MAPA
 // =========================================================================
 function initializeMap() {
-    console.log('🗺️ Inicializando mapa...');
+    console.log('��️ Inicializando mapa...');
     
     const center = radioData.antennaLocation || { lat: -15.7942, lng: -47.8822 };
     
@@ -537,7 +538,7 @@ function updateCitiesList() {
                 <div class="cidade-details">
                     <span>👥 ${(city.totalPopulation || 0).toLocaleString()} hab.</span>
                     <span>✅ ${(city.coveredPopulation || 0).toLocaleString()} cobertos ${city.coveragePercent ? `(${city.coveragePercent})` : ''}</span>
-                    ${city.quality ? `<span class="cidade-badge badge-${city.quality}">📶 ${city.quality.toUpperCase()}</span>` : ''}
+                    ${city.quality ? `<span class="cidade-badge badge-${city.quality}">�� ${city.quality.toUpperCase()}</span>` : ''}
                 </div>
             </div>
             <div class="cidade-stats">
