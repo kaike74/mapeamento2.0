@@ -186,7 +186,7 @@ async function processKMZ(driveUrl) {
 }
 
 // =========================================================================
-// 🔍 PROCESSAR CONTEÚDO DO KMZ (KML INTERNO + IMAGENS)
+// 🔍 PROCESSAR CONTEÚDO DO KMZ (KML INTERNO + IMAGENS) - CORRIGIDO
 // =========================================================================
 async function parseKMZContent(kmlText, zip) {
     const parser = new DOMParser();
@@ -238,11 +238,6 @@ async function parseKMZContent(kmlText, zip) {
         }
     }
     
-    // Extrair dados da antena (Placemark)
-    const placemark = xmlDoc.querySelector('Placemark');
-    if (placemark) {
-        console.log('📡 Processando dados da antena...');
-        
     // Extrair dados da antena (Placemark)
     const placemark = xmlDoc.querySelector('Placemark');
     if (placemark) {
