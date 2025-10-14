@@ -1,5 +1,5 @@
 // =========================================================================
-// 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO FINAL CORRIGIDA
+// 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO CORRIGIDA COMPLETA
 // =========================================================================
 
 let map;
@@ -9,6 +9,7 @@ let filteredCities = [];
 let coverageImageLayer = null;
 let legendImage = null;
 let cityMarkers = [];
+let baseLayers = {}; // Para controle de layers
 
 // =========================================================================
 // 🎯 INICIALIZAÇÃO
@@ -71,7 +72,7 @@ function processNotionIcon() {
             radioData.notionEmoji = radioData.icon.emoji;
             console.log('✅ Emoji do Notion processado:', radioData.notionEmoji);
         } else if (radioData.icon.type === 'external' && radioData.icon.url) {
-            radioData.notionIcon = radioData.icon.url;
+            radioData.notionIcon = radioData.icon.external.url;
             console.log('✅ Ícone externo do Notion processado:', radioData.notionIcon);
         }
     }
@@ -203,6 +204,16 @@ async function parseKMZContent(kmlText, zip) {
             parseAntennaData(description);
         }
         
+        // 🖼️ EXTRAIR LOGO DO ICONSTYLE (IMPLEMENTAÇÃO NOVA)
+        const iconStyle = placemark.querySelector('Style IconStyle Icon href');
+        if (iconStyle) {
+            const logoUrl = iconStyle.textContent.trim();
+            if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
+                radioData.logoUrlFromKMZ = logoUrl;
+                console.log('✅ Logo extraída do IconStyle KMZ:', logoUrl);
+            }
+        }
+        
         // Coordenadas da antena
         const coordinates = placemark.querySelector('Point coordinates')?.textContent;
         if (coordinates) {
@@ -229,7 +240,7 @@ async function parseKMZContent(kmlText, zip) {
 }
 
 // =========================================================================
-// 📊 EXTRAIR DADOS TÉCNICOS DA ANTENA (SIMPLIFICADO)
+// 📊 EXTRAIR DADOS TÉCNICOS DA ANTENA (CORRIGIDO COM LOGO)
 // =========================================================================
 function parseAntennaData(htmlDescription) {
     console.log('📊 Extraindo dados técnicos...');
@@ -238,6 +249,19 @@ function parseAntennaData(htmlDescription) {
     const doc = parser.parseFromString(htmlDescription, 'text/html');
     
     const data = {};
+    
+    // 🖼️ EXTRAIR LOGO DA DESCRIÇÃO HTML (IMPLEMENTAÇÃO NOVA)
+    const imgTag = doc.querySelector('img');
+    if (imgTag) {
+        const logoUrl = imgTag.getAttribute('src');
+        if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
+            // Se não temos logo do IconStyle, usar da descrição
+            if (!radioData.logoUrlFromKMZ) {
+                radioData.logoUrlFromKMZ = logoUrl;
+            }
+            console.log('✅ Logo extraída da descrição HTML:', logoUrl);
+        }
+    }
     
     // Método 1: Tentar extrair de tabela HTML
     const rows = doc.querySelectorAll('tr');
@@ -358,11 +382,17 @@ async function parseKMLCities(kmlText) {
                 }
             }
             
-            cityData.name = name;
+            // EXTRAIR UF DO NOME DA CIDADE (CORRIGIDO)
+            const nameParts = name.split(' - ');
+            cityData.name = nameParts[0] || name;
+            cityData.uf = nameParts[1] || radioData.uf || ''; // Fallback para UF da rádio
+            cityData.fullName = name; // Nome completo para buscas
             cityData.coordinates = { lat, lng };
             cityData.quality = getSignalQuality(styleUrl);
             
             console.log(`📊 Dados de ${name}:`, {
+                name: cityData.name,
+                uf: cityData.uf,
                 totalPop: cityData.totalPopulation,
                 coveredPop: cityData.coveredPopulation,
                 quality: cityData.quality
@@ -379,12 +409,36 @@ async function parseKMLCities(kmlText) {
     radioData.coveredPopulation = coveredPopulation;
     radioData.citiesCount = citiesData.length;
     
-    console.log(`✅ ${citiesData.length} cidades processadas`);
+    // 📊 ORDENAR CIDADES POR QUALIDADE (NOVO)
+    sortCitiesByQuality();
+    
+    console.log(`✅ ${citiesData.length} cidades processadas e ordenadas`);
     console.log(`👥 População total: ${totalPopulation.toLocaleString()}`);
     console.log(`✅ População coberta: ${coveredPopulation.toLocaleString()}`);
     
     // Atualizar UI
     updateCoverageInfo();
+}
+
+// =========================================================================
+// 📊 ORDENAR CIDADES POR QUALIDADE (IMPLEMENTAÇÃO NOVA)
+// =========================================================================
+function sortCitiesByQuality() {
+    const qualityOrder = { 'excelente': 1, 'otimo': 2, 'fraco': 3, 'desconhecido': 4 };
+    
+    citiesData.sort((a, b) => {
+        const qualityA = qualityOrder[a.quality] || 999;
+        const qualityB = qualityOrder[b.quality] || 999;
+        
+        if (qualityA !== qualityB) {
+            return qualityA - qualityB;
+        }
+        
+        // Se mesma qualidade, ordenar alfabeticamente
+        return a.name.localeCompare(b.name);
+    });
+    
+    console.log('✅ Cidades ordenadas por qualidade: Excelente → Ótimo → Fraco');
 }
 
 // =========================================================================
@@ -462,7 +516,7 @@ function parseCityDescription(htmlDescription) {
 }
 
 // =========================================================================
-// 🎨 DETERMINAR QUALIDADE DO SINAL
+// 🎨 DETERMINAR QUALIDADE DO SINAL (CORRIGIDO COM ACENTO)
 // =========================================================================
 function getSignalQuality(styleUrl) {
     if (styleUrl.includes('excelente')) return 'excelente';
@@ -471,8 +525,18 @@ function getSignalQuality(styleUrl) {
     return 'desconhecido';
 }
 
+// Função para converter qualidade para texto com acento
+function getQualityText(quality) {
+    switch (quality) {
+        case 'excelente': return 'Excelente';
+        case 'otimo': return 'Ótimo';
+        case 'fraco': return 'Fraco';
+        default: return 'Desconhecido';
+    }
+}
+
 // =========================================================================
-// 🗺️ INICIALIZAR MAPA
+// 🗺️ INICIALIZAR MAPA (CORRIGIDO COM MÚLTIPLAS CAMADAS)
 // =========================================================================
 function initializeMap() {
     console.log('🗺️ Inicializando mapa...');
@@ -483,10 +547,31 @@ function initializeMap() {
     
     map = L.map('map').setView([center.lat, center.lng], zoom);
     
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 18
-    }).addTo(map);
+    // 🗺️ DEFINIR MÚLTIPLAS CAMADAS DE MAPA (NOVO)
+    baseLayers = {
+        'Padrão': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        }),
+        'Relevo': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '© Esri',
+            maxZoom: 16
+        }),
+        'Satélite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '© Esri',
+            maxZoom: 18
+        }),
+        'Terreno': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenTopoMap',
+            maxZoom: 17
+        })
+    };
+    
+    // Adicionar camada padrão (Relevo para destacar melhor)
+    baseLayers['Relevo'].addTo(map);
+    
+    // Adicionar controle de layers
+    L.control.layers(baseLayers).addTo(map);
     
     // Aguardar um pouco para o mapa renderizar
     setTimeout(() => {
@@ -521,7 +606,7 @@ function initializeMap() {
     // Mostrar mapa
     document.getElementById('map-section').style.display = 'block';
     
-    console.log('✅ Mapa inicializado');
+    console.log('✅ Mapa inicializado com múltiplas camadas');
 }
 
 // =========================================================================
@@ -543,24 +628,56 @@ function addCoverageImage() {
 }
 
 // =========================================================================
-// 📍 ADICIONAR MARCADOR DA ANTENA
+// 📍 ADICIONAR MARCADOR DA ANTENA (CORRIGIDO COM LOGO)
 // =========================================================================
 function addAntennaMarker() {
-    const antennaIcon = L.divIcon({
-        html: `
-            <div style="
-                width: 24px;
-                height: 24px;
-                background: #FF0000;
-                border: 3px solid white;
-                border-radius: 50%;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-            "></div>
-        `,
-        className: 'antenna-marker',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
-    });
+    // 🖼️ USAR LOGO DO KMZ SE DISPONÍVEL (IMPLEMENTAÇÃO NOVA)
+    let antennaIcon;
+    
+    if (radioData.logoUrlFromKMZ) {
+        // Criar ícone personalizado com a logo
+        antennaIcon = L.divIcon({
+            html: `
+                <div style="
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                    overflow: hidden;
+                    background: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    <img src="${radioData.logoUrlFromKMZ}" 
+                         style="width: 34px; height: 34px; object-fit: cover; border-radius: 50%;"
+                         onerror="this.parentElement.innerHTML='📡'; this.parentElement.style.color='#FF0000'; this.parentElement.style.fontSize='20px';">
+                </div>
+            `,
+            className: 'antenna-marker-logo',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+        console.log('✅ Marcador da antena com logo personalizada');
+    } else {
+        // Ícone padrão vermelho
+        antennaIcon = L.divIcon({
+            html: `
+                <div style="
+                    width: 24px;
+                    height: 24px;
+                    background: #FF0000;
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                "></div>
+            `,
+            className: 'antenna-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+    }
     
     const popupContent = `
         <div style="text-align: center; font-family: var(--font-primary); min-width: 200px;">
@@ -613,11 +730,11 @@ function addCityMarkers() {
         
         const popupContent = `
             <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
-                <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name}</h4>
+                <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
                 <div style="text-align: left; font-size: 13px; color: #64748B;">
                     <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
                     <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()} ${city.coveragePercent ? `(${city.coveragePercent})` : ''}</p>
-                    ${city.qualityText ? `<p style="margin: 4px 0;"><strong>Qualidade:</strong> ${city.qualityText}</p>` : ''}
+                    <p style="margin: 4px 0;"><strong>Qualidade:</strong> ${getQualityText(city.quality)}</p>
                 </div>
             </div>
         `;
@@ -698,11 +815,11 @@ function updateCitiesList() {
     container.innerHTML = filteredCities.map(city => `
         <div class="cidade-item" onclick="highlightCity('${city.name.replace(/'/g, "\\'")}')">
             <div class="cidade-info">
-                <div class="cidade-name">${city.name}</div>
+                <div class="cidade-name">${city.name} - ${city.uf}</div>
                 <div class="cidade-details">
                     <span>👥 ${(city.totalPopulation || 0).toLocaleString()} hab.</span>
                     <span>✅ ${(city.coveredPopulation || 0).toLocaleString()} cobertos ${city.coveragePercent ? `(${city.coveragePercent})` : ''}</span>
-                    ${city.quality ? `<span class="cidade-badge badge-${city.quality}">📶 ${city.quality.toUpperCase()}</span>` : ''}
+                    <span class="cidade-badge badge-${city.quality}">📶 ${getQualityText(city.quality)}</span>
                 </div>
             </div>
         </div>
@@ -723,8 +840,10 @@ function setupSearch() {
         } else {
             filteredCities = citiesData.filter(city => {
                 return city.name.toLowerCase().includes(query) ||
-                       city.quality?.toLowerCase().includes(query) ||
-                       city.qualityText?.toLowerCase().includes(query);
+                       city.uf?.toLowerCase().includes(query) ||
+                       city.fullName?.toLowerCase().includes(query) ||
+                       getQualityText(city.quality).toLowerCase().includes(query) ||
+                       city.quality?.toLowerCase().includes(query);
             });
         }
         
@@ -758,7 +877,7 @@ function highlightCity(cityName) {
 }
 
 // =========================================================================
-// 📊 EXPORTAR PARA EXCEL
+// 📊 EXPORTAR PARA EXCEL (CORRIGIDO COM UF)
 // =========================================================================
 function exportToExcel() {
     const excelData = [
@@ -766,17 +885,13 @@ function exportToExcel() {
     ];
     
     filteredCities.forEach(city => {
-        const parts = city.name.split(' - ');
-        const cityName = parts[0] || city.name;
-        const uf = parts[1] || '';
-        
         excelData.push([
-            cityName,
-            uf,
+            city.name || '',
+            city.uf || '',
             city.totalPopulation || 0,
             city.coveredPopulation || 0,
             city.coveragePercent || '0%',
-            city.qualityText || city.quality || '-'
+            getQualityText(city.quality)
         ]);
     });
     
@@ -818,6 +933,7 @@ function convertGoogleDriveUrl(url) {
     return `https://drive.google.com/uc?export=download&id=${fileId}`;
 }
 
+// ATUALIZAR HEADER (CORRIGIDO COM LOGO DO KMZ)
 function updateHeader() {
     const radioName = document.getElementById('radio-name');
     const radioInfo = document.getElementById('radio-info');
@@ -831,23 +947,32 @@ function updateHeader() {
         radioInfo.textContent = `${radioData.dial || ''} • ${radioData.praca || ''} - ${radioData.uf || ''}`;
     }
     
-    // Tentar usar ícone do Notion primeiro, depois URL da imagem
+    // 🖼️ HIERARQUIA DE LOGO CORRIGIDA: KMZ → Notion → Campo Imagem
     if (headerLogo) {
-        if (radioData.notionIcon) {
+        if (radioData.logoUrlFromKMZ) {
+            // Prioridade 1: Logo do KMZ
+            headerLogo.src = radioData.logoUrlFromKMZ;
+            headerLogo.style.display = 'block';
+            console.log('✅ Logo do KMZ carregada no header');
+        } else if (radioData.notionIcon) {
+            // Prioridade 2: Ícone do Notion
             headerLogo.src = radioData.notionIcon;
             headerLogo.style.display = 'block';
-            console.log('✅ Logo do Notion carregada');
+            console.log('✅ Logo do Notion carregada no header');
         } else if (radioData.imageUrl && !radioData.imageUrl.includes('via.placeholder.com')) {
+            // Prioridade 3: Campo Imagem
             headerLogo.src = radioData.imageUrl;
             headerLogo.style.display = 'block';
+            console.log('✅ Logo do campo Imagem carregada no header');
         } else if (radioData.notionEmoji) {
-            // Se há emoji, criar um div com o emoji
+            // Prioridade 4: Emoji do Notion
             headerLogo.style.display = 'none';
             const emojiDiv = document.createElement('div');
             emojiDiv.innerHTML = radioData.notionEmoji;
             emojiDiv.style.fontSize = '60px';
             emojiDiv.className = 'header-emoji';
             radioName.appendChild(emojiDiv);
+            console.log('✅ Emoji do Notion usado no header');
         }
     }
 }
