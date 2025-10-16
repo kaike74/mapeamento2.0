@@ -110,11 +110,28 @@
                         <span>Fraco</span>
                     </div>
                 </div>
+                
+                <!-- 🆕 PAINEL DE CONTROLE DE RÁDIOS (MODO PROPOSTA) -->
+                <div class="radios-control-panel" id="radios-control-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h4>📻 Controle de Rádios</h4>
+                        <button class="panel-toggle" onclick="toggleRadiosPanel()">📐</button>
+                    </div>
+                    <div class="panel-content" id="radios-panel-content">
+                        <div class="panel-actions">
+                            <button class="panel-btn" onclick="showAllCoverages()">🌍 Mostrar Todas</button>
+                            <button class="panel-btn" onclick="hideAllCoverages()">👁️ Ocultar Todas</button>
+                        </div>
+                        <div class="radios-list-panel" id="radios-list-panel">
+                            <!-- Lista de rádios será preenchida dinamicamente -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- CIDADES -->
+    <!-- CIDADES OU RÁDIOS -->
     <div id="cidades-section" class="cidades-container" style="display: none;">
       <div class="cidades-header">
         <h2 class="cidades-title">
@@ -133,9 +150,22 @@
       <div class="cidades-list" id="cidades-list"></div>
     </div>
 
+    <!-- 🆕 ESTATÍSTICAS CONSOLIDADAS (MODO PROPOSTA) -->
+    <div id="stats-section" class="stats-container" style="display: none;">
+      <div class="stats-header">
+        <h2 class="stats-title">
+          📊 Estatísticas Consolidadas
+        </h2>
+      </div>
+      <div class="stats-grid" id="stats-grid">
+        <!-- Estatísticas serão preenchidas dinamicamente -->
+      </div>
+    </div>
+
     <!-- RODAPÉ -->
     <div class="footer">
       <p class="footer-text">Plataforma de Mapeamento de Cobertura 2.0 • E-MÍDIAS</p>
+      <p class="footer-mode" id="footer-mode"></p>
     </div>
   </div>
 
@@ -146,5 +176,107 @@
 
   <!-- Script do projeto -->
   <script src="script.js"></script>
+
+  <!-- 🆕 SCRIPT ADICIONAL PARA CONTROLES DA PROPOSTA -->
+  <script>
+    // =========================================================================
+    // 🎛️ CONTROLES DO PAINEL DE RÁDIOS (MODO PROPOSTA)
+    // =========================================================================
+    
+    function toggleRadiosPanel() {
+      const panel = document.getElementById('radios-panel-content');
+      const isVisible = panel.style.display !== 'none';
+      panel.style.display = isVisible ? 'none' : 'block';
+    }
+    
+    function showAllCoverages() {
+      if (typeof radiosLayers !== 'undefined') {
+        Object.values(radiosLayers).forEach(layer => {
+          if (map.hasLayer(layer)) {
+            layer.setOpacity(0.6);
+          } else {
+            layer.addTo(map);
+            layer.setOpacity(0.6);
+          }
+        });
+        console.log('✅ Todas as coberturas mostradas');
+      }
+    }
+    
+    function hideAllCoverages() {
+      if (typeof radiosLayers !== 'undefined') {
+        Object.values(radiosLayers).forEach(layer => {
+          if (map.hasLayer(layer)) {
+            map.removeLayer(layer);
+          }
+        });
+        console.log('👁️ Todas as coberturas ocultadas');
+      }
+    }
+    
+    function toggleRadioCoverage(radioId) {
+      if (typeof radiosLayers !== 'undefined' && radiosLayers[radioId]) {
+        const layer = radiosLayers[radioId];
+        const checkbox = document.getElementById(`radio-${radioId}`);
+        
+        if (map.hasLayer(layer)) {
+          map.removeLayer(layer);
+          checkbox.checked = false;
+          console.log(`👁️ Cobertura de ${radioId} ocultada`);
+        } else {
+          layer.addTo(map);
+          checkbox.checked = true;
+          console.log(`✅ Cobertura de ${radioId} mostrada`);
+        }
+      }
+    }
+    
+    function focusOnRadio(radioId) {
+      if (typeof propostaData !== 'undefined') {
+        const radio = propostaData.radios.find(r => r.id === radioId);
+        if (radio && radio.antennaLocation) {
+          map.flyTo([radio.antennaLocation.lat, radio.antennaLocation.lng], 10, {
+            animate: true,
+            duration: 1.5
+          });
+          
+          // Destacar cobertura temporariamente
+          if (radiosLayers[radioId]) {
+            const layer = radiosLayers[radioId];
+            const originalOpacity = layer.options.opacity || 0.6;
+            layer.setOpacity(0.9);
+            setTimeout(() => layer.setOpacity(originalOpacity), 2000);
+          }
+        }
+      }
+    }
+    
+    // =========================================================================
+    // 🔄 DETECTAR MODO E CONFIGURAR INTERFACE
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const isPropostaMode = params.has('idproposta');
+      
+      // Atualizar rodapé com modo atual
+      const footerMode = document.getElementById('footer-mode');
+      if (footerMode) {
+        footerMode.textContent = isPropostaMode ? 
+          '🌟 Modo Proposta - Múltiplas Rádios' : 
+          '📻 Modo Individual - Rádio Única';
+      }
+      
+      // Configurar interface baseada no modo
+      if (isPropostaMode) {
+        // Mostrar painel de controle de rádios
+        setTimeout(() => {
+          const panel = document.getElementById('radios-control-panel');
+          if (panel) {
+            panel.style.display = 'block';
+          }
+        }, 3000);
+      }
+    });
+  </script>
 </body>
 </html>
