@@ -323,18 +323,18 @@ body {
     margin: 8px 0 !important;
 }
 
-/* 🆕 PAINEL DE CONTROLE DE RÁDIOS (MODO PROPOSTA) - POSICIONAMENTO MELHORADO */
+/* 🆕 PAINEL DE CONTROLE DE RÁDIOS (MODO PROPOSTA) - LAYOUT MELHORADO */
 .radios-control-panel {
     position: absolute;
     top: 20px;
-    left: 60px; /* Mover para direita dos controles de zoom */
+    left: 20px;
     background: var(--emidias-white);
     border-radius: 12px;
     box-shadow: var(--shadow-lg);
     z-index: 1000;
     border: 2px solid var(--emidias-primary);
-    max-width: 300px;
-    max-height: 450px;
+    max-width: 280px;
+    max-height: 400px;
     overflow: hidden;
 }
 
@@ -365,8 +365,8 @@ body {
 }
 
 .panel-content {
-    padding: 16px;
-    max-height: 420px;
+    padding: 12px;
+    max-height: 320px;
     overflow-y: auto;
 }
 
@@ -890,13 +890,14 @@ body {
     
     .radios-control-panel {
         top: 20px;
-        left: 50px; /* Ajustado para mobile */
-        max-width: 260px;
-        max-height: 320px;
+        left: 10px;
+        max-width: 240px;
+        max-height: 300px;
     }
     
     .panel-content {
-        max-height: 280px;
+        max-height: 220px;
+        padding: 10px;
     }
     
     .cidades-header {
@@ -932,15 +933,13 @@ body {
     }
     
     .radios-control-panel {
-        max-width: 220px;
-        max-height: 280px;
-        top: 15px;
-        left: 45px;
+        max-width: 240px;
+        max-height: 300px;
     }
     
     .panel-content {
-        padding: 10px;
-        max-height: 200px;
+        padding: 12px;
+        max-height: 220px;
     }
 }
 
@@ -989,5 +988,5 @@ body {
     transform: scale(1.05) !important;
 }
 
-/* 🗺️ TOOLTIP DOS ESTADOS - REMOVIDO */
-/* Tooltips dos estados foram removidos conforme solicitado */
+/* 🗺️ ESTADOS SEM INTERAÇÃO - REMOVIDO TOOLTIP */
+/* Tooltips dos estados foram removidos */
