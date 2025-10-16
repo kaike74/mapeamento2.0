@@ -1,5 +1,5 @@
 /* =============================================================================
-    🎨 IDENTIDADE VISUAL E-MÍDIAS - MAPEAMENTO 2.0 - HEADER MELHORADO
+    🎨 IDENTIDADE VISUAL E-MÍDIAS - MAPEAMENTO 2.0 - VERSÃO PROPOSTA
     ============================================================================= */
 
 :root {
@@ -133,7 +133,6 @@ body {
     height: 64px;
     object-fit: cover;
     border-radius: 50%;
-    /* Removido: border-radius: 12px; box-shadow */
     border: 3px solid var(--emidias-primary);
     transition: all 0.3s ease;
     background: var(--emidias-white);
@@ -253,13 +252,14 @@ body {
     z-index: 1;
 }
 
-/* 🗺️ CONTROLE DE LAYERS PERSONALIZADO - NOVO */
+/* 🗺️ CONTROLE DE LAYERS PERSONALIZADO */
 .leaflet-control-layers {
     background: var(--emidias-white) !important;
     border: 2px solid var(--emidias-primary) !important;
     border-radius: 12px !important;
     box-shadow: var(--shadow-lg) !important;
     font-family: var(--font-primary) !important;
+    max-width: 300px !important;
 }
 
 .leaflet-control-layers-toggle {
@@ -285,28 +285,176 @@ body {
 .leaflet-control-layers-expanded {
     padding: 16px !important;
     min-width: 160px !important;
+    max-height: 400px !important;
+    overflow-y: auto !important;
 }
 
-.leaflet-control-layers-base label {
-    font-size: 14px !important;
+.leaflet-control-layers-base label,
+.leaflet-control-layers-overlays label {
+    font-size: 13px !important;
     font-weight: var(--font-weight-medium) !important;
     color: var(--emidias-dark) !important;
-    margin-bottom: 8px !important;
+    margin-bottom: 6px !important;
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
     cursor: pointer !important;
-    padding: 6px 0 !important;
+    padding: 4px 0 !important;
     border-bottom: 1px solid var(--emidias-light-gray) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 }
 
-.leaflet-control-layers-base label:last-child {
+.leaflet-control-layers-base label:last-child,
+.leaflet-control-layers-overlays label:last-child {
     border-bottom: none !important;
 }
 
-.leaflet-control-layers-base input[type="radio"] {
+.leaflet-control-layers-base input[type="radio"],
+.leaflet-control-layers-overlays input[type="checkbox"] {
     accent-color: var(--emidias-primary) !important;
-    margin-right: 8px !important;
+    margin-right: 6px !important;
+}
+
+.leaflet-control-layers-separator {
+    height: 1px !important;
+    background: var(--emidias-primary) !important;
+    margin: 8px 0 !important;
+}
+
+/* 🆕 PAINEL DE CONTROLE DE RÁDIOS (MODO PROPOSTA) */
+.radios-control-panel {
+    position: absolute;
+    top: 80px;
+    left: 20px;
+    background: var(--emidias-white);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    border: 2px solid var(--emidias-primary);
+    max-width: 320px;
+    max-height: 500px;
+    overflow: hidden;
+}
+
+.panel-header {
+    background: var(--gradient-primary);
+    color: var(--emidias-white);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: var(--font-weight-bold);
+    font-size: 14px;
+}
+
+.panel-toggle {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: var(--emidias-white);
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.panel-toggle:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.panel-content {
+    padding: 16px;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.panel-btn {
+    flex: 1;
+    background: var(--gradient-accent);
+    color: var(--emidias-white);
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.panel-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(252, 30, 117, 0.3);
+}
+
+.radios-list-panel {
+    border-top: 1px solid var(--emidias-light-gray);
+    padding-top: 12px;
+}
+
+.radio-item-panel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--emidias-light-gray);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.radio-item-panel:hover {
+    background: rgba(6, 5, 91, 0.02);
+    border-radius: 6px;
+    padding: 8px 6px;
+}
+
+.radio-item-panel:last-child {
+    border-bottom: none;
+}
+
+.radio-checkbox {
+    accent-color: var(--emidias-primary);
+    margin-right: 4px;
+}
+
+.radio-info-panel {
+    flex: 1;
+    font-size: 12px;
+}
+
+.radio-name-panel {
+    font-weight: var(--font-weight-semibold);
+    color: var(--emidias-dark);
+    line-height: 1.2;
+    margin-bottom: 2px;
+}
+
+.radio-details-panel {
+    color: var(--emidias-gray);
+    font-size: 11px;
+}
+
+.radio-focus-btn {
+    background: var(--gradient-success);
+    color: var(--emidias-white);
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.radio-focus-btn:hover {
+    transform: scale(1.05);
 }
 
 /* Legenda de cores */
@@ -552,6 +700,90 @@ body {
 }
 
 /* =============================================================================
+    📊 ESTATÍSTICAS CONSOLIDADAS (MODO PROPOSTA)
+    ============================================================================= */
+.stats-container {
+    background: var(--emidias-white);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 24px;
+    border: 1px solid var(--emidias-light-gray);
+    overflow: hidden;
+    position: relative;
+}
+
+.stats-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: var(--gradient-accent);
+    border-radius: 16px 16px 0 0;
+    z-index: 3;
+}
+
+.stats-header {
+    padding: 20px;
+    border-bottom: 2px solid var(--emidias-light-gray);
+    background: linear-gradient(135deg, rgba(252, 30, 117, 0.02) 0%, var(--emidias-white) 100%);
+}
+
+.stats-title {
+    font-size: 20px;
+    font-weight: var(--font-weight-bold);
+    color: var(--emidias-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 20px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, rgba(6, 5, 91, 0.02) 0%, var(--emidias-white) 100%);
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--emidias-light-gray);
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--emidias-primary);
+}
+
+.stat-card-title {
+    font-size: 14px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--emidias-gray);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stat-card-value {
+    font-size: 24px;
+    font-weight: var(--font-weight-bold);
+    color: var(--emidias-primary);
+    margin-bottom: 4px;
+}
+
+.stat-card-detail {
+    font-size: 12px;
+    color: var(--emidias-gray);
+}
+
+/* =============================================================================
     ⏳ LOADING E ERROR
     ============================================================================= */
 .loading {
@@ -601,6 +833,17 @@ body {
     font-size: 14px;
     color: var(--emidias-gray);
     font-weight: var(--font-weight-medium);
+    margin-bottom: 8px;
+}
+
+.footer-mode {
+    font-size: 12px;
+    color: var(--emidias-primary);
+    font-weight: var(--font-weight-semibold);
+    background: rgba(6, 5, 91, 0.05);
+    padding: 4px 12px;
+    border-radius: 8px;
+    display: inline-block;
 }
 
 /* =============================================================================
@@ -645,15 +888,31 @@ body {
         padding: 12px;
     }
     
+    .radios-control-panel {
+        top: 60px;
+        left: 10px;
+        max-width: 280px;
+        max-height: 350px;
+    }
+    
+    .panel-content {
+        max-height: 280px;
+    }
+    
     .cidades-header {
         flex-direction: column;
         align-items: stretch;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
     }
     
     /* Controle de layers em mobile */
     .leaflet-control-layers-expanded {
         min-width: 120px !important;
         font-size: 13px !important;
+        max-width: 250px !important;
     }
 }
 
@@ -670,6 +929,16 @@ body {
     
     .header-subtitle {
         font-size: 14px;
+    }
+    
+    .radios-control-panel {
+        max-width: 240px;
+        max-height: 300px;
+    }
+    
+    .panel-content {
+        padding: 12px;
+        max-height: 220px;
     }
 }
 
