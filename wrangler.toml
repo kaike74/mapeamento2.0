@@ -11,3 +11,69 @@ name = "mapeamento-radio-2"
 # NOTION_TOKEN será configurado via dashboard do Cloudflare
 # No dashboard: Settings > Environment Variables > Production
 # Adicione: NOTION_TOKEN = seu_token_aqui
+
+# =========================================================================
+# 🆕 CONFIGURAÇÕES PARA MODO PROPOSTA
+# =========================================================================
+
+# Configurações de timeout para processamento de múltiplas rádios
+[env.production.limits]
+# Aumentar timeout para processar múltiplas rádios (padrão: 30s)
+# function_timeout = 60
+
+# =========================================================================
+# 📝 ROTAS E FUNCTIONS
+# =========================================================================
+
+# As seguintes functions estão disponíveis:
+# /api/radio-data     - Rádio individual (preservado)
+# /api/proposta-data  - Múltiplas rádios (NOVO)
+# /api/proxy          - Proxy CORS (preservado)
+
+# =========================================================================
+# 🔧 CONFIGURAÇÕES DE DESENVOLVIMENTO
+# =========================================================================
+
+[env.development]
+name = "mapeamento-radio-2-dev"
+
+[env.development.vars]
+# Para desenvolvimento local, configure o token aqui ou via .env
+# NOTION_TOKEN = "secret_XXXXXXX"
+
+# =========================================================================
+# 📊 INFORMAÇÕES DO PROJETO
+# =========================================================================
+
+# Projeto: Mapeamento de Cobertura Rádio 2.1
+# Empresa: E-MÍDIAS
+# Versão: 2.1.0 (com Modo Proposta)
+# 
+# URLs de Exemplo:
+# - Individual: /?id=NOTION_PAGE_ID
+# - Proposta:   /?idproposta=NOTION_DATABASE_ID
+# 
+# Funcionalidades:
+# ✅ Modo Individual (preservado 100%)
+# ✅ Modo Proposta (NOVO)
+# ✅ Múltiplas coberturas no mesmo mapa
+# ✅ Controle individual de visualização
+# ✅ Estatísticas consolidadas
+# ✅ Exportação Excel avançada
+# ✅ Interface responsiva
+# ✅ Logos automáticas extraídas do KMZ
+# ✅ Divisórias dos estados brasileiros
+# ✅ Processamento paralelo otimizado
+
+# =========================================================================
+# 🚀 DEPLOY
+# =========================================================================
+
+# Para fazer deploy:
+# wrangler pages deploy . --project-name=mapeamento-radio-2
+#
+# Para desenvolvimento:
+# wrangler pages dev .
+#
+# Para logs:
+# wrangler pages deployment tail
