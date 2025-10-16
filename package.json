@@ -1,15 +1,127 @@
 {
   "name": "mapeamento-radio-2",
-  "version": "2.0.0",
-  "description": "Sistema de visualização de cobertura de rádios - Mapeamento 2.0",
+  "version": "2.1.0",
+  "description": "Sistema de visualização de cobertura de rádios - Mapeamento 2.1 com Modo Proposta",
+  "keywords": [
+    "radio",
+    "cobertura",
+    "mapeamento", 
+    "kmz",
+    "kml",
+    "notion",
+    "e-midias",
+    "proposta",
+    "multiplas-radios"
+  ],
   "scripts": {
     "dev": "wrangler pages dev .",
-    "deploy": "wrangler pages deploy . --project-name=mapeamento-radio-2"
+    "deploy": "wrangler pages deploy . --project-name=mapeamento-radio-2",
+    "test-individual": "echo 'Teste individual: /?id=RADIO_ID'",
+    "test-proposta": "echo 'Teste proposta: /?idproposta=28d20b549cf5817082bbff59d24819ba'"
   },
   "devDependencies": {
     "wrangler": "^4.42.2"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SEU_USUARIO/mapeamento-radio-2.git"
+  },
+  "author": "E-MÍDIAS",
+  "license": "PROPRIETARY",
+  "changelog": {
+    "2.1.0": {
+      "date": "2025-01-16",
+      "features": [
+        "Modo Proposta - Múltiplas rádios em um único mapa",
+        "Painel de controle lateral para gerenciar visualizações",
+        "Estatísticas consolidadas de toda a proposta", 
+        "Exportação Excel avançada com dados de todas as rádios",
+        "API /proposta-data para buscar múltiplas rádios",
+        "Interface responsiva otimizada para ambos os modos",
+        "Compatibilidade total com modo individual preservado"
+      ],
+      "improvements": [
+        "Processamento paralelo de múltiplas rádios",
+        "Controle de layers mais robusto",
+        "Performance otimizada para múltiplas coberturas",
+        "Logs detalhados para debug"
+      ]
+    },
+    "2.0.0": {
+      "date": "2025-01-13", 
+      "features": [
+        "Processamento completo de arquivos KMZ",
+        "Extração de dados técnicos da antena",
+        "Análise populacional detalhada",
+        "Marcadores coloridos por qualidade",
+        "Imagem de cobertura sobreposta no mapa",
+        "Exportação Excel avançada",
+        "Nova identidade visual E-MÍDIAS",
+        "Interface responsiva otimizada"
+      ]
+    }
+  },
+  "dependencies_info": {
+    "frontend": [
+      "Leaflet 1.9.4 (mapas interativos)",
+      "JSZip (processamento de arquivos KMZ)",
+      "SheetJS (exportação Excel)",
+      "Space Grotesk (tipografia)",
+      "CSS Grid e Flexbox (layout responsivo)"
+    ],
+    "backend": [
+      "Cloudflare Pages Functions",
+      "Notion API v2022-06-28",
+      "Proxy CORS para Google Drive"
+    ],
+    "apis": [
+      "/api/radio-data - Rádio individual (preservado)",
+      "/api/proposta-data - Múltiplas rádios (NOVO)",
+      "/api/proxy - Proxy CORS (preservado)"
+    ]
+  },
+  "deployment": {
+    "platform": "Cloudflare Pages",
+    "build_command": "",
+    "build_output_directory": "./",
+    "environment_variables": {
+      "NOTION_TOKEN": "secret_XXXXXXX (obrigatório)"
+    },
+    "custom_domains": [
+      "mapeamento.emidiastec.com.br"
+    ]
+  },
+  "notion_requirements": {
+    "individual_mode": {
+      "required": "ID da página da rádio (32 caracteres hex)",
+      "url_format": "/?id=NOTION_PAGE_ID"
+    },
+    "proposta_mode": {
+      "required": "ID da database/tabela (32 caracteres hex)",
+      "url_format": "/?idproposta=NOTION_DATABASE_ID"
+    },
+    "database_schema": {
+      "Emissora": "Title (obrigatório)",
+      "Dial": "Text (ex: 107.3 FM)",
+      "UF": "Select (sigla do estado)",
+      "Região": "Select (região do Brasil)",
+      "Praça": "Text (cidade principal)",
+      "KMZ2": "URL (Google Drive - público)",
+      "KML2": "URL (Google Drive - público)",
+      "Imagem": "URL (logo fallback)"
+    }
+  },
+  "testing": {
+    "test_urls": {
+      "proposta_example": "/?idproposta=28d20b549cf5817082bbff59d24819ba",
+      "individual_example": "/?id=RADIO_ID_FROM_PROPOSTA"
+    },
+    "development": {
+      "local": "wrangler pages dev .",
+      "preview": "Cloudflare Pages preview deployments"
+    }
   }
 }
