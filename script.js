@@ -1,5 +1,5 @@
 // =========================================================================
-// 🗺️ ADICIONAR DIVISÓRIAS DOS ESTADOS BRASILEIROS (SEM TOOLTIP/HIGHLIGHT)
+// 🗺️ ADICIONAR DIVISÓRIAS DOS ESTADOS BRASILEIROS - SEM INTERAÇÃO
 // =========================================================================
 async function addStateBorders() {
     try {
@@ -16,16 +16,17 @@ async function addStateBorders() {
         
         const statesData = await response.json();
         
-        // Adicionar layer dos estados com estilo simples (sem interação)
+        // Adicionar layer dos estados com estilo - SEM INTERAÇÃO
         L.geoJSON(statesData, {
             style: {
                 color: '#FFFFFF',        // Linha branca
-                weight: 1,               // Espessura da linha reduzida
-                opacity: 0.6,            // Opacidade da linha reduzida
+                weight: 2,               // Espessura da linha
+                opacity: 0.8,            // Opacidade da linha
                 fillOpacity: 0,          // Sem preenchimento
-                dashArray: '3, 3',       // Linha tracejada mais sutil
-                interactive: false       // Sem interação
+                dashArray: '5, 5',       // Linha tracejada
+                interactive: false       // 🔧 REMOVER INTERAÇÃO
             }
+            // 🔧 REMOVER onEachFeature para eliminar tooltips
         }).addTo(map);
         
         console.log('✅ Divisórias dos estados adicionadas (sem interação)');
@@ -179,76 +180,40 @@ async function loadRadioData(notionId) {
 }
 
 // =========================================================================
-// 🔄 PROCESSAR TODAS AS RÁDIOS DA PROPOSTA - MELHORADO COM LOGS
+// 🔄 PROCESSAR TODAS AS RÁDIOS DA PROPOSTA
 // =========================================================================
 async function processAllRadiosInProposta() {
     console.log('🔄 Processando todas as rádios da proposta...');
-    console.log(`📊 Total de rádios a processar: ${propostaData.radios.length}`);
     
     const processPromises = propostaData.radios.map(async (radio, index) => {
         try {
-            console.log(`📻 Iniciando processamento da rádio ${index + 1}/${propostaData.radios.length}: ${radio.name}`);
+            console.log(`📻 Processando rádio ${index + 1}/${propostaData.radios.length}: ${radio.name}`);
             
             // Processar ícone do Notion para cada rádio
             processRadioNotionIcon(radio);
             
-            // Verificar se tem KMZ e processar
+            // Processar KMZ se disponível
             if (radio.kmz2Url) {
-                console.log(`📦 Processando KMZ de ${radio.name}: ${radio.kmz2Url}`);
                 await processRadioKMZ(radio);
-                
-                if (radio.coverageImage) {
-                    console.log(`✅ ${radio.name} - Cobertura extraída: ${radio.coverageImage.bounds}`);
-                } else {
-                    console.warn(`⚠️ ${radio.name} - KMZ processado mas sem cobertura`);
-                }
-            } else {
-                console.warn(`⚠️ ${radio.name} - Sem URL do KMZ`);
             }
             
-            // Verificar se tem KML e processar
+            // Processar KML se disponível
             if (radio.kml2Url) {
-                console.log(`🏙️ Processando KML de ${radio.name}: ${radio.kml2Url}`);
                 await processRadioKML(radio);
-                
-                if (radio.citiesData && radio.citiesData.length > 0) {
-                    console.log(`✅ ${radio.name} - ${radio.citiesData.length} cidades processadas`);
-                } else {
-                    console.warn(`⚠️ ${radio.name} - KML processado mas sem cidades`);
-                }
-            } else {
-                console.warn(`⚠️ ${radio.name} - Sem URL do KML`);
             }
             
-            console.log(`✅ Rádio ${radio.name} processada com sucesso`);
+            console.log(`✅ Rádio ${radio.name} processada`);
             
         } catch (error) {
-            console.error(`❌ Erro ao processar rádio ${radio.name}:`, error);
+            console.warn(`⚠️ Erro ao processar rádio ${radio.name}:`, error);
             // Continuar com as outras rádios
         }
     });
     
     // Aguardar processamento de todas as rádios
-    const results = await Promise.allSettled(processPromises);
+    await Promise.allSettled(processPromises);
     
-    // Contar sucessos e falhas
-    const successful = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.filter(r => r.status === 'rejected').length;
-    
-    console.log(`✅ Processamento concluído: ${successful} sucessos, ${failed} falhas`);
-    
-    // Verificar quantas rádios têm cobertura
-    const radiosWithCoverage = propostaData.radios.filter(r => r.coverageImage).length;
-    const radiosWithCities = propostaData.radios.filter(r => r.citiesData && r.citiesData.length > 0).length;
-    
-    console.log(`📊 Resultado final:`);
-    console.log(`🗺️ Rádios com cobertura (KMZ): ${radiosWithCoverage}/${propostaData.radios.length}`);
-    console.log(`🏙️ Rádios com cidades (KML): ${radiosWithCities}/${propostaData.radios.length}`);
-    
-    if (radiosWithCoverage === 0) {
-        console.warn('⚠️ ATENÇÃO: Nenhuma rádio tem cobertura para exibir no mapa!');
-        console.warn('🔍 Verifique se as URLs dos KMZ estão corretas e acessíveis');
-    }
+    console.log('✅ Todas as rádios processadas');
 }
 
 // =========================================================================
@@ -272,35 +237,53 @@ function processRadioNotionIcon(radio) {
 }
 
 // =========================================================================
-// 📦 PROCESSAR KMZ DE UMA RÁDIO ESPECÍFICA
+// 📦 PROCESSAR KMZ DE UMA RÁDIO ESPECÍFICA - COM DEBUG DETALHADO
 // =========================================================================
 async function processRadioKMZ(radio) {
     try {
+        console.log(`📦 Iniciando processamento KMZ de ${radio.name}...`);
+        console.log(`🔗 URL: ${radio.kmz2Url}`);
+        
         const directUrl = convertGoogleDriveUrl(radio.kmz2Url);
         const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
         
+        console.log(`📦 Baixando via proxy: ${proxyUrl}`);
+        
         const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         
         const arrayBuffer = await response.arrayBuffer();
+        console.log(`📦 KMZ baixado, tamanho: ${arrayBuffer.byteLength} bytes`);
+        
         const zip = await JSZip.loadAsync(arrayBuffer);
+        console.log(`📦 Arquivos no KMZ de ${radio.name}:`, Object.keys(zip.files));
         
         // Extrair KML interno
         let kmlFile = null;
         for (const [filename, file] of Object.entries(zip.files)) {
             if (filename.toLowerCase().endsWith('.kml')) {
                 kmlFile = file;
+                console.log(`📄 KML encontrado: ${filename}`);
                 break;
             }
         }
         
-        if (!kmlFile) throw new Error('KML não encontrado no KMZ');
+        if (!kmlFile) {
+            throw new Error('KML não encontrado no KMZ');
+        }
         
         const kmlText = await kmlFile.async('text');
+        console.log(`📄 KML extraído de ${radio.name}, tamanho: ${kmlText.length} caracteres`);
+        
         await parseRadioKMZContent(radio, kmlText, zip);
         
+        console.log(`✅ KMZ de ${radio.name} processado com sucesso`);
+        
     } catch (error) {
-        console.warn(`⚠️ Erro ao processar KMZ da rádio ${radio.name}:`, error);
+        console.error(`❌ Erro ao processar KMZ de ${radio.name}:`, error);
+        // Não interromper o processamento das outras rádios
     }
 }
 
@@ -511,11 +494,6 @@ function initializeMap() {
 function addAllRadiosToMap() {
     console.log('🌟 Adicionando todas as rádios ao mapa...');
     
-    // Limpar arrays de controle
-    radiosLayers = {};
-    antennaMarkers = [];
-    cityMarkers = [];
-    
     propostaData.radios.forEach((radio, index) => {
         console.log(`📻 Processando rádio ${index + 1}: ${radio.name}`);
         
@@ -529,34 +507,36 @@ function addAllRadiosToMap() {
                     opacity: 0.6,
                     interactive: false
                 }
-            );
+            ).addTo(map);
             
-            // Adicionar ao mapa E salvar na lista de controle
-            layer.addTo(map);
             radiosLayers[radio.id] = layer;
-            
             console.log(`✅ Cobertura de ${radio.name} adicionada ao mapa`);
         } else {
-            console.warn(`⚠️ ${radio.name} não tem cobertura para exibir`);
+            console.warn(`⚠️ ${radio.name} não tem cobertura (coverageImage)`);
         }
         
         // Adicionar marcador da antena
         if (radio.antennaLocation) {
             addRadioAntennaMarker(radio);
+            console.log(`📍 Antena de ${radio.name} adicionada`);
+        } else {
+            console.warn(`⚠️ ${radio.name} não tem localização da antena`);
         }
         
         // Adicionar marcadores de cidades se disponível
         if (radio.citiesData && radio.citiesData.length > 0) {
             addRadioCityMarkers(radio);
+            console.log(`🏙️ ${radio.citiesData.length} cidades de ${radio.name} adicionadas`);
+        } else {
+            console.warn(`⚠️ ${radio.name} não tem dados de cidades`);
         }
     });
     
     // Ajustar zoom para mostrar todas as rádios
     fitMapBoundsForProposta();
     
-    console.log(`✅ ${Object.keys(radiosLayers).length} coberturas adicionadas ao mapa`);
-    console.log(`✅ ${antennaMarkers.length} antenas adicionadas ao mapa`);
-    console.log(`✅ ${cityMarkers.length} cidades adicionadas ao mapa`);
+    console.log(`✅ ${propostaData.radios.length} rádios processadas no mapa`);
+    console.log(`📊 Coberturas disponíveis: ${Object.keys(radiosLayers).length}`);
 }
 
 // =========================================================================
@@ -676,18 +656,27 @@ function addRadioCityMarkers(radio) {
 }
 
 // =========================================================================
-// 🎛️ CONFIGURAR CONTROLE DE LAYERS PARA PROPOSTA
+// 🎛️ CONFIGURAR CONTROLE DE LAYERS PARA PROPOSTA - COM DEBUG
 // =========================================================================
 function setupLayersControlForProposta() {
     // Overlays para controle de coberturas
     const overlays = {};
     
+    console.log('🎛️ Configurando controle de layers...');
+    console.log(`📊 Total de rádios: ${propostaData.radios.length}`);
+    console.log(`📊 Layers de cobertura disponíveis: ${Object.keys(radiosLayers).length}`);
+    
     // Adicionar cada rádio como overlay controlável
     propostaData.radios.forEach(radio => {
         if (radiosLayers[radio.id]) {
             overlays[`📻 ${radio.name} (${radio.dial})`] = radiosLayers[radio.id];
+            console.log(`✅ Layer adicionado: ${radio.name}`);
+        } else {
+            console.warn(`⚠️ Layer não encontrado para: ${radio.name}`);
         }
     });
+    
+    console.log(`📊 Total de overlays configurados: ${Object.keys(overlays).length}`);
     
     // Criar controle de layers completo
     if (layersControl) {
@@ -749,15 +738,15 @@ function setupPropostaInterface() {
     // 🆕 CONFIGURAR PAINEL DE CONTROLE DE RÁDIOS
     setupRadiosControlPanel();
     
+    // 🆕 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS
+    setupConsolidatedStats();
+    
     // Ocultar seção de cidades individuais (substituída pela lista de rádios)
     document.getElementById('cidades-section').style.display = 'none';
-    
-    // Ocultar seção de estatísticas consolidadas (agora está no card principal)
-    document.getElementById('stats-section').style.display = 'none';
 }
 
 // =========================================================================
-// 📊 ATUALIZAR HEADER PARA PROPOSTA
+// 📊 ATUALIZAR HEADER PARA PROPOSTA - SEM LOGO
 // =========================================================================
 function updateHeaderProposta() {
     const radioName = document.getElementById('radio-name');
@@ -765,11 +754,8 @@ function updateHeaderProposta() {
     const headerLogo = document.getElementById('header-logo');
     
     if (radioName) {
-        radioName.innerHTML = `
-            <span style="display: flex; align-items: center; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                🗺️ Mapeamento da Proposta
-            </span>
-        `;
+        // 🔧 ALTERAR TÍTULO PARA "MAPEAMENTO DA PROPOSTA"
+        radioName.innerHTML = `🗺️ Mapeamento da Proposta`;
     }
     
     if (radioInfo) {
@@ -778,69 +764,31 @@ function updateHeaderProposta() {
         radioInfo.textContent = `${radiosCount} rádios • ${estadosCount} estados • ${propostaData.proposta.title}`;
     }
     
-    // Ocultar logo no modo proposta
+    // 🔧 OCULTAR LOGO NO MODO PROPOSTA
     if (headerLogo) {
         headerLogo.style.display = 'none';
     }
 }
 
 // =========================================================================
-// 📊 ATUALIZAR INFORMAÇÕES DA PROPOSTA
+// 📊 ATUALIZAR INFORMAÇÕES DA PROPOSTA - APENAS ESTATÍSTICAS CONSOLIDADAS
 // =========================================================================
 function updatePropostaInfo() {
-    // Calcular estatísticas consolidadas
-    let totalPopulation = 0;
-    let totalCoveredPopulation = 0;
-    let totalCities = 0;
-    
-    propostaData.radios.forEach(radio => {
-        if (radio.citiesData) {
-            radio.citiesData.forEach(city => {
-                totalPopulation += city.totalPopulation || 0;
-                totalCoveredPopulation += city.coveredPopulation || 0;
-                totalCities++;
-            });
-        }
-    });
-    
-    const coveragePercent = totalPopulation > 0 ? ((totalCoveredPopulation / totalPopulation) * 100).toFixed(1) : 0;
-    
-    // Substituir os 2 cards por um card de Estatísticas Consolidadas
+    // 🔧 OCULTAR CARDS INDIVIDUAIS NO MODO PROPOSTA
     const infoSection = document.getElementById('info-section');
-    infoSection.innerHTML = `
-        <!-- Card Único: Estatísticas Consolidadas -->
-        <div class="info-card" style="grid-column: 1 / -1;">
-            <h3 class="card-title">📊 Estatísticas Consolidadas</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-                <div class="info-item">
-                    <span class="info-label">Total de Rádios:</span>
-                    <span class="info-value">${propostaData.proposta.totalRadios}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Estados:</span>
-                    <span class="info-value">${propostaData.summary.estados.join(', ')}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Cidades Atendidas:</span>
-                    <span class="info-value">${totalCities}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">População total:</span>
-                    <span class="info-value">${totalPopulation.toLocaleString()}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">População Coberta:</span>
-                    <span class="info-value">${totalCoveredPopulation.toLocaleString()}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">% de Cobertura:</span>
-                    <span class="info-value highlight">${coveragePercent}%</span>
-                </div>
-            </div>
-        </div>
-    `;
+    if (infoSection) {
+        infoSection.style.display = 'none';
+    }
     
-    document.getElementById('info-section').style.display = 'grid';
+    // 🔧 OCULTAR CARDS ESPECÍFICOS SE EXISTIREM
+    const radioCard = document.getElementById('info-card-radio');
+    const coberturaCard = document.getElementById('info-card-cobertura');
+    
+    if (radioCard) radioCard.style.display = 'none';
+    if (coberturaCard) coberturaCard.style.display = 'none';
+    
+    // As estatísticas serão mostradas na seção dedicada (setupConsolidatedStats)
+    console.log('ℹ️ Cards individuais ocultados para modo proposta');
 }
 
 // =========================================================================
@@ -1997,8 +1945,6 @@ function setupRadiosControlPanel() {
     panel.innerHTML = propostaData.radios.map(radio => {
         const hasKmz = radio.coverageImage ? 'checked' : '';
         const logoIcon = radio.logoUrlFromKMZ || radio.notionIconUrl ? '🖼️' : '📻';
-        const kmzStatus = radio.hasKmz ? '🗺️' : '';
-        const kmlStatus = radio.hasKml ? '🏙️' : '';
         
         return `
             <div class="radio-item-panel" onclick="focusOnRadio('${radio.id}')">
@@ -2007,11 +1953,10 @@ function setupRadiosControlPanel() {
                        id="radio-${radio.id}" 
                        ${hasKmz}
                        onchange="toggleRadioCoverage('${radio.id}')"
-                       onclick="event.stopPropagation()"
-                       ${!radio.coverageImage ? 'disabled' : ''}>
+                       onclick="event.stopPropagation()">
                 <div class="radio-info-panel">
                     <div class="radio-name-panel">${logoIcon} ${radio.name}</div>
-                    <div class="radio-details-panel">${radio.dial} • ${radio.uf} ${kmzStatus} ${kmlStatus}</div>
+                    <div class="radio-details-panel">${radio.dial} • ${radio.uf}</div>
                 </div>
                 <button class="radio-focus-btn" onclick="focusOnRadio('${radio.id}'); event.stopPropagation();">
                     🎯
@@ -2021,15 +1966,6 @@ function setupRadiosControlPanel() {
     }).join('');
     
     console.log('✅ Painel de controle de rádios configurado');
-    
-    // Mostrar painel após um delay
-    setTimeout(() => {
-        const panelElement = document.getElementById('radios-control-panel');
-        if (panelElement) {
-            panelElement.style.display = 'block';
-            console.log('✅ Painel de controle visível');
-        }
-    }, 2000);
 }
 
 // =========================================================================
@@ -2059,7 +1995,7 @@ function setupConsolidatedStats() {
     
     const coveragePercent = totalPopulation > 0 ? ((totalCoveredPopulation / totalPopulation) * 100).toFixed(1) : 0;
     
-    // Renderizar estatísticas simplificadas
+    // Renderizar estatísticas SIMPLIFICADAS
     const statsGrid = document.getElementById('stats-grid');
     if (statsGrid) {
         statsGrid.innerHTML = `
@@ -2091,5 +2027,5 @@ function setupConsolidatedStats() {
         document.getElementById('stats-section').style.display = 'block';
     }
     
-    console.log('✅ Estatísticas consolidadas configuradas');
+    console.log('✅ Estatísticas consolidadas configuradas (simplificadas)');
 }
