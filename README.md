@@ -2,29 +2,43 @@
 
 Sistema avançado para visualização interativa da cobertura geográfica de rádios com processamento de arquivos KMZ e KML do Google Drive.
 
-## 🚀 Novidades da Versão 2.0
+## 🌟 **NOVA FUNCIONALIDADE: MODO PROPOSTA**
 
-### ✨ Recursos Principais
+**🎉 Agora suporta visualização de múltiplas rádios em um único mapa!**
 
-- **🗺️ Processamento de KMZ**: Extração automática de imagens de cobertura (GroundOverlay) e legendas (ScreenOverlay)
-- **🖼️ Logo Automática**: Extração da logo da rádio diretamente do KMZ para header e mapa
-- **📊 Dados Técnicos**: Extração de informações da antena (frequência, potência, ERP, altura, sensibilidade)
-- **🏙️ Análise Populacional**: Processamento de KML com dados detalhados de população por cidade
-- **🎨 Qualidade de Sinal**: Marcadores coloridos por qualidade (Excelente/Ótimo/Fraco) - **ordenados por prioridade**
-- **📈 Estatísticas Avançadas**: População total, coberta, distribuição por gênero e faixa etária
-- **🗺️ Mapas Duplos**: Opções Satélite (padrão) e Padrão com divisórias dos estados brasileiros
-- **📍 Visualização Interativa**: Mapa Leaflet com imagem de cobertura sobreposta
-- **📊 Exportação Excel**: Lista completa de cidades com UF correta
+### **🔗 Como usar:**
+- **Rádio Individual**: `mapeamento.emidiastec.com.br/?id=NOTION_ID_DA_RADIO`
+- **🆕 Proposta (Múltiplas Rádios)**: `mapeamento.emidiastec.com.br/?idproposta=NOTION_DATABASE_ID`
+
+## 🚀 Novidades da Versão 2.1
+
+### ✨ **Modo Proposta (NOVO)**
+
+- **🗺️ Múltiplas Coberturas**: Todas as rádios da proposta no mesmo mapa
+- **🎛️ Controle Individual**: Seletor para mostrar/ocultar cada cobertura
+- **📻 Lista Interativa**: Painel lateral com todas as rádios da proposta
+- **📊 Estatísticas Consolidadas**: População total, cidades atendidas, distribuição por UF
+- **🎯 Foco Dinâmico**: Clique para destacar cada rádio no mapa
+- **📈 Exportação Completa**: Excel com dados de todas as rádios
+
+### ✨ **Melhorias Gerais**
+
+- **🖼️ Logo Automática**: Extração da logo do KMZ para header e mapa
+- **🗺️ Mapas Otimizados**: Apenas Satélite (padrão) e Padrão com divisórias dos estados
+- **📍 Ordenação Inteligente**: Cidades por qualidade (Excelente → Ótimo → Fraco)
+- **🎨 Interface Responsiva**: Design otimizado para desktop e mobile
+- **⚡ Performance**: Carregamento mais rápido e código otimizado
 
 ## 📋 Estrutura do Projeto
 
 ```
 mapeamento-radio-2/
-├── index.html              # Página principal
-├── style.css               # Estilos com identidade E-MÍDIAS
-├── script.js               # Lógica principal (processamento KMZ/KML)
+├── index.html              # Página principal (suporta ambos os modos)
+├── style.css               # Estilos com identidade E-MÍDIAS + funcionalidades da proposta
+├── script.js               # Lógica principal (individual + proposta)
 ├── functions/
-│   ├── api/radio-data.js   # Cloudflare Function (API Notion)
+│   ├── api/radio-data.js   # API para rádio individual
+│   └── api/proposta-data.js # 🆕 API para proposta (múltiplas rádios)
 │   └── api/proxy.js        # Proxy CORS para Google Drive
 ├── wrangler.toml           # Configuração Cloudflare Pages
 ├── package.json            # Dependências
@@ -67,82 +81,30 @@ git init
 mkdir functions/api
 
 # Criar functions (copie o conteúdo dos artifacts)
-# - functions/api/radio-data.js
-# - functions/api/proxy.js
+# - functions/api/radio-data.js (preservado)
+# - functions/api/proposta-data.js (NOVO)
+# - functions/api/proxy.js (preservado)
 
 # Adicionar ao git
 git add .
-git commit -m "Initial commit - Mapeamento Radio 2.0"
+git commit -m "Initial commit - Mapeamento Radio 2.1 com Modo Proposta"
 ```
 
-### 2. Criar Repositório no GitHub
+### 2. Deploy no Cloudflare Pages
 
-1. Acesse [github.com](https://github.com) e crie um novo repositório
-2. Não inicialize com README (já temos um)
-3. Copie a URL do repositório
+Siga as mesmas instruções da versão anterior. O sistema é **100% compatível** - todas as funcionalidades existentes continuam funcionando.
 
-```bash
-# Conectar ao GitHub
-git remote add origin https://github.com/SEU_USUARIO/mapeamento-radio-2.git
-git branch -M main
-git push -u origin main
-```
+### 3. Configurar Variáveis de Ambiente
 
-### 3. Deploy no Cloudflare Pages
-
-#### Opção A: Via Dashboard (Recomendado)
-
-1. Acesse [dash.cloudflare.com](https://dash.cloudflare.com)
-2. Vá em **Workers & Pages** > **Create application** > **Pages**
-3. Conecte seu repositório GitHub
-4. Configurações:
-   - **Project name**: `mapeamento-radio-2`
-   - **Production branch**: `main`
-   - **Build command**: (deixe vazio)
-   - **Build output directory**: `/`
-5. Clique em **Save and Deploy**
-
-#### Opção B: Via CLI
-
-```bash
-# Instalar Wrangler CLI
-npm install -g wrangler
-
-# Login no Cloudflare
-wrangler login
-
-# Deploy
-wrangler pages deploy . --project-name=mapeamento-radio-2
-```
-
-### 4. Configurar Variáveis de Ambiente
-
-1. No dashboard do Cloudflare Pages:
-2. Vá em **Settings** > **Environment Variables**
-3. Adicione para **Production**:
-   - **Variable name**: `NOTION_TOKEN`
-   - **Value**: `secret_XXXXXXX` (seu token do Notion)
-4. Clique em **Save**
-
-### 5. Obter Token do Notion
-
-1. Acesse [notion.so/my-integrations](https://www.notion.so/my-integrations)
-2. Clique em **+ New integration**
-3. Configure:
-   - **Name**: Mapeamento Radio 2.0
-   - **Associated workspace**: Seu workspace
-   - **Capabilities**: Read content
-4. Copie o **Internal Integration Token** (começa com `secret_`)
-5. No Notion, compartilhe seu banco de dados com a integração:
-   - Abra o database
-   - Clique em **Share**
-   - Adicione sua integração
+As mesmas configurações da versão anterior:
+- **Variable name**: `NOTION_TOKEN`
+- **Value**: `secret_XXXXXXX` (seu token do Notion)
 
 ## 📝 Configuração do Notion
 
-### Estrutura do Database
+### **🆕 Para Modo Proposta**
 
-Seu database no Notion deve ter os seguintes campos:
+Sua **database/tabela do Notion** deve ter os mesmos campos da versão individual:
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
@@ -155,208 +117,272 @@ Seu database no Notion deve ter os seguintes campos:
 | **KML2** | URL | Link do Google Drive para arquivo KML |
 | **Imagem** | URL | Logo da rádio (opcional - fallback se KMZ não tiver) |
 
-### Compartilhar Arquivos do Google Drive
+### **🔑 Obter ID da Database (Proposta)**
 
-**IMPORTANTE**: Os arquivos KMZ2 e KML2 no Google Drive devem estar **públicos**:
+1. Abra sua tabela/database no Notion
+2. Copie o link da página da database
+3. O ID são os 32 caracteres hexadecimais após `/` e antes de `?v=`
 
-1. Abra o arquivo no Google Drive
-2. Clique em **Compartilhar**
-3. Em **Acesso geral**, selecione **Qualquer pessoa com o link**
-4. Clique em **Copiar link**
-5. Cole o link no campo correspondente no Notion
+**Exemplo de URL da Database**:
+```
+https://www.notion.so/workspace/Nome-da-Proposta-28d20b549cf5817082bbff59d24819ba?v=28d20b549cf581be9c27000c15e36c6b
+```
+
+O ID da database é: `28d20b549cf5817082bbff59d24819ba`
+
+### **🔗 Fórmula Atualizada para o Notion**
+
+Use esta fórmula na sua database para gerar links automáticos:
+
+**Para rádio individual** (preservado):
+```
+link(
+  style("Ver cobertura", "b", "blue"),
+  "mapeamento.emidiastec.com.br/?id=" + replaceAll(id(), "-", "")
+)
+```
+
+**🆕 Para proposta completa** (novo):
+```
+link(
+  style("Ver proposta completa", "b", "green"),
+  "mapeamento.emidiastec.com.br/?idproposta=" + replaceAll(prop("ID da Database"), "-", "")
+)
+```
+
+**Onde conseguir o "ID da Database"**: É o ID fixo da sua database/tabela do Notion.
 
 ## 🎯 Como Usar
 
-### Acessar uma Rádio Específica
+### **📻 Modo Individual (Preservado)**
 
 ```
-https://seu-site.pages.dev/?id=NOTION_ID
+https://mapeamento.emidiastec.com.br/?id=NOTION_ID_DA_RADIO
 ```
 
-**Exemplo**:
-```
-https://mapeamento-radio-2.pages.dev/?id=12345678901234567890123456789012
-```
+**Funcionalidades**:
+- Visualiza **uma rádio específica**
+- Imagem de cobertura do KMZ sobreposta no mapa
+- Lista de cidades com dados populacionais
+- Exportação Excel das cidades
+- Logo automática extraída do KMZ
 
-### Obter o ID do Notion
+### **🌟 Modo Proposta (NOVO)**
 
-1. Abra o registro da rádio no Notion
-2. Copie o link da página
-3. O ID são os 32 caracteres hexadecimais no final da URL
-
-**Exemplo de URL do Notion**:
 ```
-https://www.notion.so/Nome-da-Radio-12345678901234567890123456789012
+https://mapeamento.emidiastec.com.br/?idproposta=NOTION_DATABASE_ID
 ```
 
-O ID é: `12345678901234567890123456789012`
+**Exemplo com sua proposta**:
+```
+https://mapeamento.emidiastec.com.br/?idproposta=28d20b549cf5817082bbff59d24819ba
+```
 
-## 🗺️ Funcionalidades Detalhadas
+**Funcionalidades Exclusivas**:
 
-### 1. Processamento de KMZ
+#### **🗺️ Visualização Consolidada**
+- **Todas as coberturas** das rádios no mesmo mapa
+- **Sobreposição inteligente** das imagens de cobertura
+- **Marcadores únicos** para cada antena com sua logo
+- **Zoom automático** para enquadrar toda a proposta
 
-O sistema extrai automaticamente:
+#### **🎛️ Controle de Layers**
+- **Painel lateral** com lista de todas as rádios
+- **Checkboxes individuais** para mostrar/ocultar cada cobertura
+- **Botões rápidos**: "Mostrar Todas" / "Ocultar Todas"
+- **Foco dinâmico**: Clique para centralizar em cada rádio
 
-- **GroundOverlay**: Imagem da cobertura de rádio com coordenadas geográficas
-- **ScreenOverlay**: Legenda de cores (RAINBOW.dBm.key.png)
-- **Logo da Rádio**: Extraída do IconStyle e descrição HTML automaticamente
-- **Placemark**: Localização da antena e dados técnicos:
-  - Frequência
-  - Potência
-  - ERP (Potência Efetiva Radiada)
-  - Altura da antena
-  - Tipo de antena
-  - Sensibilidade do receptor
+#### **📊 Estatísticas Consolidadas**
+- **População total** de todas as rádios somadas
+- **Cidades atendidas** por toda a proposta
+- **Distribuição por UF** e qualidade de sinal
+- **Percentual de cobertura** global
 
-### 2. Processamento de KML de Cidades
+#### **📈 Exportação Avançada**
+- **Excel consolidado** com dados de todas as rádios:
+  - Nome da rádio, dial, UF, praça
+  - Total de cidades por rádio
+  - População total e coberta por rádio
+  - Indicadores de cobertura e dados disponíveis
 
-Cada cidade contém:
+#### **🎯 Interatividade Avançada**
+- **Lista lateral**: Clique em qualquer rádio para focar no mapa
+- **Destaque temporal**: Cobertura fica mais visível temporariamente
+- **Popup detalhado**: Informações completas de cada antena
+- **Responsivo**: Interface otimizada para desktop e mobile
 
-- **Identificação**: Nome e UF (extraída automaticamente)
-- **População**: Total e coberta (com percentual)
-- **Demografia**: Distribuição por gênero
-- **Faixas Etárias**: População por idade
-- **Qualidade**: Excelente/Ótimo/Fraco com ícones coloridos
-- **Setores**: Setores cobertos vs total
-- **Coordenadas**: Latitude e longitude
+## 🎨 Interface de Usuário
 
-### 3. Mapa Interativo
+### **🌟 Modo Proposta**
 
-- **Duas Opções de Visualização**:
-  - 🛰️ **Satélite** (padrão): Imagens de alta resolução
-  - 🗺️ **Padrão**: OpenStreetMap tradicional
-- **Divisórias dos Estados**: Linhas tracejadas brancas com nomes
-- **Imagem de Cobertura**: Sobreposta no mapa com transparência ajustável
-- **Marcador da Antena**: Com logo da rádio (se disponível) e dados técnicos
-- **Marcadores de Cidades**: Coloridos por qualidade de sinal:
-  - 🟢 Verde: Excelente
-  - 🔵 Ciano: Ótimo  
-  - 🔵 Azul: Fraco
-- **Legenda**: Exibida no canto inferior direito
-- **Zoom Automático**: Ajusta para mostrar toda a cobertura
+#### **Header Dinâmico**
+```
+🗺️ [Nome da Proposta]
+X rádios • Y estados • Mapeamento Consolidado
+```
 
-### 4. Lista de Cidades (Ordenação Inteligente)
+#### **Painel de Controle (Lateral Esquerdo)**
+- 📻 **Controle de Rádios**
+- 🌍 **Mostrar Todas** / 👁️ **Ocultar Todas**
+- Lista de rádios com:
+  - ☑️ Checkbox para mostrar/ocultar
+  - 🖼️ Ícone da logo (se disponível)
+  - 🎯 Botão para focar no mapa
 
-- **Ordenação por Qualidade**: Excelente → Ótimo → Fraco (depois alfabética)
-- **Busca em Tempo Real**: Por nome, UF ou qualidade
-- **Detalhes Visíveis**:
-  - População total e coberta
-  - Percentual de cobertura
-  - Qualidade do sinal
-  - UF correta
-- **Clique para Destacar**: Centraliza no mapa e abre popup
+#### **Controle de Layers (Canto Superior Direito)**
+- 🗺️ **Mapas**: Satélite / Padrão
+- 📻 **Coberturas**: Lista de todas as rádios
+  - "📻 Rádio Exemplo (107.3 FM)"
+  - Checkboxes para controle individual
 
-### 5. Exportação Excel
+#### **Estatísticas Consolidadas**
+```
+📻 Total de Rádios: 12
+🏙️ Cidades Atendidas: 324
+👥 População Total: 2.547.891
+✅ População Coberta: 1.892.445 (74.3%)
+🎯 Sinal Excelente: 189 cidades
+📊 Distribuição: SP: 8 • RJ: 3 • MG: 1
+```
 
-Colunas exportadas:
+#### **Lista de Rádios**
+```
+📻 Rádio A (107.3 FM)
+📍 São Paulo - SP • 🏙️ 45 cidades • 👥 850.000 hab.
+✅ 720.000 cobertos • 📊 Cobertura • 🖼️ Logo
 
-1. **Cidade** (sem UF)
-2. **UF** (extraída corretamente)
-3. **População Total**
-4. **População Coberta**
-5. **% Cobertura**
-6. **Qualidade** (com acento: Ótimo)
+📻 Rádio B (95.5 FM)  
+📍 Rio de Janeiro - RJ • 🏙️ 32 cidades • 👥 650.000 hab.
+✅ 480.000 cobertos • 📊 Cobertura • 🏙️ Cidades
+```
 
-## 🎨 Identidade Visual
+### **📻 Modo Individual (Inalterado)**
 
-O sistema mantém a identidade E-MÍDIAS:
+Mantém toda a interface original:
+- Header com logo da rádio
+- Cards de informações básicas
+- Lista de cidades com busca
+- Exportação Excel individual
 
-- **Cores Primárias**:
-  - Azul Escuro: `#06055B`
-  - Magenta: `#FC1E75`
-  - Rosa: `#D71E97`
-  - Roxo: `#AA1EA5`
+## 🆕 Funcionalidades Detalhadas
 
-- **Tipografia**: Space Grotesk
-- **Gradientes**: Utilizados em botões e destaques
-- **Sombras**: Sutis para profundidade
+### **1. Processamento Inteligente**
 
-## 🆕 Novidades da Última Atualização
+**Modo Proposta**:
+- Processa **todas as rádios** da database em paralelo
+- **Extração automática** de logos de cada KMZ
+- **Sobreposição otimizada** de múltiplas coberturas
+- **Consolidação** de dados populacionais
 
-### ✅ **Logo Automática**
-- ✅ Extração automática da logo do KMZ
-- ✅ Exibição no header ao lado do nome da rádio
-- ✅ Marcador personalizado no mapa com a logo
-- ✅ Fallback para campo "Imagem" se KMZ não tiver logo
+**Preservado do Modo Individual**:
+- Processamento completo de KMZ (GroundOverlay, ScreenOverlay, Placemark)
+- Extração de dados técnicos da antena
+- Análise populacional detalhada por cidade
+- Marcadores coloridos por qualidade de sinal
 
-### ✅ **Mapas Simplificados**  
-- ✅ Apenas 2 opções: Satélite (padrão) e Padrão
-- ✅ Divisórias dos estados brasileiros
-- ✅ Tooltips com nomes dos estados
+### **2. Mapas Interativos**
 
-### ✅ **Lista Ordenada**
-- ✅ Ordenação por qualidade: Excelente → Ótimo → Fraco
-- ✅ UF correta extraída do nome da cidade
-- ✅ Excel com dados completos e corretos
+**Ambos os Modos**:
+- **Satélite** (padrão): Imagens de alta resolução
+- **Padrão**: OpenStreetMap com divisórias dos estados
+- **Divisórias dos Estados**: Linhas tracejadas brancas com tooltips
+- **Zoom Automático**: Ajusta para mostrar todo o conteúdo
 
-### ✅ **Performance**
-- ✅ Código otimizado - removido processamento desnecessário
-- ✅ Logs detalhados para debug
-- ✅ Carregamento mais rápido
+**Exclusivo do Modo Proposta**:
+- **Controle de Layers Avançado**: Checkboxes para cada rádio
+- **Sobreposição Múltipla**: Várias coberturas no mesmo mapa
+- **Painel de Controle**: Interface lateral para gerenciar visualizações
+
+### **3. Exportações**
+
+**Modo Individual** (Excel):
+```
+Cidade | UF | População Total | População Coberta | % Cobertura | Qualidade
+São Paulo | SP | 12.000.000 | 11.500.000 | 95.8% | Excelente
+```
+
+**Modo Proposta** (Excel Consolidado):
+```
+Rádio | Dial | UF | Praça | Total Cidades | Pop. Total | Pop. Coberta | Tem Cobertura | Tem Cidades
+Rádio A | 107.3 FM | SP | São Paulo | 45 | 850.000 | 720.000 | Sim | Sim
+Rádio B | 95.5 FM | RJ | Rio de Janeiro | 32 | 650.000 | 480.000 | Sim | Sim
+```
+
+### **4. Performance e Otimizações**
+
+- **Carregamento Paralelo**: Múltiplas rádios processadas simultaneamente
+- **Cache Inteligente**: Reutilização de dados entre componentes
+- **Renderização Otimizada**: Apenas elementos visíveis são renderizados
+- **Responsividade**: Interface adaptável para qualquer dispositivo
 
 ## 🐛 Troubleshooting
 
-### Erro: "ID do Notion inválido"
+### **Modo Proposta**
 
-**Solução**: Verifique se o ID tem exatamente 32 caracteres hexadecimais.
+#### **Erro: "ID da proposta inválido"**
+**Solução**: Verifique se o ID da database tem exatamente 32 caracteres hexadecimais.
 
-### Erro: "Token do Notion não configurado"
-
-**Solução**: Configure a variável de ambiente `NOTION_TOKEN` no Cloudflare.
-
-### Logo não aparece
-
+#### **Algumas rádios não aparecem no mapa**
 **Causas possíveis**:
-1. KMZ não contém logo no IconStyle ou descrição
-2. URL da logo está inválida/expirada
-3. Problema de CORS com a imagem
+1. KMZ2 ou KML2 URLs inválidas/expiradas
+2. Arquivos corrompidos no Google Drive
+3. Campos obrigatórios vazios no Notion
 
-**Solução**: Verifique se o KMZ tem a logo e se está acessível.
+**Solução**: Verifique os logs do console (F12) para identificar rádios com erro.
 
-### Imagem de cobertura não aparece
+#### **Painel de controle não aparece**
+**Solução**: O painel aparece automaticamente 3 segundos após o carregamento no modo proposta.
 
-**Causas possíveis**:
-1. PNG não está dentro do KMZ
-2. GroundOverlay sem coordenadas
-3. Coordenadas inválidas
+#### **Controle de layers muito longo**
+**Solução**: Normal para propostas com muitas rádios. Use o painel lateral como alternativa.
 
-**Solução**: Verifique o conteúdo do KMZ com um visualizador KML.
+### **Modo Individual (Preservado)**
 
-### Cidades não aparecem
+Todos os troubleshootings da versão anterior continuam válidos.
 
-**Causas possíveis**:
-1. KML2 vazio ou inválido
-2. Placemarks sem coordenadas
-3. URL do KML2 incorreta
+### **Geral**
 
-**Solução**: Verifique o KML2 no Google Earth ou editor XML.
+#### **Performance lenta com muitas rádios**
+**Solução**: 
+- Use "Ocultar Todas" para melhorar performance
+- Ative apenas as coberturas necessárias
+- Em mobile, use menos rádios simultâneas
 
-### Divisórias dos estados não aparecem
-
-**Solução**: Normal - se a internet estiver lenta ou o GeoJSON indisponível, o mapa funciona normalmente sem as divisórias.
+#### **Mapas não carregam**
+**Solução**: Verifique conexão com internet e tente recarregar a página.
 
 ## 📞 Suporte
 
 Para problemas ou dúvidas:
 
-1. Verifique o console do navegador (F12) - logs detalhados
-2. Verifique os logs do Cloudflare Pages
-3. Revise a estrutura do Notion
-4. Teste com outro ID de registro
+1. **Logs Detalhados**: Abra console do navegador (F12)
+2. **Cloudflare Logs**: Verifique logs do Cloudflare Pages
+3. **Notion**: Revise estrutura da database/tabela
+4. **Teste Individual**: Teste primeiro com uma rádio individual
 
 ## 📝 Changelog
 
-### v2.1.0 (2025-01-14) - NOVA VERSÃO
+### **v2.1.0 (2025-01-16) - MODO PROPOSTA**
 
-- ✨ **Logo automática**: Extração da logo do KMZ para header e mapa
-- ✨ **Mapas otimizados**: Apenas Satélite (padrão) e Padrão
-- ✨ **Divisórias dos estados**: Linhas tracejadas com tooltips
-- ✨ **Ordenação inteligente**: Cidades por qualidade (Excelente → Ótimo → Fraco)
-- ✨ **UF correta**: Extraída do nome da cidade no Excel
-- 🐛 **Bugs corrigidos**: Erro de propriedades undefined
-- ⚡ **Performance**: Código otimizado e mais rápido
+#### **🌟 Novidades Principais**
+- ✨ **Modo Proposta**: Múltiplas rádios em um único mapa
+- 🎛️ **Controle de Layers**: Painel lateral para gerenciar visualizações
+- 📊 **Estatísticas Consolidadas**: Dados agregados de toda a proposta
+- 📈 **Exportação Avançada**: Excel consolidado com todas as rádios
+- 🎯 **Foco Dinâmico**: Interação avançada com cada rádio
 
-### v2.0.0 (2025-01-13)
+#### **🔧 Melhorias Técnicas**
+- 🆕 **API Proposta**: `/api/proposta-data.js` para buscar múltiplas rádios
+- ⚡ **Processamento Paralelo**: Carregamento otimizado de múltiplas rádios
+- 🎨 **Interface Responsiva**: Design adaptado para ambos os modos
+- 💾 **Compatibilidade Total**: Modo individual 100% preservado
+
+#### **🐛 Correções**
+- ✅ Controle de layers mais robusto
+- ✅ Performance otimizada para múltiplas coberturas
+- ✅ Interface responsiva em dispositivos móveis
+
+### **v2.0.0 (2025-01-13)**
 
 - ✨ Processamento completo de arquivos KMZ
 - ✨ Extração de dados técnicos da antena
@@ -367,10 +393,40 @@ Para problemas ou dúvidas:
 - 🎨 Nova identidade visual E-MÍDIAS
 - 📱 Interface responsiva otimizada
 
+## 🔮 Roadmap Futuro
+
+### **v2.2.0 (Planejado)**
+- 🔄 **Comparação de Propostas**: Visualizar múltiplas propostas simultaneamente
+- 📊 **Relatórios Avançados**: Gráficos e análises detalhadas
+- 🎯 **Filtros Dinâmicos**: Por região, qualidade, população
+- 📱 **App Mobile**: Versão nativa para dispositivos móveis
+
+### **v2.3.0 (Planejado)**
+- 🤖 **IA Análise**: Sugestões automáticas de otimização
+- 🗺️ **Mapas 3D**: Visualização tridimensional da cobertura
+- 📈 **Dashboard Analytics**: Métricas em tempo real
+- 🔗 **API Pública**: Integração com outros sistemas
+
 ## 📄 Licença
 
 Proprietário - E-MÍDIAS © 2025
 
 ---
 
+## 🎯 Links de Teste
+
+**🆕 Proposta de Exemplo**:
+```
+https://mapeamento.emidiastec.com.br/?idproposta=28d20b549cf5817082bbff59d24819ba
+```
+
+**📻 Rádio Individual** (qualquer rádio da proposta):
+```
+https://mapeamento.emidiastec.com.br/?id=[ID_DE_UMA_RADIO_DA_PROPOSTA]
+```
+
+---
+
 **Desenvolvido com ❤️ por E-MÍDIAS**
+
+*🌟 Agora com suporte a múltiplas rádios! 🌟*
