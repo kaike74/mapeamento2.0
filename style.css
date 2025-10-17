@@ -59,6 +59,144 @@ body {
 }
 
 /* =============================================================================
+    🆕 TELA DE CARREGAMENTO ANIMADA (MODO PROPOSTA)
+    ============================================================================= */
+.loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--emidias-primary) 0%, var(--emidias-roxo) 100%);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.8s ease-out;
+}
+
+.loading-content {
+    text-align: center;
+    color: var(--emidias-white);
+    max-width: 500px;
+    padding: 40px;
+}
+
+.loading-logo-container {
+    margin-bottom: 30px;
+    animation: logoFloat 3s ease-in-out infinite;
+}
+
+.loading-logo {
+    max-width: 250px;
+    max-height: 120px;
+    width: auto;
+    height: auto;
+    filter: brightness(1.2) drop-shadow(0 4px 20px rgba(255, 255, 255, 0.3));
+    animation: logoGlow 2s ease-in-out infinite alternate;
+}
+
+.loading-title {
+    font-size: 36px;
+    font-weight: var(--font-weight-bold);
+    margin-bottom: 20px;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    animation: titlePulse 2.5s ease-in-out infinite;
+}
+
+.loading-text {
+    font-size: 18px;
+    font-weight: var(--font-weight-medium);
+    margin-bottom: 30px;
+    opacity: 0.9;
+    min-height: 25px;
+    animation: textFade 3s ease-in-out infinite;
+}
+
+.loading-progress {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 20px;
+}
+
+.loading-bar {
+    height: 100%;
+    background: var(--gradient-accent);
+    border-radius: 3px;
+    animation: progressSlide 2s ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(252, 30, 117, 0.5);
+}
+
+/* 🎬 ANIMAÇÕES DA TELA DE CARREGAMENTO */
+@keyframes logoFloat {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes logoGlow {
+    0% { filter: brightness(1.2) drop-shadow(0 4px 20px rgba(255, 255, 255, 0.3)); }
+    100% { filter: brightness(1.4) drop-shadow(0 6px 30px rgba(252, 30, 117, 0.4)); }
+}
+
+@keyframes titlePulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.02); opacity: 0.95; }
+}
+
+@keyframes textFade {
+    0%, 100% { opacity: 0.9; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes progressSlide {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(0%); }
+    100% { transform: translateX(100%); }
+}
+
+/* 📱 RESPONSIVIDADE DA TELA DE CARREGAMENTO */
+@media (max-width: 768px) {
+    .loading-content {
+        padding: 30px 20px;
+    }
+    
+    .loading-logo {
+        max-width: 180px;
+        max-height: 90px;
+    }
+    
+    .loading-title {
+        font-size: 28px;
+        margin-bottom: 15px;
+    }
+    
+    .loading-text {
+        font-size: 16px;
+        margin-bottom: 25px;
+    }
+}
+
+@media (max-width: 480px) {
+    .loading-logo {
+        max-width: 150px;
+        max-height: 75px;
+    }
+    
+    .loading-title {
+        font-size: 24px;
+        margin-bottom: 12px;
+    }
+    
+    .loading-text {
+        font-size: 14px;
+        margin-bottom: 20px;
+    }
+}
+
+/* =============================================================================
     🎨 HEADER MELHORADO - LAYOUT OTIMIZADO
     ============================================================================= */
 .top-header {
@@ -321,128 +459,6 @@ body {
     height: 1px !important;
     background: var(--emidias-primary) !important;
     margin: 8px 0 !important;
-}
-
-/* 🆕 PAINEL DE CONTROLE DE RÁDIOS (MODO PROPOSTA) - LAYOUT CORRIGIDO */
-.radios-control-panel {
-    position: absolute;
-    top: 100px;
-    left: 20px;
-    background: var(--emidias-white);
-    border-radius: 12px;
-    box-shadow: var(--shadow-lg);
-    z-index: 1000;
-    border: 2px solid var(--emidias-primary);
-    max-width: 240px;
-    max-height: 350px;
-    overflow: hidden;
-}
-
-.panel-header {
-    background: var(--gradient-primary);
-    color: var(--emidias-white);
-    padding: 12px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: var(--font-weight-bold);
-    font-size: 14px;
-}
-
-.panel-toggle {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: var(--emidias-white);
-    padding: 4px 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.3s ease;
-}
-
-.panel-toggle:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.panel-content {
-    padding: 10px;
-    max-height: 270px;
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
-.panel-actions {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 10px;
-}
-
-.panel-btn {
-    flex: 1;
-    background: var(--gradient-accent);
-    color: var(--emidias-white);
-    border: none;
-    padding: 6px 8px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: var(--font-weight-semibold);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.radios-list-panel {
-    border-top: 1px solid var(--emidias-light-gray);
-    padding-top: 10px;
-}
-
-.radio-item-panel {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 0;
-    border-bottom: 1px solid var(--emidias-light-gray);
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.radio-info-panel {
-    flex: 1;
-    font-size: 11px;
-    min-width: 0;
-    overflow: hidden;
-}
-
-.radio-name-panel {
-    font-weight: var(--font-weight-semibold);
-    color: var(--emidias-dark);
-    line-height: 1.2;
-    margin-bottom: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.radio-details-panel {
-    color: var(--emidias-gray);
-    font-size: 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.radio-focus-btn {
-    background: var(--gradient-success);
-    color: var(--emidias-white);
-    border: none;
-    padding: 3px 6px;
-    border-radius: 4px;
-    font-size: 10px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    flex-shrink: 0;
 }
 
 /* Legenda de cores */
@@ -876,18 +892,6 @@ body {
         padding: 12px;
     }
     
-    .radios-control-panel {
-        top: 100px;
-        left: 10px;
-        max-width: 200px;
-        max-height: 250px;
-    }
-    
-    .panel-content {
-        max-height: 170px;
-        padding: 8px;
-    }
-    
     .cidades-header {
         flex-direction: column;
         align-items: stretch;
@@ -918,16 +922,6 @@ body {
     
     .header-subtitle {
         font-size: 14px;
-    }
-    
-    .radios-control-panel {
-        max-width: 240px;
-        max-height: 300px;
-    }
-    
-    .panel-content {
-        padding: 12px;
-        max-height: 220px;
     }
 }
 
