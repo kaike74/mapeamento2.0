@@ -70,7 +70,7 @@ const loadingTexts = [
 ];
 
 // =========================================================================
-// 🎯 INICIALIZAÇÃO PRINCIPAL
+// 🎯 INICIALIZAÇÃO PRINCIPAL - 🔧 CORRIGIDA PARA MODO INDIVIDUAL
 // =========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -81,14 +81,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const radioId = params.get('id');
         const propostaId = params.get('idproposta');
         
+        // 🆕 SEMPRE MOSTRAR TELA DE CARREGAMENTO INICIAL
+        showLoadingScreen();
+        
         if (propostaId) {
             // 🌟 MODO PROPOSTA (MÚLTIPLAS RÁDIOS)
             console.log('🌟 Modo Proposta detectado:', propostaId);
             isPropostaMode = true;
-            
-            // 🆕 MOSTRAR TELA DE CARREGAMENTO ANIMADA
-            showLoadingScreen();
-            
             await initPropostaMode(propostaId);
         } else if (radioId) {
             // 📻 MODO INDIVIDUAL (UMA RÁDIO)
@@ -198,7 +197,7 @@ async function initPropostaMode(propostaId) {
 }
 
 // =========================================================================
-// 📻 INICIALIZAÇÃO MODO INDIVIDUAL (UMA RÁDIO) - PRESERVADO
+// 📻 INICIALIZAÇÃO MODO INDIVIDUAL (UMA RÁDIO) - 🔧 CORRIGIDA PARA OCULTAR LOADING
 // =========================================================================
 async function initIndividualMode(radioId) {
     console.log('📻 Inicializando modo individual...');
@@ -212,7 +211,13 @@ async function initIndividualMode(radioId) {
     // 🖼️ ATUALIZAR LOGO NO FINAL (GARANTIR QUE DOM ESTÁ PRONTO)
     setTimeout(() => {
         updateHeaderLogoFinal(0);
-    }, 2000);
+    }, 1000);
+    
+    // 🔧 OCULTAR TELA DE CARREGAMENTO APÓS TUDO CARREGADO NO MODO INDIVIDUAL
+    setTimeout(() => {
+        hideLoadingScreen();
+        console.log('✅ Tela de carregamento ocultada - modo individual pronto');
+    }, 1500);
     
     console.log('✅ Modo individual inicializado');
 }
