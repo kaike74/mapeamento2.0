@@ -189,6 +189,9 @@ async function initPropostaMode(propostaId) {
         addAllRadiosToMap();
         setupLayersControlForProposta();
         
+        // 🆕 RECALCULAR ESTATÍSTICAS APÓS PROCESSAMENTO COMPLETO
+        setupConsolidatedStats();
+        
         // 🆕 OCULTAR TELA DE CARREGAMENTO APÓS COMPLETAR
         hideLoadingScreen();
     }, 1000);
@@ -841,9 +844,6 @@ function setupPropostaInterface() {
     // Atualizar header (SEM LOGO)
     updateHeaderProposta();
     
-    // 🔧 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS PRIMEIRO
-    setupConsolidatedStats();
-    
     // 🔧 OCULTAR ELEMENTOS DESNECESSÁRIOS NO MODO PROPOSTA
     hideUnnecessaryElementsInPropostaMode();
     
@@ -933,72 +933,75 @@ function setupConsolidatedStats() {
     let radiosWithKmz = 0;
     let radiosWithKml = 0;
     
-    propostaData.radios.forEach((radio, index) => {
-        console.log(`🔍 DEBUG - Rádio ${index + 1} (${radio.name}):`, {
-            hasKmz: radio.hasKmz || !!radio.coverageImage,
-            hasKml: radio.hasKml || !!radio.citiesData,
-            cidadesCount: radio.citiesData?.length || 0
+    // 🔧 AGUARDAR UM POUCO PARA GARANTIR QUE DADOS FORAM PROCESSADOS
+    setTimeout(() => {
+        propostaData.radios.forEach((radio, index) => {
+            console.log(`🔍 DEBUG - Rádio ${index + 1} (${radio.name}):`, {
+                hasKmz: radio.hasKmz || !!radio.coverageImage,
+                hasKml: radio.hasKml || !!radio.citiesData,
+                cidadesCount: radio.citiesData?.length || 0
+            });
+            
+            // Corrigir flags
+            if (radio.hasKmz || radio.coverageImage) radiosWithKmz++;
+            if (radio.hasKml || (radio.citiesData && radio.citiesData.length > 0)) radiosWithKml++;
+            
+            // Somar dados de cidades
+            if (radio.citiesData && Array.isArray(radio.citiesData)) {
+                totalCities += radio.citiesData.length;
+                radio.citiesData.forEach(city => {
+                    totalPopulation += city.totalPopulation || 0;
+                    totalCoveredPopulation += city.coveredPopulation || 0;
+                });
+            }
         });
         
-        // Corrigir flags
-        if (radio.hasKmz || radio.coverageImage) radiosWithKmz++;
-        if (radio.hasKml || (radio.citiesData && radio.citiesData.length > 0)) radiosWithKml++;
+        const coveragePercent = totalPopulation > 0 ? ((totalCoveredPopulation / totalPopulation) * 100).toFixed(1) : 0;
         
-        // Somar dados de cidades
-        if (radio.citiesData && Array.isArray(radio.citiesData)) {
-            totalCities += radio.citiesData.length;
-            radio.citiesData.forEach(city => {
-                totalPopulation += city.totalPopulation || 0;
-                totalCoveredPopulation += city.coveredPopulation || 0;
-            });
+        console.log('📊 Estatísticas calculadas:', {
+            totalRadios,
+            totalCities,
+            totalPopulation,
+            totalCoveredPopulation,
+            coveragePercent,
+            radiosWithKmz,
+            radiosWithKml
+        });
+        
+        // Renderizar estatísticas
+        const statsGrid = document.getElementById('stats-grid');
+        if (statsGrid) {
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-card-title">📻 Total de Rádios</div>
+                    <div class="stat-card-value">${totalRadios}</div>
+                    <div class="stat-card-detail">${radiosWithKmz} com cobertura • ${radiosWithKml} com cidades</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-card-title">🏙️ Cidades Atendidas</div>
+                    <div class="stat-card-value">${totalCities.toLocaleString()}</div>
+                    <div class="stat-card-detail">Em ${propostaData.summary.estados.length} estados</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-card-title">👥 População Total</div>
+                    <div class="stat-card-value">${totalPopulation.toLocaleString()}</div>
+                    <div class="stat-card-detail">Universo de cobertura</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-card-title">✅ População Coberta</div>
+                    <div class="stat-card-value">${totalCoveredPopulation.toLocaleString()}</div>
+                    <div class="stat-card-detail">${coveragePercent}% do total</div>
+                </div>
+            `;
+            
+            document.getElementById('stats-section').style.display = 'block';
         }
-    });
-    
-    const coveragePercent = totalPopulation > 0 ? ((totalCoveredPopulation / totalPopulation) * 100).toFixed(1) : 0;
-    
-    console.log('📊 Estatísticas calculadas:', {
-        totalRadios,
-        totalCities,
-        totalPopulation,
-        totalCoveredPopulation,
-        coveragePercent,
-        radiosWithKmz,
-        radiosWithKml
-    });
-    
-    // Renderizar estatísticas
-    const statsGrid = document.getElementById('stats-grid');
-    if (statsGrid) {
-        statsGrid.innerHTML = `
-            <div class="stat-card">
-                <div class="stat-card-title">📻 Total de Rádios</div>
-                <div class="stat-card-value">${totalRadios}</div>
-                <div class="stat-card-detail">${radiosWithKmz} com cobertura • ${radiosWithKml} com cidades</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-card-title">🏙️ Cidades Atendidas</div>
-                <div class="stat-card-value">${totalCities.toLocaleString()}</div>
-                <div class="stat-card-detail">Em ${propostaData.summary.estados.length} estados</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-card-title">👥 População Total</div>
-                <div class="stat-card-value">${totalPopulation.toLocaleString()}</div>
-                <div class="stat-card-detail">Universo de cobertura</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-card-title">✅ População Coberta</div>
-                <div class="stat-card-value">${totalCoveredPopulation.toLocaleString()}</div>
-                <div class="stat-card-detail">${coveragePercent}% do total</div>
-            </div>
-        `;
         
-        document.getElementById('stats-section').style.display = 'block';
-    }
-    
-    console.log('✅ Estatísticas consolidadas configuradas');
+        console.log('✅ Estatísticas consolidadas configuradas (com delay)');
+    }, 2000); // Aguardar 2 segundos para garantir que todos os dados foram processados
 }
 
 // =========================================================================
