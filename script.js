@@ -1145,7 +1145,7 @@ function finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalC
             </div>
             
             <div class="stat-card">
-                <div class="stat-card-title">🏙️ Cidades Atendidas</div>
+                <div class="stat-card-title">🏙️ Cidades cobertas</div>
                 <div class="stat-card-value">${totalCities.toLocaleString()}</div>
                 <div class="stat-card-detail">Em ${propostaData.summary.estados.length} estados</div>
             </div>
@@ -1153,11 +1153,11 @@ function finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalC
             <div class="stat-card">
                 <div class="stat-card-title">👥 População Total</div>
                 <div class="stat-card-value">${totalPopulation.toLocaleString()}</div>
-                <div class="stat-card-detail">Universo de cobertura</div>
+                <div class="stat-card-detail">Universo potencial</div>
             </div>
             
             <div class="stat-card">
-                <div class="stat-card-title">✅ População Coberta</div>
+                <div class="stat-card-title">✅ Universo</div>
                 <div class="stat-card-value">${totalCoveredPopulation.toLocaleString()}</div>
                 <div class="stat-card-detail">${coveragePercent}% do total</div>
             </div>
