@@ -48,13 +48,12 @@ let citiesData = [];
 let filteredCities = [];
 let coverageImageLayer = null;
 let legendImage = null;
-let cityMarkers = [];
+let cityMarkersIndividual = []; // Para modo individual apenas
 let baseLayers = {}; // Para controle de layers
 
 // 🆕 VARIÁVEIS PARA MODO PROPOSTA
 let isPropostaMode = false;
-let radiosLayers = {}; // Camadas de cobertura de cada rádio
-let antennaMarkers = []; // Marcadores das antenas
+let radiosLayers = {}; // Layer Groups completos de cada rádio (cobertura + antena + cidades)
 let layersControl = null; // Controle de layers dinâmico
 
 // 🆕 VARIÁVEIS PARA TELA DE CARREGAMENTO
@@ -529,7 +528,7 @@ async function parseKMLCitiesForRadio(kmlText) {
 }
 
 // =========================================================================
-// 🗺️ INICIALIZAR MAPA (PRESERVADO COM MELHORIAS PARA PROPOSTA)
+// 🗺️ INICIALIZAR MAPA (PRESERVADO COM MELHORIAS PARA PROPOSTA) - OTIMIZADO
 // =========================================================================
 function initializeMap() {
     console.log('🗺️ Inicializando mapa...');
@@ -538,22 +537,65 @@ function initializeMap() {
     const center = { lat: -14.2350, lng: -51.9253 }; // Centro do Brasil
     const zoom = 5; // Zoom para mostrar todo o Brasil
     
-    map = L.map('map').setView([center.lat, center.lng], zoom);
+    map = L.map('map', {
+        // 🚀 OTIMIZAÇÕES DE PERFORMANCE
+        preferCanvas: true, // Usar Canvas para melhor performance com muitos marcadores
+        zoomControl: true,
+        attributionControl: true,
+        // Throttle de eventos para melhor performance
+        zoomSnap: 0.5,
+        zoomDelta: 0.5,
+        wheelDebounceTime: 60, // Reduzir frequência do scroll do mouse
+        wheelPxPerZoomLevel: 60 // Suavizar zoom com mouse
+    }).setView([center.lat, center.lng], zoom);
     
     // 🗺️ DEFINIR APENAS 2 CAMADAS DE MAPA (SATÉLITE COMO PADRÃO)
     baseLayers = {
         'Satélite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: '© Esri',
-            maxZoom: 18
+            maxZoom: 18,
+            // 🚀 OTIMIZAÇÕES DE PERFORMANCE
+            updateWhenIdle: true, // Só atualizar quando parar de mover
+            keepBuffer: 2 // Manter tiles em cache
         }),
         'Padrão': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
-            maxZoom: 18
+            maxZoom: 18,
+            // 🚀 OTIMIZAÇÕES DE PERFORMANCE
+            updateWhenIdle: true,
+            keepBuffer: 2
         })
     };
     
     // Adicionar camada padrão (Satélite primeiro)
     baseLayers['Satélite'].addTo(map);
+    
+    // 🚀 THROTTLE DE EVENTOS PARA PERFORMANCE
+    let zoomTimeout;
+    map.on('zoomstart', function() {
+        // Reduzir opacity durante zoom para melhor performance
+        if (isPropostaMode) {
+            Object.values(radiosLayers).forEach(layerGroup => {
+                if (map.hasLayer(layerGroup)) {
+                    layerGroup.setOpacity ? layerGroup.setOpacity(0.3) : null;
+                }
+            });
+        }
+    });
+    
+    map.on('zoomend', function() {
+        // Restaurar opacity após zoom
+        clearTimeout(zoomTimeout);
+        zoomTimeout = setTimeout(() => {
+            if (isPropostaMode) {
+                Object.values(radiosLayers).forEach(layerGroup => {
+                    if (map.hasLayer(layerGroup)) {
+                        layerGroup.setOpacity ? layerGroup.setOpacity(1) : null;
+                    }
+                });
+            }
+        }, 100);
+    });
     
     // Adicionar divisórias dos estados brasileiros
     addStateBorders();
@@ -592,65 +634,79 @@ function initializeMap() {
     // Mostrar mapa
     document.getElementById('map-section').style.display = 'block';
     
-    console.log('✅ Mapa inicializado');
+    console.log('✅ Mapa inicializado com otimizações de performance');
 }
 
 // =========================================================================
-// 🌟 ADICIONAR TODAS AS RÁDIOS AO MAPA (MODO PROPOSTA) - CORRIGIDO
+// 🌟 ADICIONAR TODAS AS RÁDIOS AO MAPA (MODO PROPOSTA) - OTIMIZADO COM LAYER GROUPS
 // =========================================================================
 function addAllRadiosToMap() {
-    console.log('🌟 Adicionando todas as rádios ao mapa...');
+    console.log('🌟 Adicionando todas as rádios ao mapa com Layer Groups...');
     
     propostaData.radios.forEach((radio, index) => {
         console.log(`📻 Processando rádio ${index + 1}: ${radio.name}`);
         
-        // Adicionar imagem de cobertura se disponível
+        // 🔧 CRIAR LAYER GROUP PARA ESTA RÁDIO (inclui cobertura + antena + cidades)
+        const radioLayerGroup = L.layerGroup();
+        
+        // 1. Adicionar imagem de cobertura se disponível
         if (radio.coverageImage) {
             console.log(`🗺️ Adicionando cobertura de ${radio.name}`);
-            const layer = L.imageOverlay(
+            const coverageLayer = L.imageOverlay(
                 radio.coverageImage.url,
                 radio.coverageImage.bounds,
                 {
                     opacity: 0.6,
                     interactive: false
                 }
-            ).addTo(map);
-            
-            radiosLayers[radio.id] = layer;
-            console.log(`✅ Cobertura de ${radio.name} adicionada ao mapa`);
-        } else {
-            console.warn(`⚠️ ${radio.name} não tem cobertura (coverageImage)`);
+            );
+            radioLayerGroup.addLayer(coverageLayer);
+            console.log(`✅ Cobertura de ${radio.name} adicionada ao grupo`);
         }
         
-        // Adicionar marcador da antena
+        // 2. Adicionar marcador da antena
         if (radio.antennaLocation) {
-            addRadioAntennaMarker(radio);
-            console.log(`📍 Antena de ${radio.name} adicionada`);
-        } else {
-            console.warn(`⚠️ ${radio.name} não tem localização da antena`);
+            const antennaMarker = createRadioAntennaMarker(radio);
+            radioLayerGroup.addLayer(antennaMarker);
+            console.log(`📍 Antena de ${radio.name} adicionada ao grupo`);
         }
         
-        // Adicionar marcadores de cidades se disponível
+        // 3. Adicionar marcadores de cidades (OTIMIZADO)
         if (radio.citiesData && radio.citiesData.length > 0) {
-            addRadioCityMarkers(radio);
-            console.log(`🏙️ ${radio.citiesData.length} cidades de ${radio.name} adicionadas`);
-        } else {
-            console.warn(`⚠️ ${radio.name} não tem dados de cidades`);
+            // 🚀 OTIMIZAÇÃO: Limitar cidades se há muitas (performance)
+            const maxCities = 100; // Máximo de cidades por rádio para performance
+            const citiesToShow = radio.citiesData.slice(0, maxCities);
+            
+            citiesToShow.forEach(city => {
+                const cityMarker = createCityMarker(city, radio);
+                radioLayerGroup.addLayer(cityMarker);
+            });
+            
+            console.log(`🏙️ ${citiesToShow.length}/${radio.citiesData.length} cidades de ${radio.name} adicionadas ao grupo`);
+            
+            if (radio.citiesData.length > maxCities) {
+                console.warn(`⚠️ ${radio.name}: Mostrando apenas ${maxCities} de ${radio.citiesData.length} cidades para melhor performance`);
+            }
         }
+        
+        // 4. Adicionar o grupo completo ao mapa e armazenar
+        radioLayerGroup.addTo(map);
+        radiosLayers[radio.id] = radioLayerGroup;
+        
+        console.log(`✅ Grupo completo de ${radio.name} adicionado ao mapa`);
     });
     
     // Ajustar zoom para mostrar todas as rádios
     fitMapBoundsForProposta();
     
-    console.log(`✅ ${propostaData.radios.length} rádios processadas no mapa`);
-    console.log(`📊 Coberturas disponíveis: ${Object.keys(radiosLayers).length}`);
+    console.log(`✅ ${propostaData.radios.length} rádios processadas no mapa com Layer Groups`);
+    console.log(`📊 Layer Groups disponíveis: ${Object.keys(radiosLayers).length}`);
 }
 
 // =========================================================================
-// 📍 ADICIONAR MARCADOR DA ANTENA PARA UMA RÁDIO (MODO PROPOSTA) - 🔧 COM LOGO RESTAURADA
+// 📍 CRIAR MARCADOR DA ANTENA PARA UMA RÁDIO (FUNÇÃO OTIMIZADA)
 // =========================================================================
-function addRadioAntennaMarker(radio) {
-    // 🔧 CORRIGIDO: USAR LOGO NO MODO PROPOSTA TAMBÉM
+function createRadioAntennaMarker(radio) {
     let antennaIcon;
     let logoUrl = radio.logoUrlFromKMZ || radio.notionIconUrl;
     
@@ -679,7 +735,6 @@ function addRadioAntennaMarker(radio) {
             iconSize: [40, 40],
             iconAnchor: [20, 20]
         });
-        console.log(`✅ Marcador com logo para ${radio.name}:`, logoUrl);
     } else {
         // Ícone padrão vermelho se não tiver logo
         antennaIcon = L.divIcon({
@@ -697,7 +752,6 @@ function addRadioAntennaMarker(radio) {
             iconSize: [24, 24],
             iconAnchor: [12, 12]
         });
-        console.log(`⚠️ Usando ícone padrão para ${radio.name} (sem logo)`);
     }
     
     const popupContent = `
@@ -717,54 +771,46 @@ function addRadioAntennaMarker(radio) {
         </div>
     `;
     
-    const marker = L.marker([radio.antennaLocation.lat, radio.antennaLocation.lng], { icon: antennaIcon })
-        .addTo(map)
+    return L.marker([radio.antennaLocation.lat, radio.antennaLocation.lng], { icon: antennaIcon })
         .bindPopup(popupContent);
-    
-    antennaMarkers.push(marker);
 }
 
 // =========================================================================
-// 🏙️ ADICIONAR MARCADORES DE CIDADES PARA UMA RÁDIO
+// 🏙️ CRIAR MARCADOR DE CIDADE (FUNÇÃO OTIMIZADA)
 // =========================================================================
-function addRadioCityMarkers(radio) {
-    radio.citiesData.forEach(city => {
-        const color = getQualityColor(city.quality);
-        
-        const cityIcon = L.divIcon({
-            html: `
-                <div style="
-                    width: 16px;
-                    height: 16px;
-                    background: ${color};
-                    border: 2px solid white;
-                    border-radius: 50%;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                "></div>
-            `,
-            className: 'city-marker',
-            iconSize: [16, 16],
-            iconAnchor: [8, 8]
-        });
-        
-        const popupContent = `
-            <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
-                <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
-                <p style="margin: 2px 0; font-weight: bold; color: #FC1E75;">📻 ${radio.name} (${radio.dial})</p>
-                <div style="text-align: left; font-size: 13px; color: #64748B;">
-                    <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
-                    <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()} ${city.coveragePercent ? `(${city.coveragePercent})` : ''}</p>
-                    <p style="margin: 4px 0;"><strong>Qualidade:</strong> ${getQualityText(city.quality)}</p>
-                </div>
-            </div>
-        `;
-        
-        const marker = L.marker([city.coordinates.lat, city.coordinates.lng], { icon: cityIcon })
-            .addTo(map)
-            .bindPopup(popupContent);
-        
-        cityMarkers.push(marker);
+function createCityMarker(city, radio) {
+    const color = getQualityColor(city.quality);
+    
+    const cityIcon = L.divIcon({
+        html: `
+            <div style="
+                width: 16px;
+                height: 16px;
+                background: ${color};
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            "></div>
+        `,
+        className: 'city-marker',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
     });
+    
+    const popupContent = `
+        <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
+            <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
+            <p style="margin: 2px 0; font-weight: bold; color: #FC1E75;">📻 ${radio.name} (${radio.dial})</p>
+            <div style="text-align: left; font-size: 13px; color: #64748B;">
+                <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
+                <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()} ${city.coveragePercent ? `(${city.coveragePercent})` : ''}</p>
+                <p style="margin: 4px 0;"><strong>Qualidade:</strong> ${getQualityText(city.quality)}</p>
+            </div>
+        </div>
+    `;
+    
+    return L.marker([city.coordinates.lat, city.coordinates.lng], { icon: cityIcon })
+        .bindPopup(popupContent);
 }
 
 // =========================================================================
@@ -1005,11 +1051,11 @@ function setupConsolidatedStats() {
 }
 
 // =========================================================================
-// 🎯 DESTACAR RÁDIO NO MAPA
+// 🎯 DESTACAR RÁDIO NO MAPA - OTIMIZADO COM LAYER GROUPS
 // =========================================================================
 function highlightRadio(radioId) {
     const radio = propostaData.radios.find(r => r.id === radioId);
-    if (!radio) return;
+    if (!radio || !radiosLayers[radioId]) return;
     
     // Centralizar no marcador da antena se disponível
     if (radio.antennaLocation) {
@@ -1018,26 +1064,35 @@ function highlightRadio(radioId) {
             duration: 1.5
         });
         
-        // Abrir popup da antena
+        // 🚀 OTIMIZADO: Encontrar marcador da antena no layer group
         setTimeout(() => {
-            antennaMarkers.forEach(marker => {
-                const markerLatLng = marker.getLatLng();
-                if (Math.abs(markerLatLng.lat - radio.antennaLocation.lat) < 0.0001 &&
-                    Math.abs(markerLatLng.lng - radio.antennaLocation.lng) < 0.0001) {
-                    marker.openPopup();
-                }
-            });
+            const layerGroup = radiosLayers[radioId];
+            if (layerGroup) {
+                layerGroup.eachLayer(layer => {
+                    // Verificar se é um marcador da antena (40x40 px)
+                    if (layer instanceof L.Marker && layer.options.icon && layer.options.icon.options.iconSize) {
+                        const iconSize = layer.options.icon.options.iconSize;
+                        if (iconSize[0] === 40 && iconSize[1] === 40) {
+                            layer.openPopup();
+                        }
+                    }
+                });
+            }
         }, 1000);
     }
     
-    // Destacar layer de cobertura (piscar temporariamente)
+    // Destacar layer group (piscar temporariamente)
     if (radiosLayers[radioId]) {
-        const layer = radiosLayers[radioId];
-        const originalOpacity = layer.options.opacity;
+        const layerGroup = radiosLayers[radioId];
         
-        // Animação de destaque
-        layer.setOpacity(0.9);
-        setTimeout(() => layer.setOpacity(originalOpacity), 1000);
+        // Animação de destaque para todo o grupo
+        layerGroup.eachLayer(layer => {
+            if (layer.setOpacity) {
+                const originalOpacity = layer.options.opacity || 0.6;
+                layer.setOpacity(0.9);
+                setTimeout(() => layer.setOpacity(originalOpacity), 1000);
+            }
+        });
     }
 }
 
@@ -1616,7 +1671,7 @@ function addAntennaMarker() {
 // 🏙️ ADICIONAR MARCADORES DAS CIDADES (MODO INDIVIDUAL)
 // =========================================================================
 function addCityMarkers() {
-    cityMarkers = []; // Limpar marcadores existentes
+    cityMarkersIndividual = []; // Limpar marcadores existentes
     
     citiesData.forEach(city => {
         const color = getQualityColor(city.quality);
@@ -1652,10 +1707,10 @@ function addCityMarkers() {
             .addTo(map)
             .bindPopup(popupContent);
         
-        cityMarkers.push(marker);
+        cityMarkersIndividual.push(marker);
     });
     
-    console.log(`🏙️ ${cityMarkers.length} marcadores de cidades adicionados`);
+    console.log(`🏙️ ${cityMarkersIndividual.length} marcadores de cidades adicionados`);
 }
 
 // =========================================================================
@@ -1775,7 +1830,7 @@ function highlightCity(cityName) {
     
     // Encontrar e abrir popup do marcador
     setTimeout(() => {
-        cityMarkers.forEach(marker => {
+        cityMarkersIndividual.forEach(marker => {
             const markerLatLng = marker.getLatLng();
             if (Math.abs(markerLatLng.lat - city.coordinates.lat) < 0.0001 &&
                 Math.abs(markerLatLng.lng - city.coordinates.lng) < 0.0001) {
