@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // =========================================================================
-// 🌟 INICIALIZAÇÃO MODO PROPOSTA (MÚLTIPLAS RÁDIOS)
+// 🌟 INICIALIZAÇÃO MODO PROPOSTA (MÚLTIPLAS RÁDIOS) - CORRIGIDO
 // =========================================================================
 async function initPropostaMode(propostaId) {
     console.log('🌟 Inicializando modo proposta...');
@@ -99,14 +99,22 @@ async function initPropostaMode(propostaId) {
     // Carregar dados da proposta
     await loadPropostaData(propostaId);
     
+    // Configurar interface para proposta ANTES do mapa
+    setupPropostaInterface();
+    
     // Inicializar mapa
     initializeMap();
     
-    // Processar todas as rádios da proposta
+    // 🔧 AGUARDAR processamento completo antes de adicionar ao mapa
+    console.log('🔄 Aguardando processamento de todas as rádios...');
     await processAllRadiosInProposta();
     
-    // Configurar interface para proposta
-    setupPropostaInterface();
+    // Só depois adicionar ao mapa
+    setTimeout(() => {
+        addAllRadiosToMap();
+        setupLayersControlForProposta();
+        setupRadiosControlPanel();
+    }, 1000);
     
     console.log('✅ Modo proposta inicializado');
 }
@@ -180,7 +188,7 @@ async function loadRadioData(notionId) {
 }
 
 // =========================================================================
-// 🔄 PROCESSAR TODAS AS RÁDIOS DA PROPOSTA
+// 🔄 PROCESSAR TODAS AS RÁDIOS DA PROPOSTA - AGUARDAR CONCLUSÃO
 // =========================================================================
 async function processAllRadiosInProposta() {
     console.log('🔄 Processando todas as rádios da proposta...');
@@ -192,28 +200,40 @@ async function processAllRadiosInProposta() {
             // Processar ícone do Notion para cada rádio
             processRadioNotionIcon(radio);
             
-            // Processar KMZ se disponível
-            if (radio.kmz2Url) {
+            // Processar KMZ se disponível - AGUARDAR CONCLUSÃO
+            if (radio.kmz2Url && radio.kmz2Url.trim() !== '') {
+                console.log(`📦 Processando KMZ de ${radio.name}...`);
                 await processRadioKMZ(radio);
+                console.log(`📦 KMZ de ${radio.name} processado`);
+            } else {
+                console.warn(`⚠️ ${radio.name} não tem URL de KMZ2`);
             }
             
-            // Processar KML se disponível
-            if (radio.kml2Url) {
+            // Processar KML se disponível - AGUARDAR CONCLUSÃO  
+            if (radio.kml2Url && radio.kml2Url.trim() !== '') {
+                console.log(`🏙️ Processando KML de ${radio.name}...`);
                 await processRadioKML(radio);
+                console.log(`🏙️ KML de ${radio.name} processado`);
+            } else {
+                console.warn(`⚠️ ${radio.name} não tem URL de KML2`);
             }
             
-            console.log(`✅ Rádio ${radio.name} processada`);
+            console.log(`✅ Rádio ${radio.name} processada - Cobertura: ${!!radio.coverageImage}, Antena: ${!!radio.antennaLocation}, Cidades: ${radio.citiesData?.length || 0}`);
             
         } catch (error) {
-            console.warn(`⚠️ Erro ao processar rádio ${radio.name}:`, error);
+            console.error(`❌ Erro ao processar rádio ${radio.name}:`, error);
             // Continuar com as outras rádios
         }
     });
     
-    // Aguardar processamento de todas as rádios
-    await Promise.allSettled(processPromises);
+    // 🔧 AGUARDAR TODAS AS RÁDIOS SEREM PROCESSADAS
+    await Promise.all(processPromises);
     
     console.log('✅ Todas as rádios processadas');
+    console.log('📊 Resumo final:');
+    propostaData.radios.forEach(radio => {
+        console.log(`- ${radio.name}: Cobertura=${!!radio.coverageImage}, Antena=${!!radio.antennaLocation}, Cidades=${radio.citiesData?.length || 0}`);
+    });
 }
 
 // =========================================================================
@@ -540,53 +560,25 @@ function addAllRadiosToMap() {
 }
 
 // =========================================================================
-// 📍 ADICIONAR MARCADOR DA ANTENA PARA UMA RÁDIO (MODO PROPOSTA)
+// 📍 ADICIONAR MARCADOR DA ANTENA PARA UMA RÁDIO (MODO PROPOSTA) - SEM LOGO
 // =========================================================================
 function addRadioAntennaMarker(radio) {
-    let logoUrl = radio.logoUrlFromKMZ || radio.notionIconUrl;
-    let antennaIcon;
-    
-    if (logoUrl) {
-        antennaIcon = L.divIcon({
-            html: `
-                <div style="
-                    width: 40px;
-                    height: 40px;
-                    border: 3px solid white;
-                    border-radius: 50%;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-                    overflow: hidden;
-                    background: white;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                ">
-                    <img src="${logoUrl}" 
-                         style="width: 34px; height: 34px; object-fit: cover; border-radius: 50%;"
-                         onerror="this.parentElement.innerHTML='📡'; this.parentElement.style.color='#FF0000'; this.parentElement.style.fontSize='20px';">
-                </div>
-            `,
-            className: 'antenna-marker-logo',
-            iconSize: [40, 40],
-            iconAnchor: [20, 20]
-        });
-    } else {
-        antennaIcon = L.divIcon({
-            html: `
-                <div style="
-                    width: 24px;
-                    height: 24px;
-                    background: #FF0000;
-                    border: 3px solid white;
-                    border-radius: 50%;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-                "></div>
-            `,
-            className: 'antenna-marker',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-        });
-    }
+    // 🔧 NO MODO PROPOSTA, USAR SEMPRE ÍCONE PADRÃO SEM LOGO
+    const antennaIcon = L.divIcon({
+        html: `
+            <div style="
+                width: 24px;
+                height: 24px;
+                background: #FF0000;
+                border: 3px solid white;
+                border-radius: 50%;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            "></div>
+        `,
+        className: 'antenna-marker',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+    });
     
     const popupContent = `
         <div style="text-align: center; font-family: var(--font-primary); min-width: 200px;">
@@ -726,27 +718,26 @@ function fitMapBoundsForProposta() {
 }
 
 // =========================================================================
-// 🖼️ CONFIGURAR INTERFACE PARA PROPOSTA
+// 🖼️ CONFIGURAR INTERFACE PARA PROPOSTA - ORDEM CORRETA
 // =========================================================================
 function setupPropostaInterface() {
-    // Atualizar seção de informações para mostrar estatísticas consolidadas
-    updatePropostaInfo();
+    // Atualizar header
+    updateHeaderProposta();
+    
+    // 🔧 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS PRIMEIRO
+    setupConsolidatedStats();
     
     // Configurar lista lateral de rádios
     setupRadiosList();
     
-    // 🆕 CONFIGURAR PAINEL DE CONTROLE DE RÁDIOS
-    setupRadiosControlPanel();
+    // Ocultar informações individuais no modo proposta
+    updatePropostaInfo();
     
-    // 🆕 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS
-    setupConsolidatedStats();
-    
-    // Ocultar seção de cidades individuais (substituída pela lista de rádios)
-    document.getElementById('cidades-section').style.display = 'none';
+    console.log('✅ Interface proposta configurada');
 }
 
 // =========================================================================
-// 📊 ATUALIZAR HEADER PARA PROPOSTA - SEM LOGO
+// 📊 ATUALIZAR HEADER PARA PROPOSTA - SEM LOGO GARANTIDO
 // =========================================================================
 function updateHeaderProposta() {
     const radioName = document.getElementById('radio-name');
@@ -754,8 +745,13 @@ function updateHeaderProposta() {
     const headerLogo = document.getElementById('header-logo');
     
     if (radioName) {
-        // 🔧 ALTERAR TÍTULO PARA "MAPEAMENTO DA PROPOSTA"
-        radioName.innerHTML = `🗺️ Mapeamento da Proposta`;
+        // 🔧 ALTERAR TÍTULO PARA "MAPEAMENTO DA PROPOSTA" - SEM LOGO
+        radioName.textContent = '🗺️ Mapeamento da Proposta';
+        // 🔧 GARANTIR QUE NÃO TEM ELEMENTO IMG DENTRO
+        const existingImg = radioName.querySelector('img');
+        if (existingImg) {
+            existingImg.remove();
+        }
     }
     
     if (radioInfo) {
@@ -764,10 +760,14 @@ function updateHeaderProposta() {
         radioInfo.textContent = `${radiosCount} rádios • ${estadosCount} estados • ${propostaData.proposta.title}`;
     }
     
-    // 🔧 OCULTAR LOGO NO MODO PROPOSTA
+    // 🔧 FORÇAR OCULTAÇÃO DA LOGO NO MODO PROPOSTA
     if (headerLogo) {
         headerLogo.style.display = 'none';
+        headerLogo.style.visibility = 'hidden';
+        headerLogo.src = '';
     }
+    
+    console.log('✅ Header atualizado para proposta (logo removida)');
 }
 
 // =========================================================================
@@ -1936,7 +1936,7 @@ function showError(message, details) {
 }
 
 // =========================================================================
-// 🆕 CONFIGURAR PAINEL DE CONTROLE DE RÁDIOS (MODO PROPOSTA)
+// 🆕 CONFIGURAR PAINEL DE CONTROLE DE RÁDIOS (MODO PROPOSTA) - SEM LOGOS
 // =========================================================================
 function setupRadiosControlPanel() {
     const panel = document.getElementById('radios-list-panel');
@@ -1944,7 +1944,7 @@ function setupRadiosControlPanel() {
     
     panel.innerHTML = propostaData.radios.map(radio => {
         const hasKmz = radio.coverageImage ? 'checked' : '';
-        const logoIcon = radio.logoUrlFromKMZ || radio.notionIconUrl ? '🖼️' : '📻';
+        // 🔧 REMOVER LOGO - APENAS EMOJI PADRÃO
         
         return `
             <div class="radio-item-panel" onclick="focusOnRadio('${radio.id}')">
@@ -1955,7 +1955,7 @@ function setupRadiosControlPanel() {
                        onchange="toggleRadioCoverage('${radio.id}')"
                        onclick="event.stopPropagation()">
                 <div class="radio-info-panel">
-                    <div class="radio-name-panel">${logoIcon} ${radio.name}</div>
+                    <div class="radio-name-panel">📻 ${radio.name}</div>
                     <div class="radio-details-panel">${radio.dial} • ${radio.uf}</div>
                 </div>
                 <button class="radio-focus-btn" onclick="focusOnRadio('${radio.id}'); event.stopPropagation();">
@@ -1965,7 +1965,7 @@ function setupRadiosControlPanel() {
         `;
     }).join('');
     
-    console.log('✅ Painel de controle de rádios configurado');
+    console.log('✅ Painel de controle de rádios configurado (sem logos)');
 }
 
 // =========================================================================
