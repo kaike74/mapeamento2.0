@@ -901,41 +901,27 @@ function createCityMarker(city, radio) {
 }
 
 // =========================================================================
-// 🎛️ CONFIGURAR CONTROLE DE LAYERS PARA PROPOSTA - 🚀 SUPER OTIMIZADO
+// 🎛️ CONFIGURAR CONTROLE DE LAYERS PARA PROPOSTA - COM DEBUG
 // =========================================================================
 function setupLayersControlForProposta() {
     // Overlays para controle de coberturas
     const overlays = {};
     
-    console.log('🎛️ Configurando controle de layers otimizado...');
+    console.log('🎛️ Configurando controle de layers...');
     console.log(`📊 Total de rádios: ${propostaData.radios.length}`);
-    console.log(`📊 Layer Groups disponíveis: ${Object.keys(radiosLayers).length}`);
-    
-    // 🚀 OTIMIZAÇÃO MOBILE: Limitar número de layers em dispositivos pequenos
-    const isMobile = window.innerWidth < 768;
-    const maxLayersToShow = isMobile ? 8 : 15; // Menos layers em mobile
+    console.log(`📊 Layers de cobertura disponíveis: ${Object.keys(radiosLayers).length}`);
     
     // Adicionar cada rádio como overlay controlável
-    let addedLayers = 0;
     propostaData.radios.forEach(radio => {
-        if (radiosLayers[radio.id] && addedLayers < maxLayersToShow) {
-            // 🚀 NOME MAIS COMPACTO PARA MOBILE
-            const displayName = isMobile ? 
-                `📻 ${radio.name.substring(0, 12)}...` : 
-                `📻 ${radio.name} (${radio.dial})`;
-                
-            overlays[displayName] = radiosLayers[radio.id];
-            addedLayers++;
+        if (radiosLayers[radio.id]) {
+            overlays[`📻 ${radio.name} (${radio.dial})`] = radiosLayers[radio.id];
             console.log(`✅ Layer adicionado: ${radio.name}`);
-        } else if (addedLayers >= maxLayersToShow) {
-            console.warn(`⚠️ Limite de layers atingido (${maxLayersToShow}) - performance`);
-            break;
         } else {
             console.warn(`⚠️ Layer não encontrado para: ${radio.name}`);
         }
     });
     
-    console.log(`📊 Total de overlays configurados: ${Object.keys(overlays).length}/${propostaData.radios.length}`);
+    console.log(`📊 Total de overlays configurados: ${Object.keys(overlays).length}`);
     
     // Criar controle de layers completo
     if (layersControl) {
@@ -944,11 +930,10 @@ function setupLayersControlForProposta() {
     
     layersControl = L.control.layers(baseLayers, overlays, {
         position: 'topright',
-        collapsed: isMobile, // 🚀 AUTO-COLLAPSE EM MOBILE
-        sortLayers: false // 🚀 DESABILITAR SORT PARA PERFORMANCE
+        collapsed: false
     }).addTo(map);
     
-    console.log('✅ Controle de layers configurado para proposta (otimizado)');
+    console.log('✅ Controle de layers configurado para proposta');
 }
 
 // =========================================================================
