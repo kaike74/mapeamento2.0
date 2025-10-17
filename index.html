@@ -177,77 +177,99 @@
   <!-- Script do projeto -->
   <script src="script.js"></script>
 
-  <!-- 🆕 SCRIPT ADICIONAL PARA CONTROLES DA PROPOSTA -->
+  <!-- 🆕 SCRIPT ADICIONAL PARA CONTROLES DA PROPOSTA - OTIMIZADO -->
   <script>
     // =========================================================================
-    // 🎛️ CONTROLES DO PAINEL DE RÁDIOS (MODO PROPOSTA)
+    // 🎛️ CONTROLES DO PAINEL DE RÁDIOS (MODO PROPOSTA) - PERFORMANCE OTIMIZADA
     // =========================================================================
     
     function toggleRadiosPanel() {
       const panel = document.getElementById('radios-panel-content');
-      const isVisible = panel.style.display !== 'none';
-      panel.style.display = isVisible ? 'none' : 'block';
+      if (panel) {
+        const isVisible = panel.style.display !== 'none';
+        panel.style.display = isVisible ? 'none' : 'block';
+      }
     }
     
     function showAllCoverages() {
       if (typeof radiosLayers !== 'undefined') {
-        Object.values(radiosLayers).forEach(layer => {
-          if (map.hasLayer(layer)) {
-            layer.setOpacity(0.6);
+        // 🚀 OTIMIZADO: Usar requestAnimationFrame para não travar a UI
+        const layersArray = Object.values(radiosLayers);
+        let index = 0;
+        
+        function processNext() {
+          if (index < layersArray.length) {
+            const layerGroup = layersArray[index];
+            if (!map.hasLayer(layerGroup)) {
+              layerGroup.addTo(map);
+            }
+            layerGroup.setOpacity && layerGroup.setOpacity(0.6);
+            index++;
+            
+            // Processar próximo em batch pequeno para não travar
+            if (index % 3 === 0) {
+              requestAnimationFrame(processNext);
+            } else {
+              processNext();
+            }
           } else {
-            layer.addTo(map);
-            layer.setOpacity(0.6);
+            console.log('✅ Todas as coberturas mostradas (otimizado)');
           }
-        });
-        console.log('✅ Todas as coberturas mostradas');
+        }
+        
+        processNext();
       }
     }
     
     function hideAllCoverages() {
       if (typeof radiosLayers !== 'undefined') {
-        Object.values(radiosLayers).forEach(layer => {
-          if (map.hasLayer(layer)) {
-            map.removeLayer(layer);
+        // 🚀 OTIMIZADO: Remover em batches para melhor performance
+        const layersArray = Object.values(radiosLayers);
+        let index = 0;
+        
+        function processNext() {
+          if (index < layersArray.length) {
+            const layerGroup = layersArray[index];
+            if (map.hasLayer(layerGroup)) {
+              map.removeLayer(layerGroup);
+            }
+            index++;
+            
+            // Processar próximo em batch pequeno
+            if (index % 5 === 0) {
+              requestAnimationFrame(processNext);
+            } else {
+              processNext();
+            }
+          } else {
+            console.log('👁️ Todas as coberturas ocultadas (otimizado)');
           }
-        });
-        console.log('👁️ Todas as coberturas ocultadas');
+        }
+        
+        processNext();
       }
     }
     
     function toggleRadioCoverage(radioId) {
       if (typeof radiosLayers !== 'undefined' && radiosLayers[radioId]) {
-        const layer = radiosLayers[radioId];
+        const layerGroup = radiosLayers[radioId];
         const checkbox = document.getElementById(`radio-${radioId}`);
         
-        if (map.hasLayer(layer)) {
-          map.removeLayer(layer);
-          checkbox.checked = false;
-          console.log(`👁️ Cobertura de ${radioId} ocultada`);
+        if (map.hasLayer(layerGroup)) {
+          map.removeLayer(layerGroup);
+          if (checkbox) checkbox.checked = false;
+          console.log(`👁️ Grupo completo de ${radioId} ocultado`);
         } else {
-          layer.addTo(map);
-          checkbox.checked = true;
-          console.log(`✅ Cobertura de ${radioId} mostrada`);
+          layerGroup.addTo(map);
+          if (checkbox) checkbox.checked = true;
+          console.log(`✅ Grupo completo de ${radioId} mostrado`);
         }
       }
     }
     
     function focusOnRadio(radioId) {
-      if (typeof propostaData !== 'undefined') {
-        const radio = propostaData.radios.find(r => r.id === radioId);
-        if (radio && radio.antennaLocation) {
-          map.flyTo([radio.antennaLocation.lat, radio.antennaLocation.lng], 10, {
-            animate: true,
-            duration: 1.5
-          });
-          
-          // Destacar cobertura temporariamente
-          if (radiosLayers[radioId]) {
-            const layer = radiosLayers[radioId];
-            const originalOpacity = layer.options.opacity || 0.6;
-            layer.setOpacity(0.9);
-            setTimeout(() => layer.setOpacity(originalOpacity), 2000);
-          }
-        }
+      if (typeof highlightRadio !== 'undefined') {
+        highlightRadio(radioId);
       }
     }
     
