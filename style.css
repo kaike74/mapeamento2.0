@@ -366,9 +366,9 @@ body {
 }
 
 #map {
-    height: 600px;
+    height: 800px;
     width: 100%;
-    min-height: 600px;
+    min-height: 800px;
     position: relative;
     z-index: 1;
 }
