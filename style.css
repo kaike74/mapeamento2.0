@@ -126,7 +126,7 @@ body {
 }
 
 /* 🎬 ANIMAÇÕES DA TELA DE CARREGAMENTO - SIMPLIFICADAS */
-@keyframes logoSpin {
+@keyframes logoRotate {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
@@ -144,8 +144,8 @@ body {
     }
     
     .loading-logo {
-        max-width: 150px;
-        max-height: 75px;
+        max-width: 100px;
+        max-height: 100px;
     }
     
     .loading-title {
@@ -161,8 +161,8 @@ body {
 
 @media (max-width: 480px) {
     .loading-logo {
-        max-width: 120px;
-        max-height: 60px;
+        max-width: 80px;
+        max-height: 80px;
     }
     
     .loading-title {
@@ -370,14 +370,15 @@ body {
     z-index: 1;
 }
 
-/* 🗺️ CONTROLE DE LAYERS PERSONALIZADO */
+/* 🗺️ CONTROLE DE LAYERS PERSONALIZADO - CORRIGIDO SCROLL DUPLO */
 .leaflet-control-layers {
     background: var(--emidias-white) !important;
     border: 2px solid var(--emidias-primary) !important;
     border-radius: 12px !important;
     box-shadow: var(--shadow-lg) !important;
     font-family: var(--font-primary) !important;
-    max-width: 300px !important;
+    max-width: 280px !important;
+    max-height: 400px !important; /* 🔧 LIMITE DE ALTURA FIXO */
 }
 
 .leaflet-control-layers-toggle {
@@ -401,27 +402,48 @@ body {
 }
 
 .leaflet-control-layers-expanded {
-    padding: 16px !important;
+    padding: 12px !important;
     min-width: 160px !important;
-    max-height: 400px !important;
-    overflow-y: auto !important;
+    max-height: 350px !important; /* 🔧 ALTURA MÁXIMA CONTROLADA */
+    overflow-y: auto !important; /* 🔧 SCROLL APENAS AQUI */
+    overflow-x: hidden !important; /* 🔧 SEM SCROLL HORIZONTAL */
+}
+
+/* 🔧 CUSTOMIZAR SCROLLBAR DO CONTROLE DE LAYERS */
+.leaflet-control-layers-expanded::-webkit-scrollbar {
+    width: 8px !important;
+}
+
+.leaflet-control-layers-expanded::-webkit-scrollbar-track {
+    background: var(--emidias-light-gray) !important;
+    border-radius: 4px !important;
+}
+
+.leaflet-control-layers-expanded::-webkit-scrollbar-thumb {
+    background: var(--emidias-primary) !important;
+    border-radius: 4px !important;
+}
+
+.leaflet-control-layers-expanded::-webkit-scrollbar-thumb:hover {
+    background: var(--emidias-magenta) !important;
 }
 
 .leaflet-control-layers-base label,
 .leaflet-control-layers-overlays label {
-    font-size: 13px !important;
+    font-size: 12px !important;
     font-weight: var(--font-weight-medium) !important;
     color: var(--emidias-dark) !important;
-    margin-bottom: 6px !important;
+    margin-bottom: 4px !important;
     display: flex !important;
     align-items: center !important;
-    gap: 8px !important;
+    gap: 6px !important;
     cursor: pointer !important;
-    padding: 4px 0 !important;
+    padding: 3px 0 !important;
     border-bottom: 1px solid var(--emidias-light-gray) !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    line-height: 1.2 !important; /* 🔧 COMPACTAR LINHAS */
 }
 
 .leaflet-control-layers-base label:last-child,
@@ -432,13 +454,14 @@ body {
 .leaflet-control-layers-base input[type="radio"],
 .leaflet-control-layers-overlays input[type="checkbox"] {
     accent-color: var(--emidias-primary) !important;
-    margin-right: 6px !important;
+    margin-right: 4px !important;
+    flex-shrink: 0 !important; /* 🔧 NÃO ENCOLHER CHECKBOXES */
 }
 
 .leaflet-control-layers-separator {
     height: 1px !important;
     background: var(--emidias-primary) !important;
-    margin: 8px 0 !important;
+    margin: 6px 0 !important;
 }
 
 /* Legenda de cores */
@@ -881,12 +904,22 @@ body {
         grid-template-columns: 1fr;
     }
     
-    /* Controle de layers em mobile */
+    /* Controle de layers em mobile - OTIMIZADO */
     .leaflet-control-layers-expanded {
-        min-width: 120px !important;
-        font-size: 13px !important;
-        max-width: 250px !important;
+        min-width: 140px !important;
+        max-width: 200px !important;
+        font-size: 11px !important;
+        max-height: 250px !important; /* 🔧 REDUZIR ALTURA EM MOBILE */
+        padding: 8px !important; /* 🔧 MENOS PADDING */
     }
+    
+    .leaflet-control-layers-base label,
+    .leaflet-control-layers-overlays label {
+        font-size: 10px !important; /* 🔧 FONTE MENOR EM MOBILE */
+        padding: 2px 0 !important;
+        margin-bottom: 2px !important;
+    }
+}
 }
 
 @media (max-width: 480px) {
