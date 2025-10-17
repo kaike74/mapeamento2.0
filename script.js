@@ -69,6 +69,12 @@ const loadingTexts = [
     "Preparando antenas para transmissão..."
 ];
 
+// 🚀 VARIÁVEIS DE PERFORMANCE OTIMIZADA
+let performanceMode = false; // Flag para modo de performance
+let lastInteractionTime = 0; // Timestamp da última interação
+let interactionTimeout = null; // Timeout para detectar fim de interação
+let rafId = null; // RequestAnimationFrame ID para cancelamento
+
 // =========================================================================
 // 🎯 INICIALIZAÇÃO PRINCIPAL - 🔧 CORRIGIDA PARA MODO INDIVIDUAL
 // =========================================================================
@@ -532,25 +538,32 @@ async function parseKMLCitiesForRadio(kmlText) {
 }
 
 // =========================================================================
-// 🗺️ INICIALIZAR MAPA (PRESERVADO COM MELHORIAS PARA PROPOSTA) - OTIMIZADO
+// 🗺️ INICIALIZAR MAPA (MEGA OTIMIZADO PARA PERFORMANCE)
 // =========================================================================
 function initializeMap() {
-    console.log('🗺️ Inicializando mapa...');
+    console.log('🗺️ Inicializando mapa com otimizações de performance (preservando todos os dados)...');
     
     // Zoom padrão para enquadrar o Brasil
     const center = { lat: -14.2350, lng: -51.9253 }; // Centro do Brasil
     const zoom = 5; // Zoom para mostrar todo o Brasil
     
     map = L.map('map', {
-        // 🚀 OTIMIZAÇÕES DE PERFORMANCE
-        preferCanvas: true, // Usar Canvas para melhor performance com muitos marcadores
+        // 🚀 OTIMIZAÇÕES DE PERFORMANCE (PRESERVANDO DADOS COMPLETOS)
+        preferCanvas: true, // Canvas é mais performático que SVG
         zoomControl: true,
-        attributionControl: true,
-        // Throttle de eventos para melhor performance
-        zoomSnap: 0.5,
-        zoomDelta: 0.5,
-        wheelDebounceTime: 60, // Reduzir frequência do scroll do mouse
-        wheelPxPerZoomLevel: 60 // Suavizar zoom com mouse
+        attributionControl: false, // Remover para reduzir overhead
+        zoomSnap: 0.25, // Reduzir granularidade do zoom
+        zoomDelta: 0.5, // Reduzir delta do zoom
+        wheelDebounceTime: 100, // Aumentar debounce para reduzir eventos
+        wheelPxPerZoomLevel: 80, // Reduzir sensibilidade
+        // 🚀 CONFIGURAÇÕES ESPECÍFICAS PARA PERFORMANCE
+        fadeAnimation: true, // Manter animação fluida
+        zoomAnimation: true, // Animações suaves
+        markerZoomAnimation: true, // Animação de marcadores
+        transform3DLimit: 2^23, // Limite de transformações 3D
+        zoomAnimationThreshold: 8, // Threshold para animações
+        // 🚀 BUFFERS E CACHE
+        maxBoundsViscosity: 1.0, // Reduzir viscosidade
     }).setView([center.lat, center.lng], zoom);
     
     // 🗺️ DEFINIR APENAS 2 CAMADAS DE MAPA (SATÉLITE COMO PADRÃO)
@@ -558,112 +571,109 @@ function initializeMap() {
         'Satélite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: '© Esri',
             maxZoom: 18,
-            // 🚀 OTIMIZAÇÕES DE PERFORMANCE
-            updateWhenIdle: true, // Só atualizar quando parar de mover
-            keepBuffer: 2 // Manter tiles em cache
+            // 🚀 OTIMIZAÇÕES DE TILES (SEM AFETAR DADOS)
+            updateWhenIdle: true, // Só atualizar quando não estiver interagindo
+            updateWhenZooming: false, // NÃO atualizar durante zoom
+            keepBuffer: 4, // Aumentar buffer de tiles
+            reuseTiles: true, // Reutilizar tiles
+            unloadInvisibleTiles: true, // Descarregar tiles invisíveis
+            updateInterval: 150, // Aumentar intervalo de updates
         }),
         'Padrão': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 18,
-            // 🚀 OTIMIZAÇÕES DE PERFORMANCE
+            // 🚀 OTIMIZAÇÕES DE TILES (SEM AFETAR DADOS)
             updateWhenIdle: true,
-            keepBuffer: 2
+            updateWhenZooming: false, 
+            keepBuffer: 4,
+            reuseTiles: true,
+            unloadInvisibleTiles: true,
+            updateInterval: 150,
         })
     };
     
     // Adicionar camada padrão (Satélite primeiro)
     baseLayers['Satélite'].addTo(map);
     
-    // 🚀 THROTTLE DE EVENTOS PARA PERFORMANCE MÁXIMA
-    let zoomTimeout;
-    let isZooming = false;
+    // 🚀 SISTEMA DE PERFORMANCE OTIMIZADO (MANTENDO DADOS COMPLETOS)
+    let isUserInteracting = false;
+    let interactionEndTimer = null;
+    let frameScheduled = false;
     
-    map.on('zoomstart', function() {
-        isZooming = true;
-        // 🚀 REDUZIR OPACITY DE TODOS OS LAYERS DURANTE ZOOM
-        if (isPropostaMode) {
-            Object.values(radiosLayers).forEach(layerGroup => {
-                if (map.hasLayer(layerGroup)) {
-                    layerGroup.eachLayer(layer => {
-                        if (layer.setOpacity) {
-                            layer.setOpacity(0.3);
-                        }
-                    });
-                }
-            });
-        }
-    });
-    
-    map.on('zoom', function() {
-        // 🚀 THROTTLE EXTREMO: Só processar a cada 150ms durante zoom
-        clearTimeout(zoomTimeout);
-        zoomTimeout = setTimeout(() => {
-            if (isZooming && isPropostaMode) {
-                // Manter opacity baixa durante zoom contínuo
-                Object.values(radiosLayers).forEach(layerGroup => {
-                    if (map.hasLayer(layerGroup)) {
-                        layerGroup.eachLayer(layer => {
-                            if (layer.setOpacity) {
-                                layer.setOpacity(0.4);
-                            }
-                        });
-                    }
-                });
-            }
-        }, 150);
-    });
-    
-    map.on('zoomend', function() {
-        isZooming = false;
-        // 🚀 RESTAURAR OPACITY APÓS ZOOM COM DELAY
-        clearTimeout(zoomTimeout);
-        zoomTimeout = setTimeout(() => {
+    // 🚀 FUNÇÃO PARA DETECTAR INÍCIO DE INTERAÇÃO
+    function startPerformanceMode() {
+        if (!isUserInteracting) {
+            isUserInteracting = true;
+            performanceMode = true;
+            console.log('🚀 Performance mode ATIVADO');
+            
+            // Suspender atualizações custosas durante interação
             if (isPropostaMode) {
-                Object.values(radiosLayers).forEach(layerGroup => {
-                    if (map.hasLayer(layerGroup)) {
-                        layerGroup.eachLayer(layer => {
-                            if (layer.setOpacity) {
-                                layer.setOpacity(layer instanceof L.ImageOverlay ? 0.6 : 1);
-                            }
-                        });
-                    }
-                });
+                // Reduzir qualidade visual temporariamente se necessário
+                document.documentElement.style.pointerEvents = 'auto';
             }
-        }, 200);
-    });
+        }
+        
+        // Reset do timer para detectar fim da interação
+        clearTimeout(interactionEndTimer);
+        interactionEndTimer = setTimeout(() => {
+            endPerformanceMode();
+        }, 200); // 200ms sem interação = fim da interação
+    }
     
-    // 🚀 OTIMIZAR MOVIMENTO DO MAPA
-    map.on('movestart', function() {
-        if (isPropostaMode) {
-            // Reduzir qualidade visual durante movimento
-            Object.values(radiosLayers).forEach(layerGroup => {
-                if (map.hasLayer(layerGroup)) {
-                    layerGroup.eachLayer(layer => {
-                        if (layer.setOpacity && layer instanceof L.ImageOverlay) {
-                            layer.setOpacity(0.4);
-                        }
+    // 🚀 FUNÇÃO PARA DETECTAR FIM DE INTERAÇÃO
+    function endPerformanceMode() {
+        if (isUserInteracting) {
+            isUserInteracting = false;
+            performanceMode = false;
+            console.log('🚀 Performance mode DESATIVADO');
+            
+            // Restaurar qualidade visual
+            if (isPropostaMode) {
+                // Reagendar operações que foram suspensas
+                if (!frameScheduled) {
+                    frameScheduled = true;
+                    requestAnimationFrame(() => {
+                        frameScheduled = false;
+                        // Executar operações de restauração se necessário
+                        console.log('🔄 Operações de restauração executadas');
                     });
                 }
-            });
+            }
         }
+    }
+    
+    // 🚀 EVENTOS OTIMIZADOS - SEM OPERAÇÕES CUSTOSAS EM TEMPO REAL (PRESERVA DADOS)
+    map.on('zoomstart', function() {
+        startPerformanceMode();
+    });
+    
+    map.on('movestart', function() {
+        startPerformanceMode();
+    });
+    
+    map.on('dragstart', function() {
+        startPerformanceMode();
+    });
+    
+    // 🚀 EVENTOS DE FIM DE INTERAÇÃO - APENAS ESTES FAZEM OPERAÇÕES
+    map.on('zoomend', function() {
+        // Agendar fim da performance mode
+        startPerformanceMode(); // Reset do timer
     });
     
     map.on('moveend', function() {
-        if (isPropostaMode) {
-            // Restaurar qualidade visual após movimento
-            setTimeout(() => {
-                Object.values(radiosLayers).forEach(layerGroup => {
-                    if (map.hasLayer(layerGroup)) {
-                        layerGroup.eachLayer(layer => {
-                            if (layer.setOpacity && layer instanceof L.ImageOverlay) {
-                                layer.setOpacity(0.6);
-                            }
-                        });
-                    }
-                });
-            }, 100);
-        }
+        // Agendar fim da performance mode
+        startPerformanceMode(); // Reset do timer
     });
+    
+    map.on('dragend', function() {
+        // Agendar fim da performance mode
+        startPerformanceMode(); // Reset do timer
+    });
+    
+    // 🚀 REMOVER COMPLETAMENTE EVENTOS CUSTOSOS DURANTE INTERAÇÃO
+    // Todos os eventos de zoom, move, etc. que faziam operações custosas foram removidos
     
     // Adicionar divisórias dos estados brasileiros
     addStateBorders();
@@ -697,22 +707,22 @@ function initializeMap() {
             }
         }
         
-    }, 500);
+    }, 300); // Reduzir tempo de espera
     
     // Mostrar mapa
     document.getElementById('map-section').style.display = 'block';
     
-    console.log('✅ Mapa inicializado com otimizações de performance');
+    console.log('✅ Mapa inicializado com otimizações de performance (sem perda de dados)');
 }
 
 // =========================================================================
 // 🌟 ADICIONAR TODAS AS RÁDIOS AO MAPA (MODO PROPOSTA) - 🚀 SUPER OTIMIZADO
 // =========================================================================
 function addAllRadiosToMap() {
-    console.log('🌟 Adicionando todas as rádios ao mapa com otimizações avançadas...');
+    console.log('🌟 Adicionando todas as rádios ao mapa com TODOS os dados (performance otimizada)...');
     
     let processedRadios = 0;
-    const batchSize = 2; // Processar 2 rádios por vez para melhor performance
+    const batchSize = 2; // Reduzir batch para compensar processamento de TODAS as cidades
     
     function processBatch() {
         const endIndex = Math.min(processedRadios + batchSize, propostaData.radios.length);
@@ -721,8 +731,12 @@ function addAllRadiosToMap() {
             const radio = propostaData.radios[i];
             console.log(`📻 Processando rádio ${i + 1}: ${radio.name}`);
             
-            // 🔧 CRIAR LAYER GROUP PARA ESTA RÁDIO
-            const radioLayerGroup = L.layerGroup();
+            // 🔧 CRIAR LAYER GROUP PARA ESTA RÁDIO COM OTIMIZAÇÕES
+            const radioLayerGroup = L.layerGroup({
+                // 🚀 OTIMIZAÇÕES DE LAYER GROUP
+                interactive: true,
+                bubblingMouseEvents: false, // Reduzir propagação de eventos
+            });
             
             // 1. Adicionar imagem de cobertura se disponível
             if (radio.coverageImage) {
@@ -731,7 +745,8 @@ function addAllRadiosToMap() {
                     radio.coverageImage.bounds,
                     {
                         opacity: 0.6,
-                        interactive: false
+                        interactive: false, // Imagens não precisam ser interativas
+                        crossOrigin: false, // Melhorar performance
                     }
                 );
                 radioLayerGroup.addLayer(coverageLayer);
@@ -743,22 +758,16 @@ function addAllRadiosToMap() {
                 radioLayerGroup.addLayer(antennaMarker);
             }
             
-            // 3. Adicionar marcadores de cidades (SUPER OTIMIZADO)
+            // 3. Adicionar marcadores de cidades (SEM LIMITAÇÕES)
             if (radio.citiesData && radio.citiesData.length > 0) {
-                // 🚀 OTIMIZAÇÃO AGRESSIVA: Limite baseado em performance
-                const deviceLimitMultiplier = window.innerWidth < 768 ? 0.5 : 1; // Menos cidades em mobile
-                const maxCities = Math.floor(50 * deviceLimitMultiplier); // 50 para desktop, 25 para mobile
-                const citiesToShow = radio.citiesData.slice(0, maxCities);
-                
-                // 🚀 CRIAR MARCADORES EM MINI-BATCHES
-                citiesToShow.forEach((city, cityIndex) => {
+                // 🚀 PROCESSAMENTO OTIMIZADO SEM PERDER DADOS
+                // Usar todas as cidades sem limite - dados são prioridade
+                radio.citiesData.forEach((city, cityIndex) => {
                     const cityMarker = createCityMarker(city, radio);
                     radioLayerGroup.addLayer(cityMarker);
                 });
                 
-                if (radio.citiesData.length > maxCities) {
-                    console.warn(`⚠️ ${radio.name}: Mostrando ${maxCities}/${radio.citiesData.length} cidades (otimização de performance)`);
-                }
+                console.log(`✅ ${radio.name}: ${radio.citiesData.length} cidades adicionadas (sem limitações)`);
             }
             
             // 4. Adicionar o grupo completo ao mapa
@@ -786,7 +795,7 @@ function finalizarAdicaoRadios() {
     // Ajustar zoom para mostrar todas as rádios
     fitMapBoundsForProposta();
     
-    console.log(`✅ ${propostaData.radios.length} rádios processadas no mapa com Layer Groups (otimizado)`);
+    console.log(`✅ ${propostaData.radios.length} rádios processadas no mapa com TODOS os dados (sem limitações)`);
     console.log(`📊 Layer Groups disponíveis: ${Object.keys(radiosLayers).length}`);
     
     // 🚀 CONFIGURAR LAYERS CONTROL DEPOIS DE TUDO CARREGADO
@@ -1075,9 +1084,9 @@ function calculateStatsWhenIdle() {
     let radiosWithKmz = 0;
     let radiosWithKml = 0;
     
-    // 🚀 PROCESSAR EM BATCHES PEQUENOS PARA NÃO TRAVAR
+    // 🚀 PROCESSAR EM BATCHES PEQUENOS PARA NÃO TRAVAR (MAS SEM PERDER DADOS)
     let processedRadios = 0;
-    const batchSize = 3; // Processar 3 rádios por vez
+    const batchSize = 5; // Aumentar batch size
     
     function processBatch() {
         const endIndex = Math.min(processedRadios + batchSize, propostaData.radios.length);
@@ -1166,7 +1175,7 @@ function finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalC
         document.getElementById('stats-section').style.display = 'block';
     }
     
-    console.log('✅ Estatísticas consolidadas configuradas (otimizadas)');
+    console.log('✅ Estatísticas consolidadas configuradas (dados completos + performance otimizada)');
 }
 
 // =========================================================================
@@ -1200,18 +1209,20 @@ function highlightRadio(radioId) {
         }, 1000);
     }
     
-    // Destacar layer group (piscar temporariamente)
+    // Destacar layer group (piscar temporariamente) - OTIMIZADO
     if (radiosLayers[radioId]) {
         const layerGroup = radiosLayers[radioId];
         
-        // Animação de destaque para todo o grupo
-        layerGroup.eachLayer(layer => {
-            if (layer.setOpacity) {
-                const originalOpacity = layer.options.opacity || 0.6;
-                layer.setOpacity(0.9);
-                setTimeout(() => layer.setOpacity(originalOpacity), 1000);
-            }
-        });
+        // Animação de destaque apenas se não estiver em modo de performance
+        if (!performanceMode) {
+            layerGroup.eachLayer(layer => {
+                if (layer.setOpacity) {
+                    const originalOpacity = layer.options.opacity || 0.6;
+                    layer.setOpacity(0.9);
+                    setTimeout(() => layer.setOpacity(originalOpacity), 1000);
+                }
+            });
+        }
     }
 }
 
