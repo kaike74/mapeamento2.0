@@ -15,8 +15,8 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- 🆕 TELA DE CARREGAMENTO ANIMADA (MODO PROPOSTA) -->
-    <div id="loading-proposta" class="loading-screen" style="display: none;">
+    <!-- 🆕 TELA DE CARREGAMENTO ANIMADA (AMBOS OS MODOS) - MOSTRAR POR PADRÃO -->
+    <div id="loading-proposta" class="loading-screen" style="display: flex;">
         <div class="loading-content">
             <div class="loading-logo-container">
                 <img src="./E-Rdios_Logo_Smbolo.png" 
@@ -24,7 +24,7 @@
                      class="loading-logo"
                      onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjMDYwNTVCIi8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjQwIiBmaWxsPSIjRkMxRTc1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7wn4+X77iPPC90ZXh0Pgo8L3N2Zz4K';">
             </div>
-            <h1 class="loading-title">🗺️ Mapeamento da Proposta</h1>
+            <h1 class="loading-title" id="loading-title">🗺️ Mapeamento de Cobertura</h1>
             <p class="loading-text" id="loading-text">Carregando...</p>
             <div class="loading-progress">
                 <div class="loading-bar"></div>
@@ -56,8 +56,8 @@
       </div>
     </div>
 
-    <!-- LOADING PADRÃO (MODO INDIVIDUAL) -->
-    <div id="loading" class="loading">
+    <!-- LOADING PADRÃO (OCULTO POR PADRÃO) -->
+    <div id="loading" class="loading" style="display: none;">
       <div class="loading-spinner"></div>
       <p>Carregando dados e processando arquivos KMZ/KML...</p>
     </div>
@@ -279,6 +279,16 @@
     document.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       const isPropostaMode = params.has('idproposta');
+      
+      // 🆕 ATUALIZAR TÍTULO DA TELA DE CARREGAMENTO BASEADO NO MODO
+      const loadingTitle = document.getElementById('loading-title');
+      if (loadingTitle) {
+        if (isPropostaMode) {
+          loadingTitle.textContent = '🗺️ Mapeamento da Proposta';
+        } else {
+          loadingTitle.textContent = '📻 Mapeamento da Rádio';
+        }
+      }
       
       // Atualizar rodapé com modo atual
       const footerMode = document.getElementById('footer-mode');
