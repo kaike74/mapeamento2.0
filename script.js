@@ -69,12 +69,6 @@ const loadingTexts = [
     "Preparando antenas para transmissão..."
 ];
 
-// 🚀 VARIÁVEIS DE PERFORMANCE OTIMIZADA
-let performanceMode = false; // Flag para modo de performance
-let lastInteractionTime = 0; // Timestamp da última interação
-let interactionTimeout = null; // Timeout para detectar fim de interação
-let rafId = null; // RequestAnimationFrame ID para cancelamento
-
 // =========================================================================
 // 🎯 INICIALIZAÇÃO PRINCIPAL - 🔧 CORRIGIDA PARA MODO INDIVIDUAL
 // =========================================================================
@@ -538,123 +532,59 @@ async function parseKMLCitiesForRadio(kmlText) {
 }
 
 // =========================================================================
-// 🗺️ INICIALIZAR MAPA (MEGA OTIMIZADO PARA PERFORMANCE)
+// 🗺️ INICIALIZAR MAPA (🔧 CORRIGIDO PARA ELIMINAR PISCAMENTO)
 // =========================================================================
 function initializeMap() {
-    console.log('🗺️ Inicializando mapa com otimizações de performance (preservando todos os dados)...');
+    console.log('🗺️ Inicializando mapa com configurações estáveis...');
     
     // Zoom padrão para enquadrar o Brasil
     const center = { lat: -14.2350, lng: -51.9253 }; // Centro do Brasil
     const zoom = 5; // Zoom para mostrar todo o Brasil
     
     map = L.map('map', {
-        // 🚀 OTIMIZAÇÕES DE PERFORMANCE (PRESERVANDO DADOS COMPLETOS)
-        preferCanvas: true, // Canvas é mais performático que SVG
+        // 🔧 CONFIGURAÇÕES ESTÁVEIS PARA ELIMINAR PISCAMENTO
+        preferCanvas: false, // SVG é mais estável para este caso
         zoomControl: true,
-        attributionControl: false, // Remover para reduzir overhead
-        zoomSnap: 0.25, // Reduzir granularidade do zoom
-        zoomDelta: 0.5, // Reduzir delta do zoom
-        wheelDebounceTime: 100, // Aumentar debounce para reduzir eventos
-        wheelPxPerZoomLevel: 80, // Reduzir sensibilidade
-        // 🚀 CONFIGURAÇÕES ESPECÍFICAS PARA PERFORMANCE
-        fadeAnimation: true, // Manter animação fluida
-        zoomAnimation: true, // Animações suaves
-        markerZoomAnimation: true, // Animação de marcadores
-        transform3DLimit: 2^23, // Limite de transformações 3D
-        zoomAnimationThreshold: 8, // Threshold para animações
-        // 🚀 BUFFERS E CACHE
-        maxBoundsViscosity: 1.0, // Reduzir viscosidade
+        attributionControl: false,
+        zoomSnap: 1, // Valores inteiros para zoom mais estável
+        zoomDelta: 1,
+        wheelDebounceTime: 40, // Reduzir para melhor responsividade
+        wheelPxPerZoomLevel: 60,
+        // 🔧 ANIMAÇÕES SUAVES SEM INTERFERÊNCIA
+        fadeAnimation: true,
+        zoomAnimation: true,
+        markerZoomAnimation: true,
+        // 🔧 REMOVER CONFIGURAÇÕES QUE CAUSAVAM INSTABILIDADE
+        maxBoundsViscosity: 1.0
     }).setView([center.lat, center.lng], zoom);
     
-    // 🗺️ DEFINIR APENAS 2 CAMADAS DE MAPA (SATÉLITE COMO PADRÃO)
+    // 🗺️ DEFINIR APENAS 2 CAMADAS DE MAPA COM CONFIGURAÇÕES ESTÁVEIS
     baseLayers = {
         'Satélite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: '© Esri',
             maxZoom: 18,
-            // 🚀 OTIMIZAÇÕES DE TILES (SEM AFETAR DADOS)
-            updateWhenIdle: true, // Só atualizar quando não estiver interagindo
-            updateWhenZooming: false, // NÃO atualizar durante zoom
-            keepBuffer: 4, // Aumentar buffer de tiles
-            reuseTiles: true, // Reutilizar tiles
-            unloadInvisibleTiles: true, // Descarregar tiles invisíveis
-            updateInterval: 150, // Aumentar intervalo de updates
+            // 🔧 CONFIGURAÇÕES ESTÁVEIS PARA TILES
+            updateWhenIdle: false, // Permitir atualizações contínuas
+            updateWhenZooming: true, // Permitir atualizações durante zoom
+            keepBuffer: 2, // Buffer padrão
+            updateInterval: 200 // Intervalo padrão
         }),
         'Padrão': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 18,
-            // 🚀 OTIMIZAÇÕES DE TILES (SEM AFETAR DADOS)
-            updateWhenIdle: true,
-            updateWhenZooming: false, 
-            keepBuffer: 4,
-            reuseTiles: true,
-            unloadInvisibleTiles: true,
-            updateInterval: 150,
+            // 🔧 CONFIGURAÇÕES ESTÁVEIS PARA TILES
+            updateWhenIdle: false,
+            updateWhenZooming: true,
+            keepBuffer: 2,
+            updateInterval: 200
         })
     };
     
     // Adicionar camada padrão (Satélite primeiro)
     baseLayers['Satélite'].addTo(map);
     
-    // 🚀 SISTEMA DE PERFORMANCE OTIMIZADO (MANTENDO DADOS COMPLETOS)
-    let isUserInteracting = false;
-    let interactionEndTimer = null;
-    let frameScheduled = false;
-    
-    // 🚀 FUNÇÃO PARA DETECTAR INÍCIO DE INTERAÇÃO (SEM EFEITOS VISUAIS)
-    function startPerformanceMode() {
-        if (!isUserInteracting) {
-            isUserInteracting = true;
-            performanceMode = true;
-            console.log('🚀 Performance mode ATIVADO');
-        }
-        
-        // Reset do timer para detectar fim da interação
-        clearTimeout(interactionEndTimer);
-        interactionEndTimer = setTimeout(() => {
-            endPerformanceMode();
-        }, 200); // 200ms sem interação = fim da interação
-    }
-    
-    // 🚀 FUNÇÃO PARA DETECTAR FIM DE INTERAÇÃO (SEM EFEITOS VISUAIS)
-    function endPerformanceMode() {
-        if (isUserInteracting) {
-            isUserInteracting = false;
-            performanceMode = false;
-            console.log('🚀 Performance mode DESATIVADO');
-        }
-    }
-    
-    // 🚀 EVENTOS OTIMIZADOS - SEM OPERAÇÕES CUSTOSAS EM TEMPO REAL (PRESERVA DADOS)
-    map.on('zoomstart', function() {
-        startPerformanceMode();
-    });
-    
-    map.on('movestart', function() {
-        startPerformanceMode();
-    });
-    
-    map.on('dragstart', function() {
-        startPerformanceMode();
-    });
-    
-    // 🚀 EVENTOS DE FIM DE INTERAÇÃO - APENAS ESTES FAZEM OPERAÇÕES
-    map.on('zoomend', function() {
-        // Agendar fim da performance mode
-        startPerformanceMode(); // Reset do timer
-    });
-    
-    map.on('moveend', function() {
-        // Agendar fim da performance mode
-        startPerformanceMode(); // Reset do timer
-    });
-    
-    map.on('dragend', function() {
-        // Agendar fim da performance mode
-        startPerformanceMode(); // Reset do timer
-    });
-    
-    // 🚀 REMOVER COMPLETAMENTE EVENTOS CUSTOSOS DURANTE INTERAÇÃO
-    // Todos os eventos de zoom, move, etc. que faziam operações custosas foram removidos
+    // 🔧 REMOVER COMPLETAMENTE O SISTEMA DE PERFORMANCE QUE CAUSAVA PISCAMENTO
+    // Não há mais eventos especiais que interferem na renderização
     
     // Adicionar divisórias dos estados brasileiros
     addStateBorders();
@@ -688,12 +618,12 @@ function initializeMap() {
             }
         }
         
-    }, 300); // Reduzir tempo de espera
+    }, 300);
     
     // Mostrar mapa
     document.getElementById('map-section').style.display = 'block';
     
-    console.log('✅ Mapa inicializado com otimizações de performance (sem perda de dados)');
+    console.log('✅ Mapa inicializado com configurações estáveis (sem piscamento)');
 }
 
 // =========================================================================
@@ -1194,16 +1124,14 @@ function highlightRadio(radioId) {
     if (radiosLayers[radioId]) {
         const layerGroup = radiosLayers[radioId];
         
-        // Animação de destaque apenas se não estiver em modo de performance
-        if (!performanceMode) {
-            layerGroup.eachLayer(layer => {
-                if (layer.setOpacity) {
-                    const originalOpacity = layer.options.opacity || 0.6;
-                    layer.setOpacity(0.9);
-                    setTimeout(() => layer.setOpacity(originalOpacity), 1000);
-                }
-            });
-        }
+        // Animação de destaque suave
+        layerGroup.eachLayer(layer => {
+            if (layer.setOpacity) {
+                const originalOpacity = layer.options.opacity || 0.6;
+                layer.setOpacity(0.9);
+                setTimeout(() => layer.setOpacity(originalOpacity), 1000);
+            }
+        });
     }
 }
 
@@ -2032,8 +1960,7 @@ function processNotionIcon() {
     }
     
     // 🖼️ FALLBACK PARA CAMPO IMAGEM SE NÃO TEM ÍCONE
-    if (!radioData.notionIconUrl && radioData.imageUrl && !radioData.imageUrl.includes('placeholder')) {
-        radioData.notionIconUrl = radioData.imageUrl;
+    if (!radioData.notionIconUrl && radioData.imageUrl && !radioData.imageUrl.includes('placeholder')) {radioData.notionIconUrl = radioData.imageUrl;
         console.log('✅ Usando campo Imagem como fallback:', radioData.notionIconUrl);
     }
 }
