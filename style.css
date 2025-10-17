@@ -323,18 +323,18 @@ body {
     margin: 8px 0 !important;
 }
 
-/* 🆕 PAINEL DE CONTROLE DE RÁDIOS (MODO PROPOSTA) - LAYOUT MELHORADO */
+/* 🆕 PAINEL DE CONTROLE DE RÁDIOS (MODO PROPOSTA) - LAYOUT CORRIGIDO */
 .radios-control-panel {
     position: absolute;
-    top: 20px;
+    top: 100px;
     left: 20px;
     background: var(--emidias-white);
     border-radius: 12px;
     box-shadow: var(--shadow-lg);
     z-index: 1000;
     border: 2px solid var(--emidias-primary);
-    max-width: 280px;
-    max-height: 400px;
+    max-width: 240px;
+    max-height: 350px;
     overflow: hidden;
 }
 
@@ -365,15 +365,16 @@ body {
 }
 
 .panel-content {
-    padding: 12px;
-    max-height: 320px;
+    padding: 10px;
+    max-height: 270px;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .panel-actions {
     display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 6px;
+    margin-bottom: 10px;
 }
 
 .panel-btn {
@@ -381,53 +382,37 @@ body {
     background: var(--gradient-accent);
     color: var(--emidias-white);
     border: none;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 11px;
     font-weight: var(--font-weight-semibold);
     cursor: pointer;
     transition: all 0.3s ease;
     white-space: nowrap;
-}
-
-.panel-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(252, 30, 117, 0.3);
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .radios-list-panel {
     border-top: 1px solid var(--emidias-light-gray);
-    padding-top: 12px;
+    padding-top: 10px;
 }
 
 .radio-item-panel {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 0;
+    gap: 6px;
+    padding: 6px 0;
     border-bottom: 1px solid var(--emidias-light-gray);
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
-.radio-item-panel:hover {
-    background: rgba(6, 5, 91, 0.02);
-    border-radius: 6px;
-    padding: 8px 6px;
-}
-
-.radio-item-panel:last-child {
-    border-bottom: none;
-}
-
-.radio-checkbox {
-    accent-color: var(--emidias-primary);
-    margin-right: 4px;
-}
-
 .radio-info-panel {
     flex: 1;
-    font-size: 12px;
+    font-size: 11px;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .radio-name-panel {
@@ -435,26 +420,29 @@ body {
     color: var(--emidias-dark);
     line-height: 1.2;
     margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .radio-details-panel {
     color: var(--emidias-gray);
-    font-size: 11px;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .radio-focus-btn {
     background: var(--gradient-success);
     color: var(--emidias-white);
     border: none;
-    padding: 4px 8px;
+    padding: 3px 6px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 10px;
     cursor: pointer;
     transition: all 0.3s ease;
-}
-
-.radio-focus-btn:hover {
-    transform: scale(1.05);
+    flex-shrink: 0;
 }
 
 /* Legenda de cores */
@@ -889,15 +877,15 @@ body {
     }
     
     .radios-control-panel {
-        top: 20px;
+        top: 100px;
         left: 10px;
-        max-width: 240px;
-        max-height: 300px;
+        max-width: 200px;
+        max-height: 250px;
     }
     
     .panel-content {
-        max-height: 220px;
-        padding: 10px;
+        max-height: 170px;
+        padding: 8px;
     }
     
     .cidades-header {
