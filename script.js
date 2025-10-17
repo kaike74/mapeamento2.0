@@ -57,6 +57,19 @@ let radiosLayers = {}; // Camadas de cobertura de cada rádio
 let antennaMarkers = []; // Marcadores das antenas
 let layersControl = null; // Controle de layers dinâmico
 
+// 🆕 VARIÁVEIS PARA TELA DE CARREGAMENTO
+let loadingInterval = null;
+const loadingTexts = [
+    "Localizando rádios escondidas...",
+    "Ajustando a sintonia...", 
+    "Testando, som... som... 1, 2, 3...",
+    "O mapa vai entrar no ar em instantes!",
+    "Contando universo: 1, 2, 3... quase lá!",
+    "Sintonizando frequências...",
+    "Mapeando cobertura em tempo real...",
+    "Preparando antenas para transmissão..."
+];
+
 // =========================================================================
 // 🎯 INICIALIZAÇÃO PRINCIPAL
 // =========================================================================
@@ -73,6 +86,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 🌟 MODO PROPOSTA (MÚLTIPLAS RÁDIOS)
             console.log('🌟 Modo Proposta detectado:', propostaId);
             isPropostaMode = true;
+            
+            // 🆕 MOSTRAR TELA DE CARREGAMENTO ANIMADA
+            showLoadingScreen();
+            
             await initPropostaMode(propostaId);
         } else if (radioId) {
             // 📻 MODO INDIVIDUAL (UMA RÁDIO)
@@ -83,12 +100,70 @@ document.addEventListener('DOMContentLoaded', async () => {
             throw new Error('Parâmetro obrigatório: ?id=RADIO_ID ou ?idproposta=DATABASE_ID');
         }
         
+        // 🆕 OCULTAR LOADING PADRÃO EM AMBOS OS MODOS
         hideLoading();
+        
     } catch (error) {
         console.error('❌ Erro na inicialização:', error);
+        hideLoadingScreen(); // 🆕 Garantir que tela de carregamento suma em caso de erro
         showError(error.message, error.stack);
     }
 });
+
+// =========================================================================
+// 🆕 TELA DE CARREGAMENTO ANIMADA
+// =========================================================================
+function showLoadingScreen() {
+    console.log('🎬 Mostrando tela de carregamento animada...');
+    
+    // Ocultar loading padrão
+    document.getElementById('loading').style.display = 'none';
+    
+    // Mostrar tela personalizada
+    const loadingScreen = document.getElementById('loading-proposta');
+    if (loadingScreen) {
+        loadingScreen.style.display = 'flex';
+        
+        // Iniciar alternância de textos
+        startLoadingTextRotation();
+    }
+}
+
+function hideLoadingScreen() {
+    console.log('🎬 Ocultando tela de carregamento...');
+    
+    // Parar alternância de textos
+    if (loadingInterval) {
+        clearInterval(loadingInterval);
+        loadingInterval = null;
+    }
+    
+    // Fade out da tela de carregamento
+    const loadingScreen = document.getElementById('loading-proposta');
+    if (loadingScreen) {
+        loadingScreen.style.opacity = '0';
+        setTimeout(() => {
+            loadingScreen.style.display = 'none';
+            loadingScreen.style.opacity = '1'; // Reset para próxima vez
+        }, 800);
+    }
+}
+
+function startLoadingTextRotation() {
+    const loadingTextElement = document.getElementById('loading-text');
+    if (!loadingTextElement) return;
+    
+    let currentIndex = 0;
+    
+    // Definir texto inicial
+    loadingTextElement.textContent = loadingTexts[currentIndex];
+    
+    // Alternar textos a cada 2.5 segundos
+    loadingInterval = setInterval(() => {
+        currentIndex = (currentIndex + 1) % loadingTexts.length;
+        loadingTextElement.textContent = loadingTexts[currentIndex];
+    }, 2500);
+}
 
 // =========================================================================
 // 🌟 INICIALIZAÇÃO MODO PROPOSTA (MÚLTIPLAS RÁDIOS) - CORRIGIDO
@@ -113,7 +188,9 @@ async function initPropostaMode(propostaId) {
     setTimeout(() => {
         addAllRadiosToMap();
         setupLayersControlForProposta();
-        setupRadiosControlPanel();
+        
+        // 🆕 OCULTAR TELA DE CARREGAMENTO APÓS COMPLETAR
+        hideLoadingScreen();
     }, 1000);
     
     console.log('✅ Modo proposta inicializado');
@@ -560,25 +637,58 @@ function addAllRadiosToMap() {
 }
 
 // =========================================================================
-// 📍 ADICIONAR MARCADOR DA ANTENA PARA UMA RÁDIO (MODO PROPOSTA) - SEM LOGO
+// 📍 ADICIONAR MARCADOR DA ANTENA PARA UMA RÁDIO (MODO PROPOSTA) - 🔧 COM LOGO RESTAURADA
 // =========================================================================
 function addRadioAntennaMarker(radio) {
-    // 🔧 NO MODO PROPOSTA, USAR SEMPRE ÍCONE PADRÃO SEM LOGO
-    const antennaIcon = L.divIcon({
-        html: `
-            <div style="
-                width: 24px;
-                height: 24px;
-                background: #FF0000;
-                border: 3px solid white;
-                border-radius: 50%;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-            "></div>
-        `,
-        className: 'antenna-marker',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
-    });
+    // 🔧 CORRIGIDO: USAR LOGO NO MODO PROPOSTA TAMBÉM
+    let antennaIcon;
+    let logoUrl = radio.logoUrlFromKMZ || radio.notionIconUrl;
+    
+    if (logoUrl) {
+        // Criar ícone personalizado com a logo
+        antennaIcon = L.divIcon({
+            html: `
+                <div style="
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                    overflow: hidden;
+                    background: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    <img src="${logoUrl}" 
+                         style="width: 34px; height: 34px; object-fit: cover; border-radius: 50%;"
+                         onerror="this.parentElement.innerHTML='📡'; this.parentElement.style.color='#FF0000'; this.parentElement.style.fontSize='20px';">
+                </div>
+            `,
+            className: 'antenna-marker-logo',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+        console.log(`✅ Marcador com logo para ${radio.name}:`, logoUrl);
+    } else {
+        // Ícone padrão vermelho se não tiver logo
+        antennaIcon = L.divIcon({
+            html: `
+                <div style="
+                    width: 24px;
+                    height: 24px;
+                    background: #FF0000;
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                "></div>
+            `,
+            className: 'antenna-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+        console.log(`⚠️ Usando ícone padrão para ${radio.name} (sem logo)`);
+    }
     
     const popupContent = `
         <div style="text-align: center; font-family: var(--font-primary); min-width: 200px;">
@@ -718,7 +828,7 @@ function fitMapBoundsForProposta() {
 }
 
 // =========================================================================
-// 🖼️ CONFIGURAR INTERFACE PARA PROPOSTA - ORDEM CORRETA
+// 🖼️ CONFIGURAR INTERFACE PARA PROPOSTA - 🔧 CORRIGIDA
 // =========================================================================
 function setupPropostaInterface() {
     // Atualizar header
@@ -727,17 +837,35 @@ function setupPropostaInterface() {
     // 🔧 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS PRIMEIRO
     setupConsolidatedStats();
     
-    // Configurar lista lateral de rádios
-    setupRadiosList();
-    
-    // Ocultar informações individuais no modo proposta
-    updatePropostaInfo();
+    // 🔧 OCULTAR ELEMENTOS DESNECESSÁRIOS NO MODO PROPOSTA
+    hideUnnecessaryElementsInPropostaMode();
     
     console.log('✅ Interface proposta configurada');
 }
 
 // =========================================================================
-// 📊 ATUALIZAR HEADER PARA PROPOSTA - SEM LOGO GARANTIDO
+// 🔧 OCULTAR ELEMENTOS DESNECESSÁRIOS NO MODO PROPOSTA
+// =========================================================================
+function hideUnnecessaryElementsInPropostaMode() {
+    console.log('🔧 Ocultando elementos desnecessários no modo proposta...');
+    
+    // 🔧 OCULTAR CARDS INDIVIDUAIS
+    const infoSection = document.getElementById('info-section');
+    if (infoSection) {
+        infoSection.style.display = 'none';
+    }
+    
+    // 🔧 OCULTAR SEÇÃO DE CIDADES/LISTA/BUSCA/EXCEL
+    const cidadesSection = document.getElementById('cidades-section');
+    if (cidadesSection) {
+        cidadesSection.style.display = 'none';
+    }
+    
+    console.log('✅ Elementos individuais ocultados no modo proposta');
+}
+
+// =========================================================================
+// 📊 ATUALIZAR HEADER PARA PROPOSTA - 🔧 LOGO COMPLETAMENTE REMOVIDA
 // =========================================================================
 function updateHeaderProposta() {
     const radioName = document.getElementById('radio-name');
@@ -745,13 +873,12 @@ function updateHeaderProposta() {
     const headerLogo = document.getElementById('header-logo');
     
     if (radioName) {
-        // 🔧 ALTERAR TÍTULO PARA "MAPEAMENTO DA PROPOSTA" - SEM LOGO
-        radioName.textContent = '🗺️ Mapeamento da Proposta';
-        // 🔧 GARANTIR QUE NÃO TEM ELEMENTO IMG DENTRO
-        const existingImg = radioName.querySelector('img');
-        if (existingImg) {
-            existingImg.remove();
-        }
+        // 🔧 REMOVER COMPLETAMENTE A LOGO DO TEXTO
+        radioName.innerHTML = '🗺️ Mapeamento da Proposta';
+        
+        // 🔧 REMOVER QUALQUER ELEMENTO IMG QUE POSSA EXISTIR
+        const existingImgs = radioName.querySelectorAll('img');
+        existingImgs.forEach(img => img.remove());
     }
     
     if (radioInfo) {
@@ -760,96 +887,105 @@ function updateHeaderProposta() {
         radioInfo.textContent = `${radiosCount} rádios • ${estadosCount} estados • ${propostaData.proposta.title}`;
     }
     
-    // 🔧 FORÇAR OCULTAÇÃO DA LOGO NO MODO PROPOSTA
+    // 🔧 FORÇAR REMOÇÃO COMPLETA DA LOGO
     if (headerLogo) {
         headerLogo.style.display = 'none';
         headerLogo.style.visibility = 'hidden';
         headerLogo.src = '';
+        headerLogo.remove(); // 🔧 REMOVER COMPLETAMENTE O ELEMENTO
     }
     
-    console.log('✅ Header atualizado para proposta (logo removida)');
+    console.log('✅ Header atualizado para proposta (logo completamente removida)');
 }
 
 // =========================================================================
-// 📊 ATUALIZAR INFORMAÇÕES DA PROPOSTA - APENAS ESTATÍSTICAS CONSOLIDADAS
+// 📊 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS - 🔧 CORRIGIDAS
 // =========================================================================
-function updatePropostaInfo() {
-    // 🔧 OCULTAR CARDS INDIVIDUAIS NO MODO PROPOSTA
-    const infoSection = document.getElementById('info-section');
-    if (infoSection) {
-        infoSection.style.display = 'none';
-    }
+function setupConsolidatedStats() {
+    console.log('📊 Configurando estatísticas consolidadas...');
     
-    // 🔧 OCULTAR CARDS ESPECÍFICOS SE EXISTIREM
-    const radioCard = document.getElementById('info-card-radio');
-    const coberturaCard = document.getElementById('info-card-cobertura');
+    // 🔧 DEBUG: Verificar dados disponíveis
+    console.log('🔍 DEBUG - Dados da proposta:', {
+        totalRadios: propostaData.proposta.totalRadios,
+        radiosLength: propostaData.radios.length,
+        primeiraRadio: propostaData.radios[0]?.name || 'N/A',
+        primeiraRadioCidades: propostaData.radios[0]?.citiesData?.length || 0
+    });
     
-    if (radioCard) radioCard.style.display = 'none';
-    if (coberturaCard) coberturaCard.style.display = 'none';
+    // Calcular estatísticas CORRIGIDAS
+    let totalRadios = propostaData.proposta.totalRadios || propostaData.radios.length;
+    let totalCities = 0;
+    let totalPopulation = 0;
+    let totalCoveredPopulation = 0;
+    let radiosWithKmz = 0;
+    let radiosWithKml = 0;
     
-    // As estatísticas serão mostradas na seção dedicada (setupConsolidatedStats)
-    console.log('ℹ️ Cards individuais ocultados para modo proposta');
-}
-
-// =========================================================================
-// 📻 CONFIGURAR LISTA DE RÁDIOS (SUBSTITUI LISTA DE CIDADES)
-// =========================================================================
-function setupRadiosList() {
-    const cidadesSection = document.getElementById('cidades-section');
-    cidadesSection.style.display = 'block';
-    
-    // Atualizar título
-    const cidadesTitle = document.querySelector('.cidades-title');
-    cidadesTitle.innerHTML = `
-        📻 Rádios da Proposta
-        <span class="cidade-count">${propostaData.proposta.totalRadios}</span>
-    `;
-    
-    // Ocultar busca (não necessária para lista de rádios)
-    document.querySelector('.search-box').style.display = 'none';
-    
-    // Atualizar botão de exportação
-    const exportBtn = document.querySelector('.excel-export-btn');
-    exportBtn.onclick = exportPropostaToExcel;
-    exportBtn.innerHTML = '📊 Exportar Proposta (.xlsx)';
-    
-    // Renderizar lista de rádios
-    renderRadiosList();
-}
-
-// =========================================================================
-// 📻 RENDERIZAR LISTA DE RÁDIOS
-// =========================================================================
-function renderRadiosList() {
-    const container = document.getElementById('cidades-list');
-    
-    container.innerHTML = propostaData.radios.map(radio => {
-        const totalCities = radio.citiesData ? radio.citiesData.length : 0;
-        const totalPop = radio.citiesData ? radio.citiesData.reduce((sum, city) => sum + (city.totalPopulation || 0), 0) : 0;
-        const coveredPop = radio.citiesData ? radio.citiesData.reduce((sum, city) => sum + (city.coveredPopulation || 0), 0) : 0;
+    propostaData.radios.forEach((radio, index) => {
+        console.log(`🔍 DEBUG - Rádio ${index + 1} (${radio.name}):`, {
+            hasKmz: radio.hasKmz || !!radio.coverageImage,
+            hasKml: radio.hasKml || !!radio.citiesData,
+            cidadesCount: radio.citiesData?.length || 0
+        });
         
-        return `
-            <div class="cidade-item" onclick="highlightRadio('${radio.id}')">
-                <div class="cidade-info">
-                    <div class="cidade-name">📻 ${radio.name} (${radio.dial})</div>
-                    <div class="cidade-details">
-                        <span>📍 ${radio.praca} - ${radio.uf}</span>
-                        <span>🏙️ ${totalCities} cidades</span>
-                        <span>👥 ${totalPop.toLocaleString()} hab.</span>
-                        <span>✅ ${coveredPop.toLocaleString()} cobertos</span>
-                        ${radio.hasKmz ? '<span class="cidade-badge badge-excelente">📊 Cobertura</span>' : ''}
-                    </div>
-                </div>
-                <div class="cidade-stats">
-                    <div class="stat-item" style="display: flex; gap: 8px;">
-                        ${radio.hasKmz ? '<span style="color: #10B981;">🗺️</span>' : ''}
-                        ${radio.hasKml ? '<span style="color: #3B82F6;">🏙️</span>' : ''}
-                        ${radio.logoUrlFromKMZ || radio.notionIconUrl ? '<span style="color: #F59E0B;">🖼️</span>' : ''}
-                    </div>
-                </div>
+        // Corrigir flags
+        if (radio.hasKmz || radio.coverageImage) radiosWithKmz++;
+        if (radio.hasKml || (radio.citiesData && radio.citiesData.length > 0)) radiosWithKml++;
+        
+        // Somar dados de cidades
+        if (radio.citiesData && Array.isArray(radio.citiesData)) {
+            totalCities += radio.citiesData.length;
+            radio.citiesData.forEach(city => {
+                totalPopulation += city.totalPopulation || 0;
+                totalCoveredPopulation += city.coveredPopulation || 0;
+            });
+        }
+    });
+    
+    const coveragePercent = totalPopulation > 0 ? ((totalCoveredPopulation / totalPopulation) * 100).toFixed(1) : 0;
+    
+    console.log('📊 Estatísticas calculadas:', {
+        totalRadios,
+        totalCities,
+        totalPopulation,
+        totalCoveredPopulation,
+        coveragePercent,
+        radiosWithKmz,
+        radiosWithKml
+    });
+    
+    // Renderizar estatísticas
+    const statsGrid = document.getElementById('stats-grid');
+    if (statsGrid) {
+        statsGrid.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-card-title">📻 Total de Rádios</div>
+                <div class="stat-card-value">${totalRadios}</div>
+                <div class="stat-card-detail">${radiosWithKmz} com cobertura • ${radiosWithKml} com cidades</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-card-title">🏙️ Cidades Atendidas</div>
+                <div class="stat-card-value">${totalCities.toLocaleString()}</div>
+                <div class="stat-card-detail">Em ${propostaData.summary.estados.length} estados</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-card-title">👥 População Total</div>
+                <div class="stat-card-value">${totalPopulation.toLocaleString()}</div>
+                <div class="stat-card-detail">Universo de cobertura</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-card-title">✅ População Coberta</div>
+                <div class="stat-card-value">${totalCoveredPopulation.toLocaleString()}</div>
+                <div class="stat-card-detail">${coveragePercent}% do total</div>
             </div>
         `;
-    }).join('');
+        
+        document.getElementById('stats-section').style.display = 'block';
+    }
+    
+    console.log('✅ Estatísticas consolidadas configuradas');
 }
 
 // =========================================================================
@@ -887,56 +1023,6 @@ function highlightRadio(radioId) {
         layer.setOpacity(0.9);
         setTimeout(() => layer.setOpacity(originalOpacity), 1000);
     }
-}
-
-// =========================================================================
-// 📊 EXPORTAR PROPOSTA PARA EXCEL
-// =========================================================================
-function exportPropostaToExcel() {
-    const excelData = [
-        ['Rádio', 'Dial', 'UF', 'Praça', 'Total Cidades', 'População Total', 'População Coberta', 'Tem Cobertura', 'Tem Cidades']
-    ];
-    
-    propostaData.radios.forEach(radio => {
-        const totalCities = radio.citiesData ? radio.citiesData.length : 0;
-        const totalPop = radio.citiesData ? radio.citiesData.reduce((sum, city) => sum + (city.totalPopulation || 0), 0) : 0;
-        const coveredPop = radio.citiesData ? radio.citiesData.reduce((sum, city) => sum + (city.coveredPopulation || 0), 0) : 0;
-        
-        excelData.push([
-            radio.name || '',
-            radio.dial || '',
-            radio.uf || '',
-            radio.praca || '',
-            totalCities,
-            totalPop,
-            coveredPop,
-            radio.hasKmz ? 'Sim' : 'Não',
-            radio.hasKml ? 'Sim' : 'Não'
-        ]);
-    });
-    
-    const ws = XLSX.utils.aoa_to_sheet(excelData);
-    const wb = XLSX.utils.book_new();
-    
-    // Larguras das colunas
-    ws['!cols'] = [
-        { wch: 25 }, // Rádio
-        { wch: 10 }, // Dial
-        { wch: 5 },  // UF
-        { wch: 20 }, // Praça
-        { wch: 12 }, // Total Cidades
-        { wch: 15 }, // Pop Total
-        { wch: 15 }, // Pop Coberta
-        { wch: 12 }, // Tem Cobertura
-        { wch: 12 }  // Tem Cidades
-    ];
-    
-    XLSX.utils.book_append_sheet(wb, ws, 'Proposta de Cobertura');
-    
-    const fileName = `${propostaData.proposta.title.replace(/[^a-zA-Z0-9]/g, '_')}_proposta_${new Date().toISOString().split('T')[0]}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-    
-    console.log('📊 Excel da proposta exportado:', fileName);
 }
 
 // =========================================================================
@@ -1925,6 +2011,7 @@ function hideLoading() {
 
 function showError(message, details) {
     document.getElementById('loading').style.display = 'none';
+    hideLoadingScreen(); // 🆕 Garantir que tela personalizada também suma
     document.getElementById('error-message').textContent = message;
     
     if (details) {
@@ -1933,99 +2020,4 @@ function showError(message, details) {
     }
     
     document.getElementById('error').style.display = 'block';
-}
-
-// =========================================================================
-// 🆕 CONFIGURAR PAINEL DE CONTROLE DE RÁDIOS (MODO PROPOSTA) - SEM LOGOS
-// =========================================================================
-function setupRadiosControlPanel() {
-    const panel = document.getElementById('radios-list-panel');
-    if (!panel) return;
-    
-    panel.innerHTML = propostaData.radios.map(radio => {
-        const hasKmz = radio.coverageImage ? 'checked' : '';
-        // 🔧 REMOVER LOGO - APENAS EMOJI PADRÃO
-        
-        return `
-            <div class="radio-item-panel" onclick="focusOnRadio('${radio.id}')">
-                <input type="checkbox" 
-                       class="radio-checkbox" 
-                       id="radio-${radio.id}" 
-                       ${hasKmz}
-                       onchange="toggleRadioCoverage('${radio.id}')"
-                       onclick="event.stopPropagation()">
-                <div class="radio-info-panel">
-                    <div class="radio-name-panel">📻 ${radio.name}</div>
-                    <div class="radio-details-panel">${radio.dial} • ${radio.uf}</div>
-                </div>
-                <button class="radio-focus-btn" onclick="focusOnRadio('${radio.id}'); event.stopPropagation();">
-                    🎯
-                </button>
-            </div>
-        `;
-    }).join('');
-    
-    console.log('✅ Painel de controle de rádios configurado (sem logos)');
-}
-
-// =========================================================================
-// 🆕 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS (MODO PROPOSTA) - SIMPLIFICADO
-// =========================================================================
-function setupConsolidatedStats() {
-    // Calcular estatísticas
-    let totalRadios = propostaData.proposta.totalRadios;
-    let totalCities = 0;
-    let totalPopulation = 0;
-    let totalCoveredPopulation = 0;
-    let radiosWithKmz = 0;
-    let radiosWithKml = 0;
-    
-    propostaData.radios.forEach(radio => {
-        if (radio.hasKmz) radiosWithKmz++;
-        if (radio.hasKml) radiosWithKml++;
-        
-        if (radio.citiesData) {
-            totalCities += radio.citiesData.length;
-            radio.citiesData.forEach(city => {
-                totalPopulation += city.totalPopulation || 0;
-                totalCoveredPopulation += city.coveredPopulation || 0;
-            });
-        }
-    });
-    
-    const coveragePercent = totalPopulation > 0 ? ((totalCoveredPopulation / totalPopulation) * 100).toFixed(1) : 0;
-    
-    // Renderizar estatísticas SIMPLIFICADAS
-    const statsGrid = document.getElementById('stats-grid');
-    if (statsGrid) {
-        statsGrid.innerHTML = `
-            <div class="stat-card">
-                <div class="stat-card-title">📻 Total de Rádios</div>
-                <div class="stat-card-value">${totalRadios}</div>
-                <div class="stat-card-detail">${radiosWithKmz} com cobertura • ${radiosWithKml} com cidades</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-card-title">🏙️ Cidades Atendidas</div>
-                <div class="stat-card-value">${totalCities.toLocaleString()}</div>
-                <div class="stat-card-detail">Em ${propostaData.summary.estados.length} estados</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-card-title">👥 População Total</div>
-                <div class="stat-card-value">${totalPopulation.toLocaleString()}</div>
-                <div class="stat-card-detail">Universo de cobertura</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-card-title">✅ População Coberta</div>
-                <div class="stat-card-value">${totalCoveredPopulation.toLocaleString()}</div>
-                <div class="stat-card-detail">${coveragePercent}% do total</div>
-            </div>
-        `;
-        
-        document.getElementById('stats-section').style.display = 'block';
-    }
-    
-    console.log('✅ Estatísticas consolidadas configuradas (simplificadas)');
 }
