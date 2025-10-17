@@ -600,18 +600,12 @@ function initializeMap() {
     let interactionEndTimer = null;
     let frameScheduled = false;
     
-    // 🚀 FUNÇÃO PARA DETECTAR INÍCIO DE INTERAÇÃO
+    // 🚀 FUNÇÃO PARA DETECTAR INÍCIO DE INTERAÇÃO (SEM EFEITOS VISUAIS)
     function startPerformanceMode() {
         if (!isUserInteracting) {
             isUserInteracting = true;
             performanceMode = true;
             console.log('🚀 Performance mode ATIVADO');
-            
-            // Suspender atualizações custosas durante interação
-            if (isPropostaMode) {
-                // Reduzir qualidade visual temporariamente se necessário
-                document.documentElement.style.pointerEvents = 'auto';
-            }
         }
         
         // Reset do timer para detectar fim da interação
@@ -621,25 +615,12 @@ function initializeMap() {
         }, 200); // 200ms sem interação = fim da interação
     }
     
-    // 🚀 FUNÇÃO PARA DETECTAR FIM DE INTERAÇÃO
+    // 🚀 FUNÇÃO PARA DETECTAR FIM DE INTERAÇÃO (SEM EFEITOS VISUAIS)
     function endPerformanceMode() {
         if (isUserInteracting) {
             isUserInteracting = false;
             performanceMode = false;
             console.log('🚀 Performance mode DESATIVADO');
-            
-            // Restaurar qualidade visual
-            if (isPropostaMode) {
-                // Reagendar operações que foram suspensas
-                if (!frameScheduled) {
-                    frameScheduled = true;
-                    requestAnimationFrame(() => {
-                        frameScheduled = false;
-                        // Executar operações de restauração se necessário
-                        console.log('🔄 Operações de restauração executadas');
-                    });
-                }
-            }
         }
     }
     
