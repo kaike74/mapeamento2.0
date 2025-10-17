@@ -257,8 +257,10 @@ async function loadRadioData(notionId) {
     radioData = await response.json();
     console.log('✅ Dados carregados:', radioData);
     
-    // 🖼️ PROCESSAR ÍCONE DO NOTION IMEDIATAMENTE
-    processNotionIcon();
+    // 🖼️ PROCESSAR ÍCONE DO NOTION IMEDIATAMENTE (APENAS MODO INDIVIDUAL)
+    if (!isPropostaMode) {
+        processNotionIcon();
+    }
     
     // Atualizar header inicial (sem logo - virá do KMZ)
     updateHeaderBasic();
@@ -274,7 +276,7 @@ async function processAllRadiosInProposta() {
         try {
             console.log(`📻 Processando rádio ${index + 1}/${propostaData.radios.length}: ${radio.name}`);
             
-            // Processar ícone do Notion para cada rádio
+            // Processar ícone do Notion para cada rádio (SEM ATUALIZAR HEADER)
             processRadioNotionIcon(radio);
             
             // Processar KMZ se disponível - AGUARDAR CONCLUSÃO
@@ -422,13 +424,18 @@ async function parseRadioKMZContent(radio, kmlText, zip) {
     // Extrair dados da antena
     const placemark = xmlDoc.querySelector('Placemark');
     if (placemark) {
-        // Extrair logo do IconStyle
+        // Extrair logo do IconStyle (SEM ATUALIZAR HEADER NO MODO PROPOSTA)
         const iconStyle = placemark.querySelector('Style IconStyle Icon href');
         if (iconStyle) {
             const logoUrl = iconStyle.textContent.trim();
             if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
                 radio.logoUrlFromKMZ = logoUrl;
-                console.log(`✅ Logo de ${radio.name} extraída do KMZ`);
+                console.log(`✅ Logo de ${radio.name} extraída do KMZ: ${logoUrl}`);
+                
+                // 🔧 APENAS ATUALIZAR HEADER SE NÃO ESTIVER NO MODO PROPOSTA
+                if (!isPropostaMode) {
+                    forceUpdateHeaderLogo();
+                }
             }
         }
         
@@ -831,7 +838,7 @@ function fitMapBoundsForProposta() {
 // 🖼️ CONFIGURAR INTERFACE PARA PROPOSTA - 🔧 CORRIGIDA
 // =========================================================================
 function setupPropostaInterface() {
-    // Atualizar header
+    // Atualizar header (SEM LOGO)
     updateHeaderProposta();
     
     // 🔧 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS PRIMEIRO
@@ -892,7 +899,13 @@ function updateHeaderProposta() {
         headerLogo.style.display = 'none';
         headerLogo.style.visibility = 'hidden';
         headerLogo.src = '';
-        headerLogo.remove(); // 🔧 REMOVER COMPLETAMENTE O ELEMENTO
+        
+        // 🔧 REMOVER COMPLETAMENTE O ELEMENTO
+        try {
+            headerLogo.remove();
+        } catch (e) {
+            console.warn('⚠️ Não foi possível remover elemento header-logo:', e);
+        }
     }
     
     console.log('✅ Header atualizado para proposta (logo completamente removida)');
@@ -1146,16 +1159,18 @@ async function parseKMZContent(kmlText, zip) {
     if (placemark) {
         console.log('📡 Processando dados da antena...');
         
-        // 🖼️ EXTRAIR LOGO DO ICONSTYLE PRIMEIRO
-        const iconStyle = placemark.querySelector('Style IconStyle Icon href');
-        if (iconStyle) {
-            const logoUrl = iconStyle.textContent.trim();
-            console.log('🔍 URL encontrada no IconStyle:', logoUrl);
-            if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
-                radioData.logoUrlFromKMZ = logoUrl;
-                console.log('✅ Logo extraída do IconStyle KMZ:', logoUrl);
-                // 🚀 FORÇAR ATUALIZAÇÃO IMEDIATA DO HEADER
-                forceUpdateHeaderLogo();
+        // 🖼️ EXTRAIR LOGO DO ICONSTYLE PRIMEIRO (SÓ NO MODO INDIVIDUAL)
+        if (!isPropostaMode) {
+            const iconStyle = placemark.querySelector('Style IconStyle Icon href');
+            if (iconStyle) {
+                const logoUrl = iconStyle.textContent.trim();
+                console.log('🔍 URL encontrada no IconStyle:', logoUrl);
+                if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
+                    radioData.logoUrlFromKMZ = logoUrl;
+                    console.log('✅ Logo extraída do IconStyle KMZ:', logoUrl);
+                    // 🚀 FORÇAR ATUALIZAÇÃO IMEDIATA DO HEADER (SÓ NO MODO INDIVIDUAL)
+                    forceUpdateHeaderLogo();
+                }
             }
         }
         
@@ -1206,8 +1221,8 @@ function parseAntennaDataDescription(htmlDescription) {
     
     const data = {};
     
-    // 🖼️ EXTRAIR LOGO DA DESCRIÇÃO HTML SE NÃO ACHOU NO ICONSTYLE
-    if (!radioData.logoUrlFromKMZ) {
+    // 🖼️ EXTRAIR LOGO DA DESCRIÇÃO HTML SE NÃO ACHOU NO ICONSTYLE (SÓ NO MODO INDIVIDUAL)
+    if (!isPropostaMode && !radioData.logoUrlFromKMZ) {
         const imgTag = doc.querySelector('img');
         if (imgTag) {
             const logoUrl = imgTag.getAttribute('src');
@@ -1215,7 +1230,7 @@ function parseAntennaDataDescription(htmlDescription) {
             if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
                 radioData.logoUrlFromKMZ = logoUrl;
                 console.log('✅ Logo extraída da descrição HTML:', logoUrl);
-                // 🚀 FORÇAR ATUALIZAÇÃO IMEDIATA DO HEADER
+                // 🚀 FORÇAR ATUALIZAÇÃO IMEDIATA DO HEADER (SÓ NO MODO INDIVIDUAL)
                 forceUpdateHeaderLogo();
             }
         }
@@ -1870,8 +1885,14 @@ function updateHeaderBasic() {
     console.log('✅ Header básico atualizado');
 }
 
-// 🖼️ ATUALIZAR LOGO NO HEADER - FUNÇÃO PRINCIPAL COM RETRY
+// 🖼️ ATUALIZAR LOGO NO HEADER - FUNÇÃO PRINCIPAL COM RETRY (SÓ MODO INDIVIDUAL)
 function updateHeaderLogoFinal(retryCount = 0) {
+    // 🔧 NÃO EXECUTAR NO MODO PROPOSTA
+    if (isPropostaMode) {
+        console.log('🚫 updateHeaderLogoFinal() pulado no modo proposta');
+        return;
+    }
+    
     const maxRetries = 5;
     
     console.log(`🔍 Tentativa ${retryCount + 1}/${maxRetries + 1} de encontrar header-logo...`);
@@ -1972,8 +1993,14 @@ function updateHeaderLogoFinal(retryCount = 0) {
     }
 }
 
-// 🚀 FORÇAR ATUALIZAÇÃO DA LOGO QUANDO DETECTADA NO KMZ
+// 🚀 FORÇAR ATUALIZAÇÃO DA LOGO QUANDO DETECTADA NO KMZ (SÓ MODO INDIVIDUAL)
 function forceUpdateHeaderLogo() {
+    // 🔧 NÃO EXECUTAR NO MODO PROPOSTA
+    if (isPropostaMode) {
+        console.log('🚫 forceUpdateHeaderLogo() pulado no modo proposta');
+        return;
+    }
+    
     console.log('🚀 FORÇANDO atualização da logo no header...');
     
     // Aguardar um pouco para garantir que o DOM está pronto
