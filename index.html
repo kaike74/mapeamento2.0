@@ -15,6 +15,23 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- 🆕 TELA DE CARREGAMENTO ANIMADA (MODO PROPOSTA) -->
+    <div id="loading-proposta" class="loading-screen" style="display: none;">
+        <div class="loading-content">
+            <div class="loading-logo-container">
+                <img src="https://raw.githubusercontent.com/kaike74/distribuicaoemidias/main/logo%20E-MIDIAS%20png%20fundo%20escuro%20HORIZONTAL%20(1).png" 
+                     alt="E-MÍDIAS Logo" 
+                     class="loading-logo"
+                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjMDYwNTVCIi8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjQwIiBmaWxsPSIjRkMxRTc1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7wn4+X77iPPC90ZXh0Pgo8L3N2Zz4K';">
+            </div>
+            <h1 class="loading-title">🗺️ Mapeamento da Proposta</h1>
+            <p class="loading-text" id="loading-text">Carregando...</p>
+            <div class="loading-progress">
+                <div class="loading-bar"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- CABEÇALHO SUPERIOR COM LOGO -->
     <div class="top-header">
         <img src="https://raw.githubusercontent.com/kaike74/distribuicaoemidias/main/logo%20E-MIDIAS%20png%20fundo%20escuro%20HORIZONTAL%20(1).png" 
@@ -39,7 +56,7 @@
       </div>
     </div>
 
-    <!-- LOADING -->
+    <!-- LOADING PADRÃO (MODO INDIVIDUAL) -->
     <div id="loading" class="loading">
       <div class="loading-spinner"></div>
       <p>Carregando dados e processando arquivos KMZ/KML...</p>
@@ -51,9 +68,9 @@
       <div id="error-details" class="error-details" style="display: none;"></div>
     </div>
 
-    <!-- CARDS DE INFORMAÇÕES -->
+    <!-- CARDS DE INFORMAÇÕES (APENAS MODO INDIVIDUAL) -->
     <div id="info-section" class="info-grid" style="display: none;">
-      <!-- Card 1: Informações Básicas - OCULTO NO MODO PROPOSTA -->
+      <!-- Card 1: Informações Básicas -->
       <div class="info-card" id="info-card-radio">
         <h3 class="card-title">📻 Informações da Rádio</h3>
         <div class="info-item">
@@ -70,7 +87,7 @@
         </div>
       </div>
 
-      <!-- Card 2: Cobertura - OCULTO NO MODO PROPOSTA -->
+      <!-- Card 2: Cobertura -->
       <div class="info-card" id="info-card-cobertura">
         <h3 class="card-title">🌍 Cobertura</h3>
         <div class="info-item">
@@ -88,7 +105,7 @@
       </div>
     </div>
 
-    <!-- 🆕 ESTATÍSTICAS CONSOLIDADAS (MODO PROPOSTA) - ACIMA DO MAPA -->
+    <!-- 🆕 ESTATÍSTICAS CONSOLIDADAS (MODO PROPOSTA) -->
     <div id="stats-section" class="stats-container" style="display: none;">
       <div class="stats-header">
         <h2 class="stats-title">
@@ -122,28 +139,11 @@
                         <span>Fraco</span>
                     </div>
                 </div>
-                
-                <!-- 🆕 PAINEL DE CONTROLE DE RÁDIOS (MODO PROPOSTA) -->
-                <div class="radios-control-panel" id="radios-control-panel" style="display: none;">
-                    <div class="panel-header">
-                        <h4>📻 Controle de Rádios</h4>
-                        <button class="panel-toggle" onclick="toggleRadiosPanel()">📐</button>
-                    </div>
-                    <div class="panel-content" id="radios-panel-content">
-                        <div class="panel-actions">
-                            <button class="panel-btn" onclick="showAllCoverages()">🌍 Mostrar Todas</button>
-                            <button class="panel-btn" onclick="hideAllCoverages()">👁️ Ocultar Todas</button>
-                        </div>
-                        <div class="radios-list-panel" id="radios-list-panel">
-                            <!-- Lista de rádios será preenchida dinamicamente -->
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- CIDADES OU RÁDIOS -->
+    <!-- CIDADES (APENAS MODO INDIVIDUAL) -->
     <div id="cidades-section" class="cidades-container" style="display: none;">
       <div class="cidades-header">
         <h2 class="cidades-title">
@@ -264,17 +264,6 @@
         footerMode.textContent = isPropostaMode ? 
           '🌟 Modo Proposta - Múltiplas Rádios' : 
           '📻 Modo Individual - Rádio Única';
-      }
-      
-      // Configurar interface baseada no modo
-      if (isPropostaMode) {
-        // Mostrar painel de controle de rádios
-        setTimeout(() => {
-          const panel = document.getElementById('radios-control-panel');
-          if (panel) {
-            panel.style.display = 'block';
-          }
-        }, 3000);
       }
     });
   </script>
