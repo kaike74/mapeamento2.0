@@ -183,17 +183,16 @@ async function initPropostaMode(propostaId) {
     console.log('🔄 Aguardando processamento de todas as rádios...');
     await processAllRadiosInProposta();
     
-    // Só depois adicionar ao mapa
-    setTimeout(() => {
-        addAllRadiosToMap();
-        setupLayersControlForProposta();
+    // 🚀 USAR requestAnimationFrame PARA OPERAÇÕES VISUAIS
+    requestAnimationFrame(() => {
+        addAllRadiosToMap(); // Agora é otimizado com batches
         
-        // 🆕 RECALCULAR ESTATÍSTICAS APÓS PROCESSAMENTO COMPLETO
-        setupConsolidatedStats();
-        
-        // 🆕 OCULTAR TELA DE CARREGAMENTO APÓS COMPLETAR
-        hideLoadingScreen();
-    }, 1000);
+        // 🆕 ESTATÍSTICAS E TELA DE CARREGAMENTO APÓS TUDO PRONTO
+        setTimeout(() => {
+            setupConsolidatedStats(); // Agora é otimizado
+            hideLoadingScreen();
+        }, 500);
+    });
     
     console.log('✅ Modo proposta inicializado');
 }
@@ -570,31 +569,95 @@ function initializeMap() {
     // Adicionar camada padrão (Satélite primeiro)
     baseLayers['Satélite'].addTo(map);
     
-    // 🚀 THROTTLE DE EVENTOS PARA PERFORMANCE
+    // 🚀 THROTTLE DE EVENTOS PARA PERFORMANCE MÁXIMA
     let zoomTimeout;
+    let isZooming = false;
+    
     map.on('zoomstart', function() {
-        // Reduzir opacity durante zoom para melhor performance
+        isZooming = true;
+        // 🚀 REDUZIR OPACITY DE TODOS OS LAYERS DURANTE ZOOM
         if (isPropostaMode) {
             Object.values(radiosLayers).forEach(layerGroup => {
                 if (map.hasLayer(layerGroup)) {
-                    layerGroup.setOpacity ? layerGroup.setOpacity(0.3) : null;
+                    layerGroup.eachLayer(layer => {
+                        if (layer.setOpacity) {
+                            layer.setOpacity(0.3);
+                        }
+                    });
                 }
             });
         }
     });
     
+    map.on('zoom', function() {
+        // 🚀 THROTTLE EXTREMO: Só processar a cada 150ms durante zoom
+        clearTimeout(zoomTimeout);
+        zoomTimeout = setTimeout(() => {
+            if (isZooming && isPropostaMode) {
+                // Manter opacity baixa durante zoom contínuo
+                Object.values(radiosLayers).forEach(layerGroup => {
+                    if (map.hasLayer(layerGroup)) {
+                        layerGroup.eachLayer(layer => {
+                            if (layer.setOpacity) {
+                                layer.setOpacity(0.4);
+                            }
+                        });
+                    }
+                });
+            }
+        }, 150);
+    });
+    
     map.on('zoomend', function() {
-        // Restaurar opacity após zoom
+        isZooming = false;
+        // 🚀 RESTAURAR OPACITY APÓS ZOOM COM DELAY
         clearTimeout(zoomTimeout);
         zoomTimeout = setTimeout(() => {
             if (isPropostaMode) {
                 Object.values(radiosLayers).forEach(layerGroup => {
                     if (map.hasLayer(layerGroup)) {
-                        layerGroup.setOpacity ? layerGroup.setOpacity(1) : null;
+                        layerGroup.eachLayer(layer => {
+                            if (layer.setOpacity) {
+                                layer.setOpacity(layer instanceof L.ImageOverlay ? 0.6 : 1);
+                            }
+                        });
                     }
                 });
             }
-        }, 100);
+        }, 200);
+    });
+    
+    // 🚀 OTIMIZAR MOVIMENTO DO MAPA
+    map.on('movestart', function() {
+        if (isPropostaMode) {
+            // Reduzir qualidade visual durante movimento
+            Object.values(radiosLayers).forEach(layerGroup => {
+                if (map.hasLayer(layerGroup)) {
+                    layerGroup.eachLayer(layer => {
+                        if (layer.setOpacity && layer instanceof L.ImageOverlay) {
+                            layer.setOpacity(0.4);
+                        }
+                    });
+                }
+            });
+        }
+    });
+    
+    map.on('moveend', function() {
+        if (isPropostaMode) {
+            // Restaurar qualidade visual após movimento
+            setTimeout(() => {
+                Object.values(radiosLayers).forEach(layerGroup => {
+                    if (map.hasLayer(layerGroup)) {
+                        layerGroup.eachLayer(layer => {
+                            if (layer.setOpacity && layer instanceof L.ImageOverlay) {
+                                layer.setOpacity(0.6);
+                            }
+                        });
+                    }
+                });
+            }, 100);
+        }
     });
     
     // Adicionar divisórias dos estados brasileiros
@@ -638,69 +701,93 @@ function initializeMap() {
 }
 
 // =========================================================================
-// 🌟 ADICIONAR TODAS AS RÁDIOS AO MAPA (MODO PROPOSTA) - OTIMIZADO COM LAYER GROUPS
+// 🌟 ADICIONAR TODAS AS RÁDIOS AO MAPA (MODO PROPOSTA) - 🚀 SUPER OTIMIZADO
 // =========================================================================
 function addAllRadiosToMap() {
-    console.log('🌟 Adicionando todas as rádios ao mapa com Layer Groups...');
+    console.log('🌟 Adicionando todas as rádios ao mapa com otimizações avançadas...');
     
-    propostaData.radios.forEach((radio, index) => {
-        console.log(`📻 Processando rádio ${index + 1}: ${radio.name}`);
+    let processedRadios = 0;
+    const batchSize = 2; // Processar 2 rádios por vez para melhor performance
+    
+    function processBatch() {
+        const endIndex = Math.min(processedRadios + batchSize, propostaData.radios.length);
         
-        // 🔧 CRIAR LAYER GROUP PARA ESTA RÁDIO (inclui cobertura + antena + cidades)
-        const radioLayerGroup = L.layerGroup();
-        
-        // 1. Adicionar imagem de cobertura se disponível
-        if (radio.coverageImage) {
-            console.log(`🗺️ Adicionando cobertura de ${radio.name}`);
-            const coverageLayer = L.imageOverlay(
-                radio.coverageImage.url,
-                radio.coverageImage.bounds,
-                {
-                    opacity: 0.6,
-                    interactive: false
-                }
-            );
-            radioLayerGroup.addLayer(coverageLayer);
-            console.log(`✅ Cobertura de ${radio.name} adicionada ao grupo`);
-        }
-        
-        // 2. Adicionar marcador da antena
-        if (radio.antennaLocation) {
-            const antennaMarker = createRadioAntennaMarker(radio);
-            radioLayerGroup.addLayer(antennaMarker);
-            console.log(`📍 Antena de ${radio.name} adicionada ao grupo`);
-        }
-        
-        // 3. Adicionar marcadores de cidades (OTIMIZADO)
-        if (radio.citiesData && radio.citiesData.length > 0) {
-            // 🚀 OTIMIZAÇÃO: Limitar cidades se há muitas (performance)
-            const maxCities = 100; // Máximo de cidades por rádio para performance
-            const citiesToShow = radio.citiesData.slice(0, maxCities);
+        for (let i = processedRadios; i < endIndex; i++) {
+            const radio = propostaData.radios[i];
+            console.log(`📻 Processando rádio ${i + 1}: ${radio.name}`);
             
-            citiesToShow.forEach(city => {
-                const cityMarker = createCityMarker(city, radio);
-                radioLayerGroup.addLayer(cityMarker);
-            });
+            // 🔧 CRIAR LAYER GROUP PARA ESTA RÁDIO
+            const radioLayerGroup = L.layerGroup();
             
-            console.log(`🏙️ ${citiesToShow.length}/${radio.citiesData.length} cidades de ${radio.name} adicionadas ao grupo`);
-            
-            if (radio.citiesData.length > maxCities) {
-                console.warn(`⚠️ ${radio.name}: Mostrando apenas ${maxCities} de ${radio.citiesData.length} cidades para melhor performance`);
+            // 1. Adicionar imagem de cobertura se disponível
+            if (radio.coverageImage) {
+                const coverageLayer = L.imageOverlay(
+                    radio.coverageImage.url,
+                    radio.coverageImage.bounds,
+                    {
+                        opacity: 0.6,
+                        interactive: false
+                    }
+                );
+                radioLayerGroup.addLayer(coverageLayer);
             }
+            
+            // 2. Adicionar marcador da antena
+            if (radio.antennaLocation) {
+                const antennaMarker = createRadioAntennaMarker(radio);
+                radioLayerGroup.addLayer(antennaMarker);
+            }
+            
+            // 3. Adicionar marcadores de cidades (SUPER OTIMIZADO)
+            if (radio.citiesData && radio.citiesData.length > 0) {
+                // 🚀 OTIMIZAÇÃO AGRESSIVA: Limite baseado em performance
+                const deviceLimitMultiplier = window.innerWidth < 768 ? 0.5 : 1; // Menos cidades em mobile
+                const maxCities = Math.floor(50 * deviceLimitMultiplier); // 50 para desktop, 25 para mobile
+                const citiesToShow = radio.citiesData.slice(0, maxCities);
+                
+                // 🚀 CRIAR MARCADORES EM MINI-BATCHES
+                citiesToShow.forEach((city, cityIndex) => {
+                    const cityMarker = createCityMarker(city, radio);
+                    radioLayerGroup.addLayer(cityMarker);
+                });
+                
+                if (radio.citiesData.length > maxCities) {
+                    console.warn(`⚠️ ${radio.name}: Mostrando ${maxCities}/${radio.citiesData.length} cidades (otimização de performance)`);
+                }
+            }
+            
+            // 4. Adicionar o grupo completo ao mapa
+            radioLayerGroup.addTo(map);
+            radiosLayers[radio.id] = radioLayerGroup;
         }
         
-        // 4. Adicionar o grupo completo ao mapa e armazenar
-        radioLayerGroup.addTo(map);
-        radiosLayers[radio.id] = radioLayerGroup;
+        processedRadios = endIndex;
         
-        console.log(`✅ Grupo completo de ${radio.name} adicionado ao mapa`);
-    });
+        // Continuar processamento ou finalizar
+        if (processedRadios < propostaData.radios.length) {
+            // 🚀 USAR requestAnimationFrame para não travar UI
+            requestAnimationFrame(processBatch);
+        } else {
+            // Finalizar processamento
+            finalizarAdicaoRadios();
+        }
+    }
     
+    // Iniciar processamento em batches
+    processBatch();
+}
+
+function finalizarAdicaoRadios() {
     // Ajustar zoom para mostrar todas as rádios
     fitMapBoundsForProposta();
     
-    console.log(`✅ ${propostaData.radios.length} rádios processadas no mapa com Layer Groups`);
+    console.log(`✅ ${propostaData.radios.length} rádios processadas no mapa com Layer Groups (otimizado)`);
     console.log(`📊 Layer Groups disponíveis: ${Object.keys(radiosLayers).length}`);
+    
+    // 🚀 CONFIGURAR LAYERS CONTROL DEPOIS DE TUDO CARREGADO
+    requestAnimationFrame(() => {
+        setupLayersControlForProposta();
+    });
 }
 
 // =========================================================================
@@ -814,27 +901,41 @@ function createCityMarker(city, radio) {
 }
 
 // =========================================================================
-// 🎛️ CONFIGURAR CONTROLE DE LAYERS PARA PROPOSTA - COM DEBUG
+// 🎛️ CONFIGURAR CONTROLE DE LAYERS PARA PROPOSTA - 🚀 SUPER OTIMIZADO
 // =========================================================================
 function setupLayersControlForProposta() {
     // Overlays para controle de coberturas
     const overlays = {};
     
-    console.log('🎛️ Configurando controle de layers...');
+    console.log('🎛️ Configurando controle de layers otimizado...');
     console.log(`📊 Total de rádios: ${propostaData.radios.length}`);
-    console.log(`📊 Layers de cobertura disponíveis: ${Object.keys(radiosLayers).length}`);
+    console.log(`📊 Layer Groups disponíveis: ${Object.keys(radiosLayers).length}`);
+    
+    // 🚀 OTIMIZAÇÃO MOBILE: Limitar número de layers em dispositivos pequenos
+    const isMobile = window.innerWidth < 768;
+    const maxLayersToShow = isMobile ? 8 : 15; // Menos layers em mobile
     
     // Adicionar cada rádio como overlay controlável
+    let addedLayers = 0;
     propostaData.radios.forEach(radio => {
-        if (radiosLayers[radio.id]) {
-            overlays[`📻 ${radio.name} (${radio.dial})`] = radiosLayers[radio.id];
+        if (radiosLayers[radio.id] && addedLayers < maxLayersToShow) {
+            // 🚀 NOME MAIS COMPACTO PARA MOBILE
+            const displayName = isMobile ? 
+                `📻 ${radio.name.substring(0, 12)}...` : 
+                `📻 ${radio.name} (${radio.dial})`;
+                
+            overlays[displayName] = radiosLayers[radio.id];
+            addedLayers++;
             console.log(`✅ Layer adicionado: ${radio.name}`);
+        } else if (addedLayers >= maxLayersToShow) {
+            console.warn(`⚠️ Limite de layers atingido (${maxLayersToShow}) - performance`);
+            break;
         } else {
             console.warn(`⚠️ Layer não encontrado para: ${radio.name}`);
         }
     });
     
-    console.log(`📊 Total de overlays configurados: ${Object.keys(overlays).length}`);
+    console.log(`📊 Total de overlays configurados: ${Object.keys(overlays).length}/${propostaData.radios.length}`);
     
     // Criar controle de layers completo
     if (layersControl) {
@@ -843,10 +944,11 @@ function setupLayersControlForProposta() {
     
     layersControl = L.control.layers(baseLayers, overlays, {
         position: 'topright',
-        collapsed: false
+        collapsed: isMobile, // 🚀 AUTO-COLLAPSE EM MOBILE
+        sortLayers: false // 🚀 DESABILITAR SORT PARA PERFORMANCE
     }).addTo(map);
     
-    console.log('✅ Controle de layers configurado para proposta');
+    console.log('✅ Controle de layers configurado para proposta (otimizado)');
 }
 
 // =========================================================================
@@ -958,20 +1060,24 @@ function updateHeaderProposta() {
 }
 
 // =========================================================================
-// 📊 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS - 🔧 CORRIGIDAS
+// 📊 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS - 🚀 OTIMIZADO PARA PERFORMANCE
 // =========================================================================
 function setupConsolidatedStats() {
     console.log('📊 Configurando estatísticas consolidadas...');
     
-    // 🔧 DEBUG: Verificar dados disponíveis
-    console.log('🔍 DEBUG - Dados da proposta:', {
-        totalRadios: propostaData.proposta.totalRadios,
-        radiosLength: propostaData.radios.length,
-        primeiraRadio: propostaData.radios[0]?.name || 'N/A',
-        primeiraRadioCidades: propostaData.radios[0]?.citiesData?.length || 0
-    });
+    // 🚀 USAR requestIdleCallback PARA NÃO TRAVAR A UI
+    if ('requestIdleCallback' in window) {
+        requestIdleCallback(calculateStatsWhenIdle);
+    } else {
+        // Fallback para navegadores sem suporte
+        setTimeout(calculateStatsWhenIdle, 100);
+    }
+}
+
+function calculateStatsWhenIdle() {
+    console.log('🔍 Calculando estatísticas...');
     
-    // Calcular estatísticas CORRIGIDAS
+    // Calcular estatísticas de forma otimizada
     let totalRadios = propostaData.proposta.totalRadios || propostaData.radios.length;
     let totalCities = 0;
     let totalPopulation = 0;
@@ -979,14 +1085,15 @@ function setupConsolidatedStats() {
     let radiosWithKmz = 0;
     let radiosWithKml = 0;
     
-    // 🔧 AGUARDAR UM POUCO PARA GARANTIR QUE DADOS FORAM PROCESSADOS
-    setTimeout(() => {
-        propostaData.radios.forEach((radio, index) => {
-            console.log(`🔍 DEBUG - Rádio ${index + 1} (${radio.name}):`, {
-                hasKmz: radio.hasKmz || !!radio.coverageImage,
-                hasKml: radio.hasKml || !!radio.citiesData,
-                cidadesCount: radio.citiesData?.length || 0
-            });
+    // 🚀 PROCESSAR EM BATCHES PEQUENOS PARA NÃO TRAVAR
+    let processedRadios = 0;
+    const batchSize = 3; // Processar 3 rádios por vez
+    
+    function processBatch() {
+        const endIndex = Math.min(processedRadios + batchSize, propostaData.radios.length);
+        
+        for (let i = processedRadios; i < endIndex; i++) {
+            const radio = propostaData.radios[i];
             
             // Corrigir flags
             if (radio.hasKmz || radio.coverageImage) radiosWithKmz++;
@@ -995,59 +1102,81 @@ function setupConsolidatedStats() {
             // Somar dados de cidades
             if (radio.citiesData && Array.isArray(radio.citiesData)) {
                 totalCities += radio.citiesData.length;
-                radio.citiesData.forEach(city => {
-                    totalPopulation += city.totalPopulation || 0;
-                    totalCoveredPopulation += city.coveredPopulation || 0;
-                });
+                
+                // 🚀 OTIMIZAR: Usar reduce para cálculos populacionais
+                const cityTotals = radio.citiesData.reduce((acc, city) => {
+                    acc.total += city.totalPopulation || 0;
+                    acc.covered += city.coveredPopulation || 0;
+                    return acc;
+                }, { total: 0, covered: 0 });
+                
+                totalPopulation += cityTotals.total;
+                totalCoveredPopulation += cityTotals.covered;
             }
-        });
-        
-        const coveragePercent = totalPopulation > 0 ? ((totalCoveredPopulation / totalPopulation) * 100).toFixed(1) : 0;
-        
-        console.log('📊 Estatísticas calculadas:', {
-            totalRadios,
-            totalCities,
-            totalPopulation,
-            totalCoveredPopulation,
-            coveragePercent,
-            radiosWithKmz,
-            radiosWithKml
-        });
-        
-        // Renderizar estatísticas
-        const statsGrid = document.getElementById('stats-grid');
-        if (statsGrid) {
-            statsGrid.innerHTML = `
-                <div class="stat-card">
-                    <div class="stat-card-title">📻 Total de Rádios</div>
-                    <div class="stat-card-value">${totalRadios}</div>
-                    <div class="stat-card-detail">${radiosWithKmz} com cobertura • ${radiosWithKml} com cidades</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-card-title">🏙️ Cidades Atendidas</div>
-                    <div class="stat-card-value">${totalCities.toLocaleString()}</div>
-                    <div class="stat-card-detail">Em ${propostaData.summary.estados.length} estados</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-card-title">👥 População Total</div>
-                    <div class="stat-card-value">${totalPopulation.toLocaleString()}</div>
-                    <div class="stat-card-detail">Universo de cobertura</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-card-title">✅ População Coberta</div>
-                    <div class="stat-card-value">${totalCoveredPopulation.toLocaleString()}</div>
-                    <div class="stat-card-detail">${coveragePercent}% do total</div>
-                </div>
-            `;
-            
-            document.getElementById('stats-section').style.display = 'block';
         }
         
-        console.log('✅ Estatísticas consolidadas configuradas (com delay)');
-    }, 2000); // Aguardar 2 segundos para garantir que todos os dados foram processados
+        processedRadios = endIndex;
+        
+        // Continuar processamento ou finalizar
+        if (processedRadios < propostaData.radios.length) {
+            // 🚀 USAR requestAnimationFrame para próximo batch
+            requestAnimationFrame(processBatch);
+        } else {
+            // Finalizar e renderizar
+            finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalCoveredPopulation, radiosWithKmz, radiosWithKml);
+        }
+    }
+    
+    // Iniciar processamento em batches
+    processBatch();
+}
+
+function finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalCoveredPopulation, radiosWithKmz, radiosWithKml) {
+    const coveragePercent = totalPopulation > 0 ? ((totalCoveredPopulation / totalPopulation) * 100).toFixed(1) : 0;
+    
+    console.log('📊 Estatísticas calculadas:', {
+        totalRadios,
+        totalCities,
+        totalPopulation,
+        totalCoveredPopulation,
+        coveragePercent,
+        radiosWithKmz,
+        radiosWithKml
+    });
+    
+    // Renderizar estatísticas
+    const statsGrid = document.getElementById('stats-grid');
+    if (statsGrid) {
+        statsGrid.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-card-title">📻 Total de Rádios</div>
+                <div class="stat-card-value">${totalRadios}</div>
+                <div class="stat-card-detail">${radiosWithKmz} com cobertura • ${radiosWithKml} com cidades</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-card-title">🏙️ Cidades Atendidas</div>
+                <div class="stat-card-value">${totalCities.toLocaleString()}</div>
+                <div class="stat-card-detail">Em ${propostaData.summary.estados.length} estados</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-card-title">👥 População Total</div>
+                <div class="stat-card-value">${totalPopulation.toLocaleString()}</div>
+                <div class="stat-card-detail">Universo de cobertura</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-card-title">✅ População Coberta</div>
+                <div class="stat-card-value">${totalCoveredPopulation.toLocaleString()}</div>
+                <div class="stat-card-detail">${coveragePercent}% do total</div>
+            </div>
+        `;
+        
+        document.getElementById('stats-section').style.display = 'block';
+    }
+    
+    console.log('✅ Estatísticas consolidadas configuradas (otimizadas)');
 }
 
 // =========================================================================
