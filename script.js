@@ -94,6 +94,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 📻 MODO INDIVIDUAL (UMA RÁDIO)
             console.log('📻 Modo Individual detectado:', radioId);
             isPropostaMode = false;
+            
+            // 🆕 MOSTRAR TELA DE CARREGAMENTO TAMBÉM NO MODO INDIVIDUAL
+            showLoadingScreen();
+            
             await initIndividualMode(radioId);
         } else {
             throw new Error('Parâmetro obrigatório: ?id=RADIO_ID ou ?idproposta=DATABASE_ID');
@@ -212,6 +216,7 @@ async function initIndividualMode(radioId) {
     // 🖼️ ATUALIZAR LOGO NO FINAL (GARANTIR QUE DOM ESTÁ PRONTO)
     setTimeout(() => {
         updateHeaderLogoFinal(0);
+        hideLoadingScreen(); // 🆕 OCULTAR TELA DE CARREGAMENTO NO MODO INDIVIDUAL
     }, 2000);
     
     console.log('✅ Modo individual inicializado');
