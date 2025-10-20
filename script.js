@@ -558,55 +558,56 @@ function createAreaInteresseMarker(area) {
         let color, borderColor, icon;
         
         if (isPropostaMode) {
-            // No modo proposta, mostrar todas as áreas (vermelho = sem cobertura)
             color = '#EF4444'; // Vermelho (sem cobertura)
             borderColor = '#DC2626';
-            icon = '📍'; // Ícone neutro para todas as áreas
-            
-            // 🔧 REMOVER LÓGICA DE CORES POR COBERTURA POR ENQUANTO
-            // Manter todas as áreas com a mesma cor conforme solicitado
+            icon = '📍';
         } else {
-            // Modo individual: só mostra áreas cobertas
             color = '#F59E0B'; // Dourado
             borderColor = '#D97706';
             icon = '🎯';
         }
         
+        // Calcular tamanho real do ícone (considerando borda)
+        // HTML interno é 24x24 com border 3px => outerSize ~ 30
+        const innerSize = 24;
+        const borderPx = 3;
+        const outerSize = innerSize + borderPx * 2; // 30
+        const half = Math.round(outerSize / 2); // 15
+        
+        // Construir HTML do ícone com estilos inline (evita conflitos com CSS externo)
         const areaIcon = L.divIcon({
             html: `
                 <div style="
-                    width: 24px;
-                    height: 24px;
+                    width: ${innerSize}px;
+                    height: ${innerSize}px;
                     background: ${color};
-                    border: 3px solid ${borderColor};
+                    border: ${borderPx}px solid ${borderColor};
                     border-radius: 50%;
                     box-shadow: 0 3px 10px rgba(0,0,0,0.4);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     font-size: 12px;
-                    position: relative;
+                    line-height: 1;
                 ">
-                    <span style="
-                        position: absolute;
-                        top: -8px;
-                        right: -8px;
-                        font-size: 14px;
-                    ">${icon}</span>
+                    <span style="display:inline-block; transform: translateY(-1px); font-size: 14px;">${icon}</span>
                 </div>
             `,
-            className: 'area-interesse-marker',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
+            // IMPORTANTE: remover classe que pode causar conflito com CSS global
+            className: '',
+            iconSize: [outerSize, outerSize],
+            iconAnchor: [half, half],
+            // popupAnchor acima do marcador
+            popupAnchor: [0, -half - 4]
         });
         
         // Criar popup simples
         const popupContent = createAreaInteressePopup(area);
         
-        // 🔧 CRIAR MARCADOR COM COORDENADAS CORRETAS - VERIFICAR ORDEM
+        // Criar marcador com pane explícito (markerPane) e opções seguras
         const marker = L.marker([lat, lng], { 
             icon: areaIcon,
-            // 🔧 ADICIONAR OPÇÕES PARA EVITAR COMPORTAMENTOS ESTRANHOS
+            pane: 'markerPane',
             keyboard: false,
             title: area.name,
             alt: area.name
