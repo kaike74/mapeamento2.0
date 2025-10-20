@@ -1,5 +1,5 @@
 // =========================================================================
-// 📡 CLOUDFLARE PAGES FUNCTION - PROPOSTA DATA API - MÚLTIPLAS RÁDIOS
+// 📡 CLOUDFLARE PAGES FUNCTION - PROPOSTA DATA API - MÚLTIPLAS RÁDIOS + ÁREAS DE INTERESSE
 // =========================================================================
 
 export async function onRequest(context) {
@@ -152,7 +152,7 @@ export async function onRequest(context) {
 }
 
 // =========================================================================
-// 🔧 PROCESSAR DADOS DE UMA RÁDIO (REUTILIZA LÓGICA EXISTENTE)
+// 🔧 PROCESSAR DADOS DE UMA RÁDIO (REUTILIZA LÓGICA EXISTENTE) + ÁREAS DE INTERESSE
 // =========================================================================
 async function processRadioData(notionData) {
   console.log('✅ Processando rádio:', {
@@ -192,6 +192,19 @@ async function processRadioData(notionData) {
     }
   };
 
+  // 🆕 FUNÇÃO HELPER PARA EXTRAIR ARQUIVOS (ÁREAS DE INTERESSE)
+  const extractFiles = (prop) => {
+    if (!prop || prop.type !== 'files' || !prop.files || prop.files.length === 0) {
+      return [];
+    }
+    
+    return prop.files.map(file => ({
+      name: file.name,
+      file: file.file,
+      external: file.external
+    }));
+  };
+
   // MAPEAR DADOS BÁSICOS
   const radioData = {
     // Informações básicas
@@ -210,6 +223,9 @@ async function processRadioData(notionData) {
     
     // URLs e mídias
     imageUrl: extractValue(properties['Imagem'] || properties['imagem'], '', 'Imagem'),
+    
+    // 🆕 ÁREAS DE INTERESSE
+    areasInteresse: extractFiles(properties['Areas_Interesse'] || properties['areas_interesse']),
     
     // Metadata
     source: 'notion_proposta',
@@ -252,20 +268,30 @@ async function processRadioData(notionData) {
     uf: radioData.uf,
     hasKmz: radioData.hasKmz,
     hasKml: radioData.hasKml,
+    areasInteresse: radioData.areasInteresse.length > 0 ? `${radioData.areasInteresse.length} arquivo(s)` : 'Não',
     hasIcon: !!radioData.icon
   });
+
+  // 🆕 LOG DE ÁREAS DE INTERESSE
+  if (radioData.areasInteresse.length > 0) {
+    console.log(`🎯 Áreas de interesse encontradas na rádio ${radioData.name}:`, radioData.areasInteresse.length);
+    radioData.areasInteresse.forEach((area, index) => {
+      console.log(`  ${index + 1}. ${area.name} - ${area.file ? 'Arquivo interno' : 'Arquivo externo'}`);
+    });
+  }
 
   return radioData;
 }
 
 // =========================================================================
-// 📊 GERAR RESUMO DA PROPOSTA
+// 📊 GERAR RESUMO DA PROPOSTA - INCLUIR ÁREAS DE INTERESSE
 // =========================================================================
 function generateSummary(radiosData) {
   const summary = {
     totalRadios: radiosData.length,
     radiosWithKmz: radiosData.filter(r => r.hasKmz).length,
     radiosWithKml: radiosData.filter(r => r.hasKml).length,
+    radiosWithAreas: radiosData.filter(r => r.areasInteresse && r.areasInteresse.length > 0).length,
     estados: [...new Set(radiosData.map(r => r.uf).filter(uf => uf && uf !== 'N/A'))],
     regioes: [...new Set(radiosData.map(r => r.region).filter(region => region && region !== 'N/A'))],
     dialTypes: {}
@@ -278,6 +304,26 @@ function generateSummary(radiosData) {
                       radio.dial.toUpperCase().includes('AM') ? 'AM' : 'Outro';
       summary.dialTypes[dialType] = (summary.dialTypes[dialType] || 0) + 1;
     }
+  });
+
+  // 🆕 ANÁLISE DE ÁREAS DE INTERESSE
+  let totalAreasFiles = 0;
+  radiosData.forEach(radio => {
+    if (radio.areasInteresse && radio.areasInteresse.length > 0) {
+      totalAreasFiles += radio.areasInteresse.length;
+    }
+  });
+
+  summary.totalAreasFiles = totalAreasFiles;
+
+  console.log('📊 Resumo da proposta gerado:', {
+    totalRadios: summary.totalRadios,
+    radiosWithKmz: summary.radiosWithKmz,
+    radiosWithKml: summary.radiosWithKml,
+    radiosWithAreas: summary.radiosWithAreas,
+    totalAreasFiles: summary.totalAreasFiles,
+    estados: summary.estados.length,
+    dialTypes: summary.dialTypes
   });
 
   return summary;
