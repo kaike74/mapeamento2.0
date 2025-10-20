@@ -1,5 +1,5 @@
 /* =============================================================================
-    🎨 IDENTIDADE VISUAL E-MÍDIAS - MAPEAMENTO 2.0 - VERSÃO PROPOSTA
+    🎨 IDENTIDADE VISUAL E-MÍDIAS - MAPEAMENTO 2.0 - VERSÃO PROPOSTA + ÁREAS DE INTERESSE
     ============================================================================= */
 
 :root {
@@ -19,10 +19,18 @@
     --signal-otimo: #00FFFF;
     --signal-fraco: #0000FF;
     
+    /* 🆕 Cores para Áreas de Interesse */
+    --areas-covered: #10B981;           /* Verde - área coberta */
+    --areas-multiple: #3B82F6;          /* Azul - múltiplas rádios */
+    --areas-single: #F59E0B;            /* Dourado - uma rádio */
+    --areas-uncovered: #EF4444;         /* Vermelho - sem cobertura */
+    --areas-individual: #F59E0B;        /* Dourado - modo individual */
+    
     /* 🎨 Gradientes E-MÍDIAS */
     --gradient-primary: linear-gradient(135deg, var(--emidias-primary) 0%, var(--emidias-roxo) 100%);
     --gradient-accent: linear-gradient(135deg, var(--emidias-magenta) 0%, var(--emidias-rosa) 100%);
     --gradient-success: linear-gradient(135deg, var(--emidias-success) 0%, #34D399 100%);
+    --gradient-areas: linear-gradient(135deg, var(--areas-single) 0%, #FBBF24 100%);
     
     /* 📝 Tipografia */
     --font-primary: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -353,7 +361,7 @@ body {
 }
 
 /* =============================================================================
-    🗺️ MAPA E LEGENDA - CORRIGIDO COM CONTROLES
+    🗺️ MAPA E LEGENDA - CORRIGIDO COM CONTROLES + ÁREAS DE INTERESSE
     ============================================================================= */
 .map-container {
     background: var(--emidias-white);
@@ -465,6 +473,16 @@ body {
     height: 1px !important;
     background: var(--emidias-primary) !important;
     margin: 6px 0 !important;
+}
+
+/* 🆕 DESTACAR ÁREAS DE INTERESSE NO CONTROLE DE LAYERS */
+.leaflet-control-layers-overlays label:has([data-layer-type="areas"]) {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.15) 100%) !important;
+    border: 1px solid rgba(245, 158, 11, 0.3) !important;
+    border-radius: 6px !important;
+    padding: 6px 8px !important;
+    margin: 2px 0 !important;
+    font-weight: var(--font-weight-semibold) !important;
 }
 
 /* Legenda de cores */
@@ -710,7 +728,7 @@ body {
 }
 
 /* =============================================================================
-    📊 ESTATÍSTICAS CONSOLIDADAS (MODO PROPOSTA)
+    📊 ESTATÍSTICAS CONSOLIDADAS (MODO PROPOSTA) + ÁREAS DE INTERESSE
     ============================================================================= */
 .stats-container {
     background: var(--emidias-white);
@@ -771,6 +789,27 @@ body {
     border-color: var(--emidias-primary);
 }
 
+/* 🆕 CARD ESPECIAL PARA ÁREAS DE INTERESSE */
+.stat-card-areas {
+    background: var(--gradient-areas) !important;
+    color: var(--emidias-white) !important;
+    border: 1px solid var(--areas-single) !important;
+}
+
+.stat-card-areas .stat-card-title,
+.stat-card-areas .stat-card-detail {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.stat-card-areas .stat-card-value {
+    color: var(--emidias-white) !important;
+}
+
+.stat-card-areas:hover {
+    border-color: #FBBF24 !important;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3) !important;
+}
+
 .stat-card-title {
     font-size: 14px;
     font-weight: var(--font-weight-semibold);
@@ -791,6 +830,65 @@ body {
 .stat-card-detail {
     font-size: 12px;
     color: var(--emidias-gray);
+}
+
+/* =============================================================================
+    🆕 MARCADORES DE ÁREAS DE INTERESSE - ESTILOS ESPECÍFICOS
+    ============================================================================= */
+
+/* Marcadores das áreas de interesse */
+.area-interesse-marker {
+    background: transparent !important;
+    border: none !important;
+    position: relative;
+}
+
+/* Animação de destaque para áreas de interesse */
+@keyframes areaHighlight {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.area-interesse-marker:hover {
+    animation: areaHighlight 0.6s ease-in-out;
+}
+
+/* Popup específico para áreas de interesse */
+.leaflet-popup-content .area-interesse-popup {
+    min-width: 220px;
+    text-align: center;
+    font-family: var(--font-primary);
+}
+
+.area-interesse-popup h4 {
+    color: var(--emidias-primary);
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: var(--font-weight-bold);
+}
+
+.area-interesse-popup .popup-section {
+    text-align: left;
+    font-size: 13px;
+    color: var(--emidias-gray);
+    margin: 8px 0;
+    padding: 8px 0;
+    border-top: 1px solid #ddd;
+}
+
+.area-interesse-popup .coverage-info {
+    background: rgba(16, 185, 129, 0.1);
+    padding: 8px;
+    border-radius: 6px;
+    border-left: 3px solid var(--areas-covered);
+}
+
+.area-interesse-popup .no-coverage-info {
+    background: rgba(239, 68, 68, 0.1);
+    padding: 8px;
+    border-radius: 6px;
+    border-left: 3px solid var(--areas-uncovered);
 }
 
 /* =============================================================================
@@ -857,7 +955,7 @@ body {
 }
 
 /* =============================================================================
-    📱 RESPONSIVIDADE MELHORADA
+    📱 RESPONSIVIDADE MELHORADA + ÁREAS DE INTERESSE
     ============================================================================= */
 @media (max-width: 768px) {
     .container {
@@ -922,6 +1020,15 @@ body {
         padding: 2px 0 !important;
         margin-bottom: 2px !important;
     }
+    
+    /* 🆕 ÁREAS DE INTERESSE EM MOBILE */
+    .area-interesse-popup {
+        max-width: 250px !important;
+    }
+    
+    .area-interesse-popup h4 {
+        font-size: 14px !important;
+    }
 }
 
 @media (max-width: 480px) {
@@ -938,10 +1045,16 @@ body {
     .header-subtitle {
         font-size: 14px;
     }
+    
+    /* 🆕 MARCADORES DE ÁREAS MENORES EM MOBILE */
+    .area-interesse-marker div {
+        width: 20px !important;
+        height: 20px !important;
+    }
 }
 
 /* =============================================================================
-    🗺️ CUSTOMIZAÇÕES LEAFLET - CORRIGIDAS
+    🗺️ CUSTOMIZAÇÕES LEAFLET - CORRIGIDAS + ÁREAS DE INTERESSE
     ============================================================================= */
 .leaflet-popup-content-wrapper {
     border-radius: 12px;
@@ -957,6 +1070,13 @@ body {
 .antenna-marker, .antenna-marker-logo {
     background: transparent !important;
     border: none !important;
+}
+
+/* 🆕 MARCADORES DE ÁREAS DE INTERESSE */
+.area-interesse-marker {
+    background: transparent !important;
+    border: none !important;
+    z-index: 1000 !important; /* Ficar acima dos outros marcadores */
 }
 
 /* Personalização do controle de zoom */
