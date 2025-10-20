@@ -371,14 +371,21 @@ function parseAreasInteresseBatchGeo(kmlText) {
     
     placemarks.forEach((placemark, index) => {
         try {
+            // 1. EXTRAIR NOME - BUSCAR EM NAME OU ADDRESS (BATCHGEO USA ADDRESS)
             let name = '';
             const nameEl = placemark.querySelector('name');
+            const addressEl = placemark.querySelector('address');
+            
             if (nameEl && nameEl.textContent.trim()) {
                 name = nameEl.textContent.trim();
+            } else if (addressEl && addressEl.textContent.trim()) {
+                // BatchGeo coloca o nome no elemento <address>
+                name = addressEl.textContent.trim();
             } else {
                 name = `Área ${index + 1}`;
             }
             
+            // 2. EXTRAIR COORDENADAS
             const pointCoords = placemark.querySelector('Point coordinates');
             if (!pointCoords) {
                 return;
@@ -391,6 +398,7 @@ function parseAreasInteresseBatchGeo(kmlText) {
                 return;
             }
             
+            // FORMATO KML: longitude,latitude,altitude
             const lng = parseFloat(coords[0]);
             const lat = parseFloat(coords[1]);
             
@@ -398,6 +406,7 @@ function parseAreasInteresseBatchGeo(kmlText) {
                 return;
             }
             
+            // 3. EXTRAIR DESCRIÇÃO (opcional)
             let description = '';
             const descEl = placemark.querySelector('description');
             if (descEl) {
@@ -405,6 +414,7 @@ function parseAreasInteresseBatchGeo(kmlText) {
                 description = description.replace(/<[^>]*>/g, '').trim();
             }
             
+            // 4. CRIAR OBJETO DA ÁREA
             const area = {
                 name: name,
                 description: description,
