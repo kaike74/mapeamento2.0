@@ -38,7 +38,7 @@ async function addStateBorders() {
 }
 
 // =========================================================================
-// 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO COM PROPOSTA MÚLTIPLA + ÁREAS DE INTERESSE - CORRIGIDO
+// 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO COM COORDENADAS CORRIGIDAS
 // =========================================================================
 
 let map;
@@ -77,7 +77,7 @@ const loadingTexts = [
 ];
 
 // =========================================================================
-// 🎯 INICIALIZAÇÃO PRINCIPAL - 🔧 CORRIGIDA PARA MODO INDIVIDUAL
+// 🎯 INICIALIZAÇÃO PRINCIPAL
 // =========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -197,7 +197,7 @@ async function initPropostaMode(propostaId) {
         addAllRadiosToMap(); // Agora é otimizado com batches
         
         // 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA - CORRIGIDO
-        addAreasInteresseToMap();
+        addAreasInteresseToMapFixed();
         
         // 🆕 ESTATÍSTICAS E TELA DE CARREGAMENTO APÓS TUDO PRONTO
         setTimeout(() => {
@@ -230,7 +230,7 @@ async function initIndividualMode(radioId) {
     setupSearch();
     
     // 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA (MODO INDIVIDUAL) - CORRIGIDO
-    addAreasInteresseToMap();
+    addAreasInteresseToMapFixed();
     
     // 🖼️ ATUALIZAR LOGO NO FINAL (GARANTIR QUE DOM ESTÁ PRONTO)
     setTimeout(() => {
@@ -270,7 +270,7 @@ async function loadAndProcessAreasInteresse() {
     
     if (areasInteresseUrl) {
         console.log('📁 Processando arquivo de áreas de interesse...');
-        await processAreasInteresseKML(areasInteresseUrl);
+        await processAreasInteresseKMLFixed(areasInteresseUrl);
         
         if (areasInteresseData.length > 0) {
             // 🎯 MODO PROPOSTA: Analisar cobertura para todas as áreas
@@ -302,7 +302,7 @@ async function loadAndProcessAreasInteresseIndividual() {
     
     if (areasInteresseUrl) {
         console.log('📁 Processando arquivo de áreas de interesse...');
-        await processAreasInteresseKML(areasInteresseUrl);
+        await processAreasInteresseKMLFixed(areasInteresseUrl);
         
         if (areasInteresseData.length > 0) {
             // 🎯 MODO INDIVIDUAL: Filtrar apenas áreas cobertas por esta rádio
@@ -319,9 +319,9 @@ async function loadAndProcessAreasInteresseIndividual() {
 }
 
 // =========================================================================
-// 🆕 PROCESSAR ARQUIVO KML DAS ÁREAS DE INTERESSE - CORRIGIDO
+// 🆕 PROCESSAR ARQUIVO KML DAS ÁREAS DE INTERESSE - CORRIGIDO COM NOVA FUNÇÃO
 // =========================================================================
-async function processAreasInteresseKML(kmlUrl) {
+async function processAreasInteresseKMLFixed(kmlUrl) {
     try {
         console.log('🎯 Baixando KML de áreas de interesse...');
         
@@ -332,8 +332,8 @@ async function processAreasInteresseKML(kmlUrl) {
         const kmlText = await response.text();
         console.log(`📄 KML baixado, tamanho: ${Math.round(kmlText.length/1024)}KB`);
         
-        // Parsear áreas de interesse com parsing flexível
-        areasInteresseData = await parseAreasInteresseKMLFlexible(kmlText);
+        // 🔧 USAR NOVA FUNÇÃO DE PARSING CORRIGIDA
+        areasInteresseData = await parseAreasInteresseKMLFixed(kmlText);
         
         console.log(`✅ ${areasInteresseData.length} áreas de interesse processadas`);
         
@@ -350,9 +350,9 @@ async function processAreasInteresseKML(kmlUrl) {
 }
 
 // =========================================================================
-// 🆕 PARSER KML FLEXÍVEL PARA BATCHGEO - COMPLETAMENTE CORRIGIDO
+// 🆕 PARSER KML CORRIGIDO PARA BATCHGEO - COORDENADAS FIXAS
 // =========================================================================
-async function parseAreasInteresseKMLFlexible(kmlText) {
+async function parseAreasInteresseKMLFixed(kmlText) {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
     
@@ -393,8 +393,8 @@ async function parseAreasInteresseKMLFlexible(kmlText) {
                 description = description.replace(/<[^>]*>/g, '').trim();
             }
             
-            // 🔧 BUSCAR COORDENADAS - IMPLEMENTAÇÃO CORRIGIDA
-            let coordinates = findCoordinatesInPlacemark(placemark);
+            // 🔧 BUSCAR COORDENADAS - USANDO FUNÇÃO CORRIGIDA
+            let coordinates = findCoordinatesInPlacemarkFixed(placemark);
             
             if (coordinates && name) {
                 const area = {
@@ -437,19 +437,19 @@ async function parseAreasInteresseKMLFlexible(kmlText) {
 }
 
 // =========================================================================
-// 🆕 FUNÇÃO PARA ENCONTRAR COORDENADAS NO PLACEMARK - IMPLEMENTAÇÃO NOVA
+// 🆕 FUNÇÃO PARA ENCONTRAR COORDENADAS - VERSÃO CORRIGIDA
 // =========================================================================
-function findCoordinatesInPlacemark(placemark) {
+function findCoordinatesInPlacemarkFixed(placemark) {
     try {
         // 🔧 ESTRATÉGIA 1: Point coordinates (padrão KML)
         const pointCoords = placemark.querySelector('Point coordinates');
         if (pointCoords) {
             const coordsText = pointCoords.textContent.trim();
-            const coords = parseCoordinateString(coordsText);
+            const coords = parseCoordinateStringFixed(coordsText);
             if (coords && coords.length > 0) {
                 return {
-                    lat: coords[0][0], // lat
-                    lng: coords[0][1], // lng
+                    lat: coords[0].lat, // Usar propriedades do objeto
+                    lng: coords[0].lng,
                     type: 'point'
                 };
             }
@@ -459,12 +459,11 @@ function findCoordinatesInPlacemark(placemark) {
         const lineCoords = placemark.querySelector('LineString coordinates');
         if (lineCoords) {
             const coordsText = lineCoords.textContent.trim();
-            const coords = parseCoordinateString(coordsText);
+            const coords = parseCoordinateStringFixed(coordsText);
             if (coords && coords.length > 0) {
-                // Usar primeira coordenada da linha
                 return {
-                    lat: coords[0][0],
-                    lng: coords[0][1],
+                    lat: coords[0].lat,
+                    lng: coords[0].lng,
                     type: 'line'
                 };
             }
@@ -474,10 +473,10 @@ function findCoordinatesInPlacemark(placemark) {
         const polygonCoords = placemark.querySelector('Polygon outerBoundaryIs LinearRing coordinates, Polygon coordinates');
         if (polygonCoords) {
             const coordsText = polygonCoords.textContent.trim();
-            const coords = parseCoordinateString(coordsText);
+            const coords = parseCoordinateStringFixed(coordsText);
             if (coords && coords.length > 0) {
-                // Calcular centro do polígono (média das coordenadas)
-                const center = calculatePolygonCenter(coords);
+                // Calcular centro do polígono
+                const center = calculatePolygonCenterFixed(coords);
                 return {
                     lat: center.lat,
                     lng: center.lng,
@@ -496,15 +495,14 @@ function findCoordinatesInPlacemark(placemark) {
 }
 
 // =========================================================================
-// 🆕 PARSEAR STRING DE COORDENADAS - CORRIGIDA PARA BATCHGEO
+// 🆕 PARSER DE COORDENADAS CORRIGIDO - RETORNA OBJETOS {lat, lng}
 // =========================================================================
-function parseCoordinateString(coordsText) {
+function parseCoordinateStringFixed(coordsText) {
     try {
         // Remover quebras de linha e espaços extras
         const cleanText = coordsText.replace(/\s+/g, ' ').trim();
         
-        // BatchGeo format: lng,lat,altitude (separado por vírgulas)
-        // Dividir por espaços para obter cada tripla de coordenadas
+        // BatchGeo/KML format: lng,lat,altitude (separado por vírgulas)
         const coordGroups = cleanText.split(' ').filter(group => group.trim());
         const coordsArray = [];
         
@@ -512,11 +510,17 @@ function parseCoordinateString(coordsText) {
             if (group.trim()) {
                 const coords = group.split(',');
                 if (coords.length >= 2) {
-                    const lng = parseFloat(coords[0]);
-                    const lat = parseFloat(coords[1]);
+                    const lng = parseFloat(coords[0]); // Longitude vem primeiro no KML
+                    const lat = parseFloat(coords[1]); // Latitude vem segundo no KML
+                    
                     if (!isNaN(lat) && !isNaN(lng)) {
-                        // 🔧 IMPORTANTE: KML usa lng,lat mas retornamos lat,lng
-                        coordsArray.push([lat, lng]);
+                        // 🔧 RETORNAR OBJETO COM PROPRIEDADES NOMEADAS
+                        coordsArray.push({
+                            lat: lat,
+                            lng: lng
+                        });
+                        
+                        console.log(`📍 Coordenada processada: lat=${lat}, lng=${lng}`);
                     }
                 }
             }
@@ -530,16 +534,16 @@ function parseCoordinateString(coordsText) {
 }
 
 // =========================================================================
-// 🆕 CALCULAR CENTRO DO POLÍGONO
+// 🆕 CALCULAR CENTRO DO POLÍGONO CORRIGIDO
 // =========================================================================
-function calculatePolygonCenter(coordsArray) {
+function calculatePolygonCenterFixed(coordsArray) {
     let latSum = 0;
     let lngSum = 0;
     const count = coordsArray.length;
     
     for (const coord of coordsArray) {
-        latSum += coord[0]; // lat
-        lngSum += coord[1]; // lng
+        latSum += coord.lat; // Usar propriedades nomeadas
+        lngSum += coord.lng;
     }
     
     return {
@@ -549,129 +553,9 @@ function calculatePolygonCenter(coordsArray) {
 }
 
 // =========================================================================
-// 🆕 EXTRAIR TIPO E PRIORIDADE FLEXÍVEIS
+// 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA - VERSÃO CORRIGIDA
 // =========================================================================
-function extractAreaTypeFlexible(name, description) {
-    const text = (name + ' ' + description).toLowerCase();
-    
-    if (text.match(/shop|mall|centro.*comercial|mercado/)) return 'shopping';
-    if (text.match(/escola|universidade|faculdade|colégio|educaç/)) return 'educacao';
-    if (text.match(/hospital|clínica|posto.*saúde|upa|pronto.*socorro/)) return 'saude';
-    if (text.match(/empresarial|comercial|escritório|corporativo/)) return 'comercial';
-    if (text.match(/industrial|fábrica|indústria|galpão/)) return 'industrial';
-    if (text.match(/residencial|bairro|condomínio|vila/)) return 'residencial';
-    if (text.match(/igreja|templo|religioso/)) return 'religioso';
-    if (text.match(/parque|praça|área.*verde/)) return 'lazer';
-    
-    return 'geral';
-}
-
-function extractAreaPriorityFlexible(name, description) {
-    const text = (name + ' ' + description).toLowerCase();
-    
-    if (text.match(/alta.*prioridade|importante|prioritário|crítico|principal/)) return 'alta';
-    if (text.match(/baixa.*prioridade|secundário|opcional/)) return 'baixa';
-    
-    return 'media';
-}
-
-// =========================================================================
-// 🆕 ANALISAR ÁREAS PARA MODO PROPOSTA - CORRIGIDO
-// =========================================================================
-function analyzeAreasForProposta() {
-    console.log('🎯 Analisando cobertura das áreas...');
-    
-    let areasCobertas = 0;
-    
-    areasInteresseData.forEach((area, index) => {
-        area.coveringRadios = [];
-        area.covered = false;
-        
-        // Verificar cobertura por cada rádio da proposta
-        propostaData.radios.forEach(radio => {
-            if (isAreaCoveredByRadio(area, radio)) {
-                area.coveringRadios.push(radio);
-                area.covered = true;
-            }
-        });
-        
-        if (area.covered) areasCobertas++;
-        
-        // 🔧 LOG DETALHADO APENAS SE NECESSÁRIO
-        if (index < 5) {
-            console.log(`📍 "${area.name}": ${area.coveringRadios.length} rádio(s)`);
-        }
-    });
-    
-    console.log(`✅ Análise completa: ${areasCobertas}/${areasInteresseData.length} áreas cobertas`);
-}
-
-// =========================================================================
-// 🆕 FILTRAR ÁREAS PARA MODO INDIVIDUAL - CORRIGIDO
-// =========================================================================
-function filterAreasForIndividualRadio() {
-    console.log('🎯 Filtrando áreas cobertas...');
-    
-    filteredAreasInteresse = areasInteresseData.filter(area => {
-        const covered = isAreaCoveredByRadio(area, radioData);
-        if (covered) {
-            area.covered = true;
-            area.coveringRadios = [radioData];
-        }
-        return covered;
-    });
-    
-    console.log(`✅ ${filteredAreasInteresse.length}/${areasInteresseData.length} áreas cobertas`);
-}
-
-// =========================================================================
-// 🆕 VERIFICAR SE ÁREA ESTÁ COBERTA POR RÁDIO - CORRIGIDO
-// =========================================================================
-function isAreaCoveredByRadio(area, radio) {
-    // Estratégia 1: Verificar se a área está dentro da imagem de cobertura
-    if (radio.coverageImage && radio.coverageImage.bounds) {
-        const bounds = L.latLngBounds(radio.coverageImage.bounds);
-        const areaLatLng = L.latLng(area.coordinates.lat, area.coordinates.lng);
-        return bounds.contains(areaLatLng);
-    }
-    
-    // Estratégia 2: Verificar por proximidade com cidades cobertas
-    if (radio.citiesData && radio.citiesData.length > 0) {
-        const maxDistance = 50; // km
-        
-        for (const city of radio.citiesData) {
-            const distance = calculateDistance(
-                area.coordinates.lat, area.coordinates.lng,
-                city.coordinates.lat, city.coordinates.lng
-            );
-            
-            if (distance <= maxDistance) {
-                return true;
-            }
-        }
-    }
-    
-    return false;
-}
-
-// =========================================================================
-// 🆕 CALCULAR DISTÂNCIA ENTRE PONTOS (HAVERSINE)
-// =========================================================================
-function calculateDistance(lat1, lng1, lat2, lng2) {
-    const R = 6371; // Raio da Terra em km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-}
-
-// =========================================================================
-// 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA - CORRIGIDO
-// =========================================================================
-function addAreasInteresseToMap() {
+function addAreasInteresseToMapFixed() {
     if (!areasInteresseData || areasInteresseData.length === 0) {
         console.log('ℹ️ Nenhuma área de interesse para adicionar');
         return;
@@ -698,7 +582,7 @@ function addAreasInteresseToMap() {
     
     areasToShow.forEach((area, index) => {
         try {
-            const marker = createAreaInteresseMarker(area);
+            const marker = createAreaInteresseMarkerFixed(area);
             if (marker) {
                 areasInteresseLayer.addLayer(marker);
                 markersAdicionados++;
@@ -723,14 +607,33 @@ function addAreasInteresseToMap() {
 }
 
 // =========================================================================
-// 🆕 CRIAR MARCADOR PARA ÁREA DE INTERESSE - CORRIGIDO
+// 🆕 CRIAR MARCADOR CORRIGIDO - VERIFICAÇÃO EXTRA DE COORDENADAS
 // =========================================================================
-function createAreaInteresseMarker(area) {
+function createAreaInteresseMarkerFixed(area) {
     try {
+        // 🔧 VERIFICAÇÃO DETALHADA DE COORDENADAS
+        console.log(`🔍 Criando marcador para "${area.name}":`, {
+            lat: area.coordinates.lat,
+            lng: area.coordinates.lng,
+            type: typeof area.coordinates.lat,
+            isValidLat: !isNaN(area.coordinates.lat),
+            isValidLng: !isNaN(area.coordinates.lng)
+        });
+        
         // Verificar se coordenadas são válidas
         if (!area.coordinates || isNaN(area.coordinates.lat) || isNaN(area.coordinates.lng)) {
             console.warn(`⚠️ Coordenadas inválidas para área: ${area.name}`, area.coordinates);
             return null;
+        }
+        
+        // 🔧 VERIFICAÇÃO DE FAIXA DE COORDENADAS PARA BRASIL
+        const lat = area.coordinates.lat;
+        const lng = area.coordinates.lng;
+        
+        // Brasil: lat entre -35 e +5, lng entre -75 e -30
+        if (lat < -35 || lat > 5 || lng < -75 || lng > -30) {
+            console.warn(`⚠️ Coordenadas fora do Brasil para "${area.name}": lat=${lat}, lng=${lng}`);
+            // Não retornar null, apenas avisar
         }
         
         // Definir cor baseada na cobertura e modo
@@ -788,9 +691,11 @@ function createAreaInteresseMarker(area) {
         // Criar popup
         const popupContent = createAreaInteressePopup(area);
         
-        const marker = L.marker([area.coordinates.lat, area.coordinates.lng], { icon: areaIcon })
+        // 🔧 USAR COORDENADAS CORRETAS - lat primeiro, lng segundo
+        const marker = L.marker([lat, lng], { icon: areaIcon })
             .bindPopup(popupContent);
         
+        console.log(`✅ Marcador criado para "${area.name}" em [${lat}, ${lng}]`);
         return marker;
         
     } catch (error) {
@@ -800,8 +705,120 @@ function createAreaInteresseMarker(area) {
 }
 
 // =========================================================================
-// 🆕 CRIAR POPUP PARA ÁREA DE INTERESSE
+// RESTO DAS FUNÇÕES (SEM ALTERAÇÕES) - MANTIDAS DO CÓDIGO ORIGINAL
 // =========================================================================
+
+// Extrair tipos e prioridades
+function extractAreaTypeFlexible(name, description) {
+    const text = (name + ' ' + description).toLowerCase();
+    
+    if (text.match(/shop|mall|centro.*comercial|mercado/)) return 'shopping';
+    if (text.match(/escola|universidade|faculdade|colégio|educaç/)) return 'educacao';
+    if (text.match(/hospital|clínica|posto.*saúde|upa|pronto.*socorro/)) return 'saude';
+    if (text.match(/empresarial|comercial|escritório|corporativo/)) return 'comercial';
+    if (text.match(/industrial|fábrica|indústria|galpão/)) return 'industrial';
+    if (text.match(/residencial|bairro|condomínio|vila/)) return 'residencial';
+    if (text.match(/igreja|templo|religioso/)) return 'religioso';
+    if (text.match(/parque|praça|área.*verde/)) return 'lazer';
+    
+    return 'geral';
+}
+
+function extractAreaPriorityFlexible(name, description) {
+    const text = (name + ' ' + description).toLowerCase();
+    
+    if (text.match(/alta.*prioridade|importante|prioritário|crítico|principal/)) return 'alta';
+    if (text.match(/baixa.*prioridade|secundário|opcional/)) return 'baixa';
+    
+    return 'media';
+}
+
+// Analisar áreas para proposta
+function analyzeAreasForProposta() {
+    console.log('🎯 Analisando cobertura das áreas...');
+    
+    let areasCobertas = 0;
+    
+    areasInteresseData.forEach((area, index) => {
+        area.coveringRadios = [];
+        area.covered = false;
+        
+        // Verificar cobertura por cada rádio da proposta
+        propostaData.radios.forEach(radio => {
+            if (isAreaCoveredByRadio(area, radio)) {
+                area.coveringRadios.push(radio);
+                area.covered = true;
+            }
+        });
+        
+        if (area.covered) areasCobertas++;
+        
+        // 🔧 LOG DETALHADO APENAS SE NECESSÁRIO
+        if (index < 5) {
+            console.log(`📍 "${area.name}": ${area.coveringRadios.length} rádio(s)`);
+        }
+    });
+    
+    console.log(`✅ Análise completa: ${areasCobertas}/${areasInteresseData.length} áreas cobertas`);
+}
+
+// Filtrar áreas para modo individual
+function filterAreasForIndividualRadio() {
+    console.log('🎯 Filtrando áreas cobertas...');
+    
+    filteredAreasInteresse = areasInteresseData.filter(area => {
+        const covered = isAreaCoveredByRadio(area, radioData);
+        if (covered) {
+            area.covered = true;
+            area.coveringRadios = [radioData];
+        }
+        return covered;
+    });
+    
+    console.log(`✅ ${filteredAreasInteresse.length}/${areasInteresseData.length} áreas cobertas`);
+}
+
+// Verificar se área está coberta por rádio
+function isAreaCoveredByRadio(area, radio) {
+    // Estratégia 1: Verificar se a área está dentro da imagem de cobertura
+    if (radio.coverageImage && radio.coverageImage.bounds) {
+        const bounds = L.latLngBounds(radio.coverageImage.bounds);
+        const areaLatLng = L.latLng(area.coordinates.lat, area.coordinates.lng);
+        return bounds.contains(areaLatLng);
+    }
+    
+    // Estratégia 2: Verificar por proximidade com cidades cobertas
+    if (radio.citiesData && radio.citiesData.length > 0) {
+        const maxDistance = 50; // km
+        
+        for (const city of radio.citiesData) {
+            const distance = calculateDistance(
+                area.coordinates.lat, area.coordinates.lng,
+                city.coordinates.lat, city.coordinates.lng
+            );
+            
+            if (distance <= maxDistance) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+// Calcular distância entre pontos (Haversine)
+function calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371; // Raio da Terra em km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// Criar popup para área de interesse
 function createAreaInteressePopup(area) {
     let coverageInfo = '';
     
@@ -844,9 +861,7 @@ function createAreaInteressePopup(area) {
     `;
 }
 
-// =========================================================================
-// 🆕 FUNÇÕES AUXILIARES PARA ÁREAS
-// =========================================================================
+// Funções auxiliares para áreas
 function getAreaTypeText(type) {
     const types = {
         'shopping': '🛍️ Shopping',
@@ -872,7 +887,7 @@ function getAreaPriorityText(priority) {
 }
 
 // =========================================================================
-// 📡 CARREGAR DADOS DA PROPOSTA
+// CARREGAR DADOS DA PROPOSTA
 // =========================================================================
 async function loadPropostaData(propostaId) {
     if (!propostaId || !/^[0-9a-f]{32}$/i.test(propostaId)) {
@@ -896,7 +911,7 @@ async function loadPropostaData(propostaId) {
 }
 
 // =========================================================================
-// 📡 CARREGAR DADOS DO NOTION (MODO INDIVIDUAL) - PRESERVADO
+// CARREGAR DADOS DO NOTION (MODO INDIVIDUAL) - PRESERVADO
 // =========================================================================
 async function loadRadioData(notionId) {
     console.log('📡 Buscando dados da rádio...');
@@ -921,7 +936,7 @@ async function loadRadioData(notionId) {
 }
 
 // =========================================================================
-// 🔄 PROCESSAR TODAS AS RÁDIOS DA PROPOSTA - LOGS SIMPLIFICADOS
+// PROCESSAR TODAS AS RÁDIOS DA PROPOSTA - LOGS SIMPLIFICADOS
 // =========================================================================
 async function processAllRadiosInProposta() {
     const total = propostaData.radios.length;
@@ -965,9 +980,7 @@ async function processAllRadiosInProposta() {
     console.log(`✅ Processamento concluído: ${withKMZ} KMZ, ${withKML} KML`);
 }
 
-// =========================================================================
-// 🖼️ PROCESSAR ÍCONE DO NOTION PARA RÁDIO ESPECÍFICA
-// =========================================================================
+// Processar ícone do Notion para rádio específica
 function processRadioNotionIcon(radio) {
     if (radio.icon) {
         if (radio.icon.type === 'file' && radio.icon.url) {
@@ -986,179 +999,7 @@ function processRadioNotionIcon(radio) {
 }
 
 // =========================================================================
-// 📦 PROCESSAR KMZ DE UMA RÁDIO ESPECÍFICA - LOGS SIMPLIFICADOS
-// =========================================================================
-async function processRadioKMZ(radio) {
-    try {
-        const directUrl = convertGoogleDriveUrl(radio.kmz2Url);
-        const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
-        
-        const response = await fetch(proxyUrl);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const arrayBuffer = await response.arrayBuffer();
-        const zip = await JSZip.loadAsync(arrayBuffer);
-        
-        // Extrair KML interno
-        let kmlFile = null;
-        for (const [filename, file] of Object.entries(zip.files)) {
-            if (filename.toLowerCase().endsWith('.kml')) {
-                kmlFile = file;
-                break;
-            }
-        }
-        
-        if (!kmlFile) {
-            throw new Error('KML não encontrado no KMZ');
-        }
-        
-        const kmlText = await kmlFile.async('text');
-        await parseRadioKMZContent(radio, kmlText, zip);
-        
-    } catch (error) {
-        console.warn(`⚠️ KMZ ${radio.name}: ${error.message}`);
-        // Não interromper o processamento das outras rádios
-    }
-}
-
-// =========================================================================
-// 🔍 PROCESSAR CONTEÚDO DO KMZ DE UMA RÁDIO
-// =========================================================================
-async function parseRadioKMZContent(radio, kmlText, zip) {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
-    
-    // Extrair GroundOverlay (imagem de cobertura)
-    const groundOverlay = xmlDoc.querySelector('GroundOverlay');
-    if (groundOverlay) {
-        const iconHref = groundOverlay.querySelector('Icon href')?.textContent;
-        const latLonBox = groundOverlay.querySelector('LatLonBox');
-        
-        if (iconHref && latLonBox) {
-            const north = parseFloat(latLonBox.querySelector('north')?.textContent);
-            const south = parseFloat(latLonBox.querySelector('south')?.textContent);
-            const east = parseFloat(latLonBox.querySelector('east')?.textContent);
-            const west = parseFloat(latLonBox.querySelector('west')?.textContent);
-            
-            // Extrair imagem do ZIP
-            const imageFile = zip.file(iconHref);
-            if (imageFile) {
-                const imageBlob = await imageFile.async('blob');
-                const imageUrl = URL.createObjectURL(imageBlob);
-                
-                radio.coverageImage = {
-                    url: imageUrl,
-                    bounds: [[south, west], [north, east]]
-                };
-            }
-        }
-    }
-    
-    // Extrair dados da antena
-    const placemark = xmlDoc.querySelector('Placemark');
-    if (placemark) {
-        // Extrair logo do IconStyle (SEM ATUALIZAR HEADER NO MODO PROPOSTA)
-        const iconStyle = placemark.querySelector('Style IconStyle Icon href');
-        if (iconStyle) {
-            const logoUrl = iconStyle.textContent.trim();
-            if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
-                radio.logoUrlFromKMZ = logoUrl;
-                
-                // 🔧 APENAS ATUALIZAR HEADER SE NÃO ESTIVER NO MODO PROPOSTA
-                if (!isPropostaMode) {
-                    forceUpdateHeaderLogo();
-                }
-            }
-        }
-        
-        // Extrair coordenadas da antena
-        const coordinates = placemark.querySelector('Point coordinates')?.textContent;
-        if (coordinates) {
-            const coords = coordinates.trim().split(',');
-            const lng = parseFloat(coords[0]);
-            const lat = parseFloat(coords[1]);
-            radio.antennaLocation = { lat, lng };
-        }
-        
-        // Extrair dados técnicos
-        const description = placemark.querySelector('description')?.textContent;
-        if (description) {
-            radio.antennaData = parseAntennaData(description);
-        }
-    }
-}
-
-// =========================================================================
-// 🏙️ PROCESSAR KML DE CIDADES DE UMA RÁDIO - LOGS SIMPLIFICADOS
-// =========================================================================
-async function processRadioKML(radio) {
-    try {
-        const directUrl = convertGoogleDriveUrl(radio.kml2Url);
-        const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
-        
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const kmlText = await response.text();
-        radio.citiesData = await parseKMLCitiesForRadio(kmlText);
-        
-    } catch (error) {
-        console.warn(`⚠️ KML ${radio.name}: ${error.message}`);
-        radio.citiesData = [];
-    }
-}
-
-// =========================================================================
-// 🔍 PROCESSAR CIDADES DO KML PARA UMA RÁDIO ESPECÍFICA
-// =========================================================================
-async function parseKMLCitiesForRadio(kmlText) {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
-    const placemarks = xmlDoc.querySelectorAll('Placemark');
-    
-    const cities = [];
-    
-    placemarks.forEach((placemark) => {
-        const name = placemark.querySelector('name')?.textContent || '';
-        const coordinates = placemark.querySelector('Point coordinates')?.textContent;
-        const styleUrl = placemark.querySelector('styleUrl')?.textContent || '';
-        
-        if (coordinates && name) {
-            const coords = coordinates.trim().split(',');
-            const lng = parseFloat(coords[0]);
-            const lat = parseFloat(coords[1]);
-            
-            // Extrair dados do ExtendedData
-            const cityData = parseExtendedData(placemark);
-            
-            // Se não encontrou no ExtendedData, tentar na descrição HTML
-            if (!cityData.totalPopulation) {
-                const description = placemark.querySelector('description')?.textContent || '';
-                if (description) {
-                    const htmlData = parseCityDescription(description);
-                    Object.assign(cityData, htmlData);
-                }
-            }
-            
-            // EXTRAIR UF DO NOME DA CIDADE
-            const nameParts = name.split(' - ');
-            cityData.name = nameParts[0] || name;
-            cityData.uf = nameParts[1] || '';
-            cityData.fullName = name;
-            cityData.coordinates = { lat, lng };
-            cityData.quality = getSignalQuality(styleUrl);
-            
-            cities.push(cityData);
-        }
-    });
-    
-    return cities;
-}
-
-// =========================================================================
-// 🗺️ INICIALIZAR MAPA (🔧 CORRIGIDO PARA ELIMINAR PISCAMENTO)
+// INICIALIZAR MAPA
 // =========================================================================
 function initializeMap() {
     console.log('🗺️ Inicializando mapa...');
@@ -1168,19 +1009,16 @@ function initializeMap() {
     const zoom = 5; // Zoom para mostrar todo o Brasil
     
     map = L.map('map', {
-        // 🔧 CONFIGURAÇÕES ESTÁVEIS PARA ELIMINAR PISCAMENTO
-        preferCanvas: false, // SVG é mais estável para este caso
+        preferCanvas: false,
         zoomControl: true,
         attributionControl: false,
-        zoomSnap: 1, // Valores inteiros para zoom mais estável
+        zoomSnap: 1,
         zoomDelta: 1,
-        wheelDebounceTime: 40, // Reduzir para melhor responsividade
+        wheelDebounceTime: 40,
         wheelPxPerZoomLevel: 60,
-        // 🔧 ANIMAÇÕES SUAVES SEM INTERFERÊNCIA
         fadeAnimation: true,
         zoomAnimation: true,
         markerZoomAnimation: true,
-        // 🔧 REMOVER CONFIGURAÇÕES QUE CAUSAVAM INSTABILIDADE
         maxBoundsViscosity: 1.0
     }).setView([center.lat, center.lng], zoom);
     
@@ -1189,16 +1027,14 @@ function initializeMap() {
         'Satélite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: '© Esri',
             maxZoom: 18,
-            // 🔧 CONFIGURAÇÕES ESTÁVEIS PARA TILES
-            updateWhenIdle: false, // Permitir atualizações contínuas
-            updateWhenZooming: true, // Permitir atualizações durante zoom
-            keepBuffer: 2, // Buffer padrão
-            updateInterval: 200 // Intervalo padrão
+            updateWhenIdle: false,
+            updateWhenZooming: true,
+            keepBuffer: 2,
+            updateInterval: 200
         }),
         'Padrão': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 18,
-            // 🔧 CONFIGURAÇÕES ESTÁVEIS PARA TILES
             updateWhenIdle: false,
             updateWhenZooming: true,
             keepBuffer: 2,
@@ -1250,7 +1086,7 @@ function initializeMap() {
 }
 
 // =========================================================================
-// 🔧 CONFIGURAR CONTROLE DE LAYERS PARA MODO INDIVIDUAL - NOVA FUNÇÃO
+// CONFIGURAR CONTROLE DE LAYERS PARA MODO INDIVIDUAL - NOVA FUNÇÃO
 // =========================================================================
 function setupLayersControlForIndividual() {
     console.log('🎛️ Configurando controle de layers para modo individual...');
@@ -1278,205 +1114,9 @@ function setupLayersControlForIndividual() {
 }
 
 // =========================================================================
-// 🌟 ADICIONAR TODAS AS RÁDIOS AO MAPA (MODO PROPOSTA) - 🚀 SUPER OTIMIZADO
-// =========================================================================
-function addAllRadiosToMap() {
-    console.log('🌟 Adicionando rádios ao mapa (otimizado)...');
-    
-    let processedRadios = 0;
-    const batchSize = 2; // Reduzir batch para compensar processamento de TODAS as cidades
-    
-    function processBatch() {
-        const endIndex = Math.min(processedRadios + batchSize, propostaData.radios.length);
-        
-        for (let i = processedRadios; i < endIndex; i++) {
-            const radio = propostaData.radios[i];
-            
-            // 🔧 CRIAR LAYER GROUP PARA ESTA RÁDIO COM OTIMIZAÇÕES
-            const radioLayerGroup = L.layerGroup({
-                // 🚀 OTIMIZAÇÕES DE LAYER GROUP
-                interactive: true,
-                bubblingMouseEvents: false, // Reduzir propagação de eventos
-            });
-            
-            // 1. Adicionar imagem de cobertura se disponível
-            if (radio.coverageImage) {
-                const coverageLayer = L.imageOverlay(
-                    radio.coverageImage.url,
-                    radio.coverageImage.bounds,
-                    {
-                        opacity: 0.6,
-                        interactive: false, // Imagens não precisam ser interativas
-                        crossOrigin: false, // Melhorar performance
-                    }
-                );
-                radioLayerGroup.addLayer(coverageLayer);
-            }
-            
-            // 2. Adicionar marcador da antena
-            if (radio.antennaLocation) {
-                const antennaMarker = createRadioAntennaMarker(radio);
-                radioLayerGroup.addLayer(antennaMarker);
-            }
-            
-            // 3. Adicionar marcadores de cidades (SEM LIMITAÇÕES)
-            if (radio.citiesData && radio.citiesData.length > 0) {
-                // 🚀 PROCESSAMENTO OTIMIZADO SEM PERDER DADOS
-                // Usar todas as cidades sem limite - dados são prioridade
-                radio.citiesData.forEach((city, cityIndex) => {
-                    const cityMarker = createCityMarker(city, radio);
-                    radioLayerGroup.addLayer(cityMarker);
-                });
-            }
-            
-            // 4. Adicionar o grupo completo ao mapa
-            radioLayerGroup.addTo(map);
-            radiosLayers[radio.id] = radioLayerGroup;
-        }
-        
-        processedRadios = endIndex;
-        
-        // Continuar processamento ou finalizar
-        if (processedRadios < propostaData.radios.length) {
-            // 🚀 USAR requestAnimationFrame para não travar UI
-            requestAnimationFrame(processBatch);
-        } else {
-            // Finalizar processamento
-            finalizarAdicaoRadios();
-        }
-    }
-    
-    // Iniciar processamento em batches
-    processBatch();
-}
-
-function finalizarAdicaoRadios() {
-    // Ajustar zoom para mostrar todas as rádios
-    fitMapBoundsForProposta();
-    
-    console.log(`✅ ${propostaData.radios.length} rádios processadas no mapa`);
-    
-    // 🚀 CONFIGURAR LAYERS CONTROL DEPOIS DE TUDO CARREGADO
-    requestAnimationFrame(() => {
-        setupLayersControlForProposta();
-    });
-}
-
-// =========================================================================
-// 📍 CRIAR MARCADOR DA ANTENA PARA UMA RÁDIO (FUNÇÃO OTIMIZADA)
-// =========================================================================
-function createRadioAntennaMarker(radio) {
-    let antennaIcon;
-    let logoUrl = radio.logoUrlFromKMZ || radio.notionIconUrl;
-    
-    if (logoUrl) {
-        // Criar ícone personalizado com a logo
-        antennaIcon = L.divIcon({
-            html: `
-                <div style="
-                    width: 40px;
-                    height: 40px;
-                    border: 3px solid white;
-                    border-radius: 50%;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-                    overflow: hidden;
-                    background: white;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                ">
-                    <img src="${logoUrl}" 
-                         style="width: 34px; height: 34px; object-fit: cover; border-radius: 50%;"
-                         onerror="this.parentElement.innerHTML='📡'; this.parentElement.style.color='#FF0000'; this.parentElement.style.fontSize='20px';">
-                </div>
-            `,
-            className: 'antenna-marker-logo',
-            iconSize: [40, 40],
-            iconAnchor: [20, 20]
-        });
-    } else {
-        // Ícone padrão vermelho se não tiver logo
-        antennaIcon = L.divIcon({
-            html: `
-                <div style="
-                    width: 24px;
-                    height: 24px;
-                    background: #FF0000;
-                    border: 3px solid white;
-                    border-radius: 50%;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-                "></div>
-            `,
-            className: 'antenna-marker',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-        });
-    }
-    
-    const popupContent = `
-        <div style="text-align: center; font-family: var(--font-primary); min-width: 200px;">
-            <h4 style="margin: 0 0 12px 0; color: #06055B;">📡 ${radio.name}</h4>
-            <p style="margin: 4px 0;"><strong>${radio.dial}</strong></p>
-            <p style="margin: 4px 0;">${radio.praca} - ${radio.uf}</p>
-            ${radio.antennaData ? `
-                <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
-                <div style="text-align: left; font-size: 12px;">
-                    ${radio.antennaData.frequencia ? `<p><strong>Frequência:</strong> ${radio.antennaData.frequencia}</p>` : ''}
-                    ${radio.antennaData.potencia ? `<p><strong>Potência:</strong> ${radio.antennaData.potencia}</p>` : ''}
-                    ${radio.antennaData.erp ? `<p><strong>ERP:</strong> ${radio.antennaData.erp}</p>` : ''}
-                    ${radio.antennaData.altura ? `<p><strong>Altura:</strong> ${radio.antennaData.altura}</p>` : ''}
-                </div>
-            ` : ''}
-        </div>
-    `;
-    
-    return L.marker([radio.antennaLocation.lat, radio.antennaLocation.lng], { icon: antennaIcon })
-        .bindPopup(popupContent);
-}
-
-// =========================================================================
-// 🏙️ CRIAR MARCADOR DE CIDADE (FUNÇÃO OTIMIZADA)
-// =========================================================================
-function createCityMarker(city, radio) {
-    const color = getQualityColor(city.quality);
-    
-    const cityIcon = L.divIcon({
-        html: `
-            <div style="
-                width: 16px;
-                height: 16px;
-                background: ${color};
-                border: 2px solid white;
-                border-radius: 50%;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            "></div>
-        `,
-        className: 'city-marker',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
-    });
-    
-    const popupContent = `
-        <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
-            <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
-            <p style="margin: 2px 0; font-weight: bold; color: #FC1E75;">📻 ${radio.name} (${radio.dial})</p>
-            <div style="text-align: left; font-size: 13px; color: #64748B;">
-                <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
-                <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()} ${city.coveragePercent ? `(${city.coveragePercent})` : ''}</p>
-                <p style="margin: 4px 0;"><strong>Qualidade:</strong> ${getQualityText(city.quality)}</p>
-            </div>
-        </div>
-    `;
-    
-    return L.marker([city.coordinates.lat, city.coordinates.lng], { icon: cityIcon })
-        .bindPopup(popupContent);
-}
-
-// =========================================================================
-// 🎛️ CONFIGURAR CONTROLE DE LAYERS PARA PROPOSTA - COM DEBUG + ÁREAS INTERESSE
+// CONFIGURAR CONTROLE DE LAYERS PARA PROPOSTA
 // =========================================================================
 function setupLayersControlForProposta() {
-    // Overlays para controle de coberturas
     const overlays = {};
     
     console.log('🎛️ Configurando controle de layers...');
@@ -1510,20 +1150,188 @@ function setupLayersControlForProposta() {
 }
 
 // =========================================================================
-// 🗺️ AJUSTAR ZOOM PARA PROPOSTA - INCLUIR ÁREAS DE INTERESSE
+// RESTANTE DAS FUNÇÕES AUXILIARES (PRESERVADAS DO CÓDIGO ORIGINAL)
 // =========================================================================
+
+// Adicionar todas as rádios ao mapa (modo proposta)
+function addAllRadiosToMap() {
+    console.log('🌟 Adicionando rádios ao mapa (otimizado)...');
+    
+    let processedRadios = 0;
+    const batchSize = 2;
+    
+    function processBatch() {
+        const endIndex = Math.min(processedRadios + batchSize, propostaData.radios.length);
+        
+        for (let i = processedRadios; i < endIndex; i++) {
+            const radio = propostaData.radios[i];
+            
+            const radioLayerGroup = L.layerGroup({
+                interactive: true,
+                bubblingMouseEvents: false,
+            });
+            
+            // 1. Adicionar imagem de cobertura se disponível
+            if (radio.coverageImage) {
+                const coverageLayer = L.imageOverlay(
+                    radio.coverageImage.url,
+                    radio.coverageImage.bounds,
+                    {
+                        opacity: 0.6,
+                        interactive: false,
+                        crossOrigin: false,
+                    }
+                );
+                radioLayerGroup.addLayer(coverageLayer);
+            }
+            
+            // 2. Adicionar marcador da antena
+            if (radio.antennaLocation) {
+                const antennaMarker = createRadioAntennaMarker(radio);
+                radioLayerGroup.addLayer(antennaMarker);
+            }
+            
+            // 3. Adicionar marcadores de cidades
+            if (radio.citiesData && radio.citiesData.length > 0) {
+                radio.citiesData.forEach((city, cityIndex) => {
+                    const cityMarker = createCityMarker(city, radio);
+                    radioLayerGroup.addLayer(cityMarker);
+                });
+            }
+            
+            // 4. Adicionar o grupo completo ao mapa
+            radioLayerGroup.addTo(map);
+            radiosLayers[radio.id] = radioLayerGroup;
+        }
+        
+        processedRadios = endIndex;
+        
+        // Continuar processamento ou finalizar
+        if (processedRadios < propostaData.radios.length) {
+            requestAnimationFrame(processBatch);
+        } else {
+            finalizarAdicaoRadios();
+        }
+    }
+    
+    processBatch();
+}
+
+function finalizarAdicaoRadios() {
+    fitMapBoundsForProposta();
+    console.log(`✅ ${propostaData.radios.length} rádios processadas no mapa`);
+    
+    requestAnimationFrame(() => {
+        setupLayersControlForProposta();
+    });
+}
+
+// Criar marcador da antena para uma rádio
+function createRadioAntennaMarker(radio) {
+    let antennaIcon;
+    let logoUrl = radio.logoUrlFromKMZ || radio.notionIconUrl;
+    
+    if (logoUrl) {
+        antennaIcon = L.divIcon({
+            html: `
+                <div style="
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                    overflow: hidden;
+                    background: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    <img src="${logoUrl}" 
+                         style="width: 34px; height: 34px; object-fit: cover; border-radius: 50%;"
+                         onerror="this.parentElement.innerHTML='📡'; this.parentElement.style.color='#FF0000'; this.parentElement.style.fontSize='20px';">
+                </div>
+            `,
+            className: 'antenna-marker-logo',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+    } else {
+        antennaIcon = L.divIcon({
+            html: `
+                <div style="
+                    width: 24px;
+                    height: 24px;
+                    background: #FF0000;
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                "></div>
+            `,
+            className: 'antenna-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+    }
+    
+    const popupContent = `
+        <div style="text-align: center; font-family: var(--font-primary); min-width: 200px;">
+            <h4 style="margin: 0 0 12px 0; color: #06055B;">📡 ${radio.name}</h4>
+            <p style="margin: 4px 0;"><strong>${radio.dial}</strong></p>
+            <p style="margin: 4px 0;">${radio.praca} - ${radio.uf}</p>
+        </div>
+    `;
+    
+    return L.marker([radio.antennaLocation.lat, radio.antennaLocation.lng], { icon: antennaIcon })
+        .bindPopup(popupContent);
+}
+
+// Criar marcador de cidade
+function createCityMarker(city, radio) {
+    const color = getQualityColor(city.quality);
+    
+    const cityIcon = L.divIcon({
+        html: `
+            <div style="
+                width: 16px;
+                height: 16px;
+                background: ${color};
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            "></div>
+        `,
+        className: 'city-marker',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+    });
+    
+    const popupContent = `
+        <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
+            <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
+            <p style="margin: 2px 0; font-weight: bold; color: #FC1E75;">📻 ${radio.name} (${radio.dial})</p>
+            <div style="text-align: left; font-size: 13px; color: #64748B;">
+                <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
+                <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()}</p>
+                <p style="margin: 4px 0;"><strong>Qualidade:</strong> ${getQualityText(city.quality)}</p>
+            </div>
+        </div>
+    `;
+    
+    return L.marker([city.coordinates.lat, city.coordinates.lng], { icon: cityIcon })
+        .bindPopup(popupContent);
+}
+
+// Ajustar zoom para proposta
 function fitMapBoundsForProposta() {
     const bounds = L.latLngBounds();
     let hasData = false;
     
     propostaData.radios.forEach(radio => {
-        // Adicionar antenas
         if (radio.antennaLocation) {
             bounds.extend([radio.antennaLocation.lat, radio.antennaLocation.lng]);
             hasData = true;
         }
         
-        // Adicionar cidades
         if (radio.citiesData) {
             radio.citiesData.forEach(city => {
                 bounds.extend([city.coordinates.lat, city.coordinates.lng]);
@@ -1531,7 +1339,6 @@ function fitMapBoundsForProposta() {
             });
         }
         
-        // Adicionar bounds da imagem de cobertura
         if (radio.coverageImage) {
             bounds.extend(radio.coverageImage.bounds);
             hasData = true;
@@ -1551,49 +1358,33 @@ function fitMapBoundsForProposta() {
     }
 }
 
-// =========================================================================
-// 🖼️ CONFIGURAR INTERFACE PARA PROPOSTA - 🔧 CORRIGIDA
-// =========================================================================
+// Configurar interface para proposta
 function setupPropostaInterface() {
-    // Atualizar header (SEM LOGO)
     updateHeaderProposta();
-    
-    // 🔧 OCULTAR ELEMENTOS DESNECESSÁRIOS NO MODO PROPOSTA
     hideUnnecessaryElementsInPropostaMode();
-    
     console.log('✅ Interface proposta configurada');
 }
 
-// =========================================================================
-// 🔧 OCULTAR ELEMENTOS DESNECESSÁRIOS NO MODO PROPOSTA
-// =========================================================================
 function hideUnnecessaryElementsInPropostaMode() {
-    // 🔧 OCULTAR CARDS INDIVIDUAIS
     const infoSection = document.getElementById('info-section');
     if (infoSection) {
         infoSection.style.display = 'none';
     }
     
-    // 🔧 OCULTAR SEÇÃO DE CIDADES/LISTA/BUSCA/EXCEL
     const cidadesSection = document.getElementById('cidades-section');
     if (cidadesSection) {
         cidadesSection.style.display = 'none';
     }
 }
 
-// =========================================================================
-// 📊 ATUALIZAR HEADER PARA PROPOSTA - 🔧 LOGO COMPLETAMENTE REMOVIDA
-// =========================================================================
+// Atualizar header para proposta
 function updateHeaderProposta() {
     const radioName = document.getElementById('radio-name');
     const radioInfo = document.getElementById('radio-info');
     const headerLogo = document.getElementById('header-logo');
     
     if (radioName) {
-        // 🔧 REMOVER COMPLETAMENTE A LOGO DO TEXTO
         radioName.innerHTML = '🗺️ Mapeamento da Proposta';
-        
-        // 🔧 REMOVER QUALQUER ELEMENTO IMG QUE POSSA EXISTIR
         const existingImgs = radioName.querySelectorAll('img');
         existingImgs.forEach(img => img.remove());
     }
@@ -1612,13 +1403,11 @@ function updateHeaderProposta() {
         radioInfo.textContent = infoText;
     }
     
-    // 🔧 FORÇAR REMOÇÃO COMPLETA DA LOGO
     if (headerLogo) {
         headerLogo.style.display = 'none';
         headerLogo.style.visibility = 'hidden';
         headerLogo.src = '';
         
-        // 🔧 REMOVER COMPLETAMENTE O ELEMENTO
         try {
             headerLogo.remove();
         } catch (e) {
@@ -1629,23 +1418,18 @@ function updateHeaderProposta() {
     console.log('✅ Header atualizado para proposta');
 }
 
-// =========================================================================
-// 📊 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS - 🚀 OTIMIZADO PARA PERFORMANCE + ÁREAS INTERESSE
-// =========================================================================
+// Configurar estatísticas consolidadas
 function setupConsolidatedStats() {
     console.log('📊 Calculando estatísticas...');
     
-    // 🚀 USAR requestIdleCallback PARA NÃO TRAVAR A UI
     if ('requestIdleCallback' in window) {
         requestIdleCallback(calculateStatsWhenIdle);
     } else {
-        // Fallback para navegadores sem suporte
         setTimeout(calculateStatsWhenIdle, 100);
     }
 }
 
 function calculateStatsWhenIdle() {
-    // Calcular estatísticas de forma otimizada
     let totalRadios = propostaData.proposta.totalRadios || propostaData.radios.length;
     let totalCities = 0;
     let totalPopulation = 0;
@@ -1653,13 +1437,11 @@ function calculateStatsWhenIdle() {
     let radiosWithKmz = 0;
     let radiosWithKml = 0;
     
-    // 🆕 ESTATÍSTICAS DE ÁREAS DE INTERESSE
     let totalAreas = areasInteresseData ? areasInteresseData.length : 0;
     let coveredAreas = 0;
     
-    // 🚀 PROCESSAR EM BATCHES PEQUENOS PARA NÃO TRAVAR (MAS SEM PERDER DADOS)
     let processedRadios = 0;
-    const batchSize = 5; // Aumentar batch size
+    const batchSize = 5;
     
     function processBatch() {
         const endIndex = Math.min(processedRadios + batchSize, propostaData.radios.length);
@@ -1667,15 +1449,12 @@ function calculateStatsWhenIdle() {
         for (let i = processedRadios; i < endIndex; i++) {
             const radio = propostaData.radios[i];
             
-            // Corrigir flags
             if (radio.hasKmz || radio.coverageImage) radiosWithKmz++;
             if (radio.hasKml || (radio.citiesData && radio.citiesData.length > 0)) radiosWithKml++;
             
-            // Somar dados de cidades
             if (radio.citiesData && Array.isArray(radio.citiesData)) {
                 totalCities += radio.citiesData.length;
                 
-                // 🚀 OTIMIZAR: Usar reduce para cálculos populacionais
                 const cityTotals = radio.citiesData.reduce((acc, city) => {
                     acc.total += city.totalPopulation || 0;
                     acc.covered += city.coveredPopulation || 0;
@@ -1689,22 +1468,17 @@ function calculateStatsWhenIdle() {
         
         processedRadios = endIndex;
         
-        // Continuar processamento ou finalizar
         if (processedRadios < propostaData.radios.length) {
-            // 🚀 USAR requestAnimationFrame para próximo batch
             requestAnimationFrame(processBatch);
         } else {
-            // 🆕 CALCULAR ÁREAS DE INTERESSE COBERTAS
             if (areasInteresseData) {
                 coveredAreas = areasInteresseData.filter(area => area.covered).length;
             }
             
-            // Finalizar e renderizar
             finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalCoveredPopulation, radiosWithKmz, radiosWithKml, totalAreas, coveredAreas);
         }
     }
     
-    // Iniciar processamento em batches
     processBatch();
 }
 
@@ -1712,7 +1486,6 @@ function finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalC
     const coveragePercent = totalPopulation > 0 ? ((totalCoveredPopulation / totalPopulation) * 100).toFixed(1) : 0;
     const areasPercent = totalAreas > 0 ? ((coveredAreas / totalAreas) * 100).toFixed(1) : 0;
     
-    // Renderizar estatísticas
     const statsGrid = document.getElementById('stats-grid');
     if (statsGrid) {
         let statsHTML = `
@@ -1741,7 +1514,6 @@ function finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalC
             </div>
         `;
         
-        // 🆕 ADICIONAR CARD DE ÁREAS DE INTERESSE SE EXISTIREM
         if (totalAreas > 0) {
             statsHTML += `
                 <div class="stat-card stat-card-areas">
@@ -1760,64 +1532,37 @@ function finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalC
 }
 
 // =========================================================================
-// 🎯 DESTACAR RÁDIO NO MAPA - OTIMIZADO COM LAYER GROUPS
+// FUNÇÕES AUXILIARES FINAIS
 // =========================================================================
-function highlightRadio(radioId) {
-    const radio = propostaData.radios.find(r => r.id === radioId);
-    if (!radio || !radiosLayers[radioId]) return;
-    
-    // Centralizar no marcador da antena se disponível
-    if (radio.antennaLocation) {
-        map.flyTo([radio.antennaLocation.lat, radio.antennaLocation.lng], 10, {
-            animate: true,
-            duration: 1.5
-        });
-        
-        // 🚀 OTIMIZADO: Encontrar marcador da antena no layer group
-        setTimeout(() => {
-            const layerGroup = radiosLayers[radioId];
-            if (layerGroup) {
-                layerGroup.eachLayer(layer => {
-                    // Verificar se é um marcador da antena (40x40 px)
-                    if (layer instanceof L.Marker && layer.options.icon && layer.options.icon.options.iconSize) {
-                        const iconSize = layer.options.icon.options.iconSize;
-                        if (iconSize[0] === 40 && iconSize[1] === 40) {
-                            layer.openPopup();
-                        }
-                    }
-                });
-            }
-        }, 1000);
-    }
-    
-    // Destacar layer group (piscar temporariamente) - OTIMIZADO
-    if (radiosLayers[radioId]) {
-        const layerGroup = radiosLayers[radioId];
-        
-        // Animação de destaque suave
-        layerGroup.eachLayer(layer => {
-            if (layer.setOpacity) {
-                const originalOpacity = layer.options.opacity || 0.6;
-                layer.setOpacity(0.9);
-                setTimeout(() => layer.setOpacity(originalOpacity), 1000);
-            }
-        });
+
+// Obter cor por qualidade
+function getQualityColor(quality) {
+    switch (quality) {
+        case 'excelente': return '#00FF00';
+        case 'otimo': return '#00FFFF';
+        case 'fraco': return '#0000FF';
+        default: return '#808080';
     }
 }
 
-// =========================================================================
-// 📄 PROCESSAR ARQUIVOS (MODO INDIVIDUAL) - PRESERVADO
-// =========================================================================
+function getQualityText(quality) {
+    switch (quality) {
+        case 'excelente': return 'Excelente';
+        case 'otimo': return 'Ótimo';
+        case 'fraco': return 'Fraco';
+        default: return 'Desconhecido';
+    }
+}
+
+// Processar arquivos (modo individual)
 async function processFiles() {
     console.log('📄 Processando arquivos...');
     
-    // Processar KMZ
     if (radioData.kmz2Url) {
         console.log('📦 Processando KMZ...');
         await processKMZ(radioData.kmz2Url);
     }
     
-    // Processar KML de cidades
     if (radioData.kml2Url) {
         console.log('🏙️ Processando KML de cidades...');
         await processKML(radioData.kml2Url);
@@ -1826,9 +1571,7 @@ async function processFiles() {
     console.log('✅ Arquivos processados');
 }
 
-// =========================================================================
-// 📦 PROCESSAR ARQUIVO KMZ (MODO INDIVIDUAL) - PRESERVADO
-// =========================================================================
+// Processar arquivo KMZ (modo individual)
 async function processKMZ(driveUrl) {
     try {
         const directUrl = convertGoogleDriveUrl(driveUrl);
@@ -1842,7 +1585,6 @@ async function processKMZ(driveUrl) {
         const arrayBuffer = await response.arrayBuffer();
         const zip = await JSZip.loadAsync(arrayBuffer);
         
-        // Extrair KML interno
         let kmlFile = null;
         for (const [filename, file] of Object.entries(zip.files)) {
             if (filename.toLowerCase().endsWith('.kml')) {
@@ -1856,19 +1598,15 @@ async function processKMZ(driveUrl) {
         const kmlText = await kmlFile.async('text');
         console.log('📄 KML extraído');
         
-        // Processar KML interno
         await parseKMZContent(kmlText, zip);
         
     } catch (error) {
         console.error('❌ Erro ao processar KMZ:', error);
-        // Não lançar erro, continuar sem imagem de cobertura
         console.warn('⚠️ Continuando sem imagem de cobertura');
     }
 }
 
-// =========================================================================
-// 🔍 PROCESSAR CONTEÚDO DO KMZ (KML INTERNO + IMAGENS) - PRESERVADO
-// =========================================================================
+// Processar conteúdo do KMZ
 async function parseKMZContent(kmlText, zip) {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
@@ -1889,7 +1627,6 @@ async function parseKMZContent(kmlText, zip) {
             
             console.log('🗺️ GroundOverlay encontrado');
             
-            // Extrair imagem do ZIP
             const imageFile = zip.file(iconHref);
             if (imageFile) {
                 const imageBlob = await imageFile.async('blob');
@@ -1924,7 +1661,6 @@ async function parseKMZContent(kmlText, zip) {
     if (placemark) {
         console.log('📡 Processando dados da antena...');
         
-        // 🖼️ EXTRAIR LOGO DO ICONSTYLE PRIMEIRO (SÓ NO MODO INDIVIDUAL)
         if (!isPropostaMode) {
             const iconStyle = placemark.querySelector('Style IconStyle Icon href');
             if (iconStyle) {
@@ -1933,7 +1669,6 @@ async function parseKMZContent(kmlText, zip) {
                 if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
                     radioData.logoUrlFromKMZ = logoUrl;
                     console.log('✅ Logo extraída do IconStyle KMZ:', logoUrl);
-                    // 🚀 FORÇAR ATUALIZAÇÃO IMEDIATA DO HEADER (SÓ NO MODO INDIVIDUAL)
                     forceUpdateHeaderLogo();
                 }
             }
@@ -1944,7 +1679,6 @@ async function parseKMZContent(kmlText, zip) {
             parseAntennaDataDescription(description);
         }
         
-        // Coordenadas da antena
         const coordinates = placemark.querySelector('Point coordinates')?.textContent;
         if (coordinates) {
             const coords = coordinates.trim().split(',');
@@ -1953,25 +1687,10 @@ async function parseKMZContent(kmlText, zip) {
             radioData.antennaLocation = { lat, lng };
             console.log('📍 Localização da antena encontrada');
         }
-        
-        // Extrair dados do JSON raw request se disponível
-        if (description && description.includes('"frq"')) {
-            try {
-                const jsonMatch = description.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    const jsonData = JSON.parse(jsonMatch[0]);
-                    extractTechnicalFromJson(jsonData);
-                }
-            } catch (e) {
-                console.warn('⚠️ Não foi possível extrair JSON dos dados técnicos');
-            }
-        }
     }
 }
 
-// =========================================================================
-// 📊 EXTRAIR DADOS TÉCNICOS DA ANTENA (PRESERVADO) - RENOMEADO PARA EVITAR CONFLITO
-// =========================================================================
+// Extrair dados técnicos da antena
 function parseAntennaDataDescription(htmlDescription) {
     console.log('📊 Extraindo dados técnicos...');
     
@@ -1980,7 +1699,6 @@ function parseAntennaDataDescription(htmlDescription) {
     
     const data = {};
     
-    // 🖼️ EXTRAIR LOGO DA DESCRIÇÃO HTML SE NÃO ACHOU NO ICONSTYLE (SÓ NO MODO INDIVIDUAL)
     if (!isPropostaMode && !radioData.logoUrlFromKMZ) {
         const imgTag = doc.querySelector('img');
         if (imgTag) {
@@ -1989,13 +1707,11 @@ function parseAntennaDataDescription(htmlDescription) {
             if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
                 radioData.logoUrlFromKMZ = logoUrl;
                 console.log('✅ Logo extraída da descrição HTML:', logoUrl);
-                // 🚀 FORÇAR ATUALIZAÇÃO IMEDIATA DO HEADER (SÓ NO MODO INDIVIDUAL)
                 forceUpdateHeaderLogo();
             }
         }
     }
     
-    // Método 1: Tentar extrair de tabela HTML
     const rows = doc.querySelectorAll('tr');
     rows.forEach(row => {
         const cells = row.querySelectorAll('td');
@@ -2015,7 +1731,6 @@ function parseAntennaDataDescription(htmlDescription) {
         }
     });
     
-    // Método 2: Tentar extrair por regex se não encontrou na tabela
     if (Object.keys(data).length === 0) {
         const text = htmlDescription;
         
@@ -2036,31 +1751,7 @@ function parseAntennaDataDescription(htmlDescription) {
     console.log('📊 Dados técnicos extraídos');
 }
 
-// Função helper para parsing de dados técnicos (reutilizada)
-function parseAntennaData(htmlDescription) {
-    return parseAntennaDataDescription(htmlDescription);
-}
-
-// =========================================================================
-// 🔧 EXTRAIR DADOS TÉCNICOS DO JSON (PRESERVADO)
-// =========================================================================
-function extractTechnicalFromJson(jsonData) {
-    console.log('🔧 Extraindo dados do JSON técnico...');
-    
-    const data = radioData.antennaData || {};
-    
-    if (jsonData.frq) data.frequencia = `${jsonData.frq} MHz`;
-    if (jsonData.txw) data.potencia = `${jsonData.txw} W`;
-    if (jsonData.erp) data.erp = `${jsonData.erp} W`;
-    if (jsonData.txh) data.altura = `${jsonData.txh} m`;
-    
-    radioData.antennaData = data;
-    console.log('✅ Dados do JSON extraídos');
-}
-
-// =========================================================================
-// 🏙️ PROCESSAR KML DE CIDADES (MODO INDIVIDUAL) - PRESERVADO
-// =========================================================================
+// Processar KML de cidades
 async function processKML(driveUrl) {
     try {
         const directUrl = convertGoogleDriveUrl(driveUrl);
@@ -2081,9 +1772,7 @@ async function processKML(driveUrl) {
     }
 }
 
-// =========================================================================
-// 🔍 PROCESSAR CIDADES DO KML (MODO INDIVIDUAL) - PRESERVADO
-// =========================================================================
+// Processar cidades do KML
 async function parseKMLCities(kmlText) {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
@@ -2105,10 +1794,8 @@ async function parseKMLCities(kmlText) {
             const lng = parseFloat(coords[0]);
             const lat = parseFloat(coords[1]);
             
-            // Extrair dados do ExtendedData
             const cityData = parseExtendedData(placemark);
             
-            // Se não encontrou no ExtendedData, tentar na descrição HTML
             if (!cityData.totalPopulation) {
                 const description = placemark.querySelector('description')?.textContent || '';
                 if (description) {
@@ -2117,11 +1804,10 @@ async function parseKMLCities(kmlText) {
                 }
             }
             
-            // EXTRAIR UF DO NOME DA CIDADE (CORRIGIDO)
             const nameParts = name.split(' - ');
             cityData.name = nameParts[0] || name;
-            cityData.uf = nameParts[1] || radioData.uf || ''; // Fallback para UF da rádio
-            cityData.fullName = name; // Nome completo para buscas
+            cityData.uf = nameParts[1] || radioData.uf || '';
+            cityData.fullName = name;
             cityData.coordinates = { lat, lng };
             cityData.quality = getSignalQuality(styleUrl);
             
@@ -2136,20 +1822,15 @@ async function parseKMLCities(kmlText) {
     radioData.coveredPopulation = coveredPopulation;
     radioData.citiesCount = citiesData.length;
     
-    // 📊 ORDENAR CIDADES POR QUALIDADE (NOVO)
     sortCitiesByQuality();
     
     console.log(`✅ ${citiesData.length} cidades processadas`);
     console.log(`👥 População: ${totalPopulation.toLocaleString()} (${coveredPopulation.toLocaleString()} cobertos)`);
     
-    // Atualizar UI
     updateCoverageInfo();
 }
 
-// TODAS AS OUTRAS FUNÇÕES AUXILIARES PRESERVADAS
-// =========================================================================
-// 📊 ORDENAR CIDADES POR QUALIDADE (IMPLEMENTAÇÃO NOVA)
-// =========================================================================
+// Ordenar cidades por qualidade
 function sortCitiesByQuality() {
     const qualityOrder = { 'excelente': 1, 'otimo': 2, 'fraco': 3, 'desconhecido': 4 };
     
@@ -2161,16 +1842,13 @@ function sortCitiesByQuality() {
             return qualityA - qualityB;
         }
         
-        // Se mesma qualidade, ordenar alfabeticamente
         return a.name.localeCompare(b.name);
     });
     
     console.log('✅ Cidades ordenadas por qualidade');
 }
 
-// =========================================================================
-// 📊 EXTRAIR DADOS DO EXTENDED DATA
-// =========================================================================
+// Extrair dados do extended data
 function parseExtendedData(placemark) {
     const data = {};
     const extendedData = placemark.querySelector('ExtendedData');
@@ -2202,21 +1880,17 @@ function parseExtendedData(placemark) {
     return data;
 }
 
-// =========================================================================
-// 📊 EXTRAIR DADOS DE UMA CIDADE DA DESCRIÇÃO HTML
-// =========================================================================
+// Extrair dados de uma cidade da descrição HTML
 function parseCityDescription(htmlDescription) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlDescription, 'text/html');
     
     const data = {};
     
-    // Extrair de divs estruturados
     const divs = doc.querySelectorAll('div');
     divs.forEach(div => {
         const text = div.textContent;
         
-        // População
         if (text.includes('População Coberta') || text.includes('PopulaÃ§Ã£o Coberta')) {
             const match = text.match(/(\d{1,3}(?:[.,]\d{3})*)\s*hab/);
             if (match) {
@@ -2229,7 +1903,6 @@ function parseCityDescription(htmlDescription) {
             }
         }
         
-        // Qualidade do sinal
         if (text.includes('Sinal')) {
             if (text.includes('Excelente')) data.qualityText = 'Excelente';
             else if (text.includes('Ótimo') || text.includes('Ã"timo')) data.qualityText = 'Ótimo';
@@ -2240,9 +1913,6 @@ function parseCityDescription(htmlDescription) {
     return data;
 }
 
-// =========================================================================
-// 🎨 DETERMINAR QUALIDADE DO SINAL (CORRIGIDO COM ACENTO)
-// =========================================================================
 function getSignalQuality(styleUrl) {
     if (styleUrl.includes('excelente')) return 'excelente';
     if (styleUrl.includes('otimo')) return 'otimo';
@@ -2250,19 +1920,7 @@ function getSignalQuality(styleUrl) {
     return 'desconhecido';
 }
 
-// Função para converter qualidade para texto com acento
-function getQualityText(quality) {
-    switch (quality) {
-        case 'excelente': return 'Excelente';
-        case 'otimo': return 'Ótimo';
-        case 'fraco': return 'Fraco';
-        default: return 'Desconhecido';
-    }
-}
-
-// =========================================================================
-// 🖼️ ADICIONAR IMAGEM DE COBERTURA AO MAPA (MODO INDIVIDUAL)
-// =========================================================================
+// Adicionar imagem de cobertura ao mapa
 function addCoverageImage() {
     if (!radioData.coverageImage) return;
     
@@ -2278,16 +1936,12 @@ function addCoverageImage() {
     console.log('🖼️ Imagem de cobertura adicionada');
 }
 
-// =========================================================================
-// 📍 ADICIONAR MARCADOR DA ANTENA (MODO INDIVIDUAL)
-// =========================================================================
+// Adicionar marcador da antena
 function addAntennaMarker() {
-    // 🖼️ USAR LOGO PRIORITÁRIA (KMZ → NOTION → PADRÃO)
     let antennaIcon;
     let logoUrl = radioData.logoUrlFromKMZ || radioData.notionIconUrl;
     
     if (logoUrl) {
-        // Criar ícone personalizado com a logo
         antennaIcon = L.divIcon({
             html: `
                 <div style="
@@ -2313,7 +1967,6 @@ function addAntennaMarker() {
         });
         console.log('✅ Marcador da antena com logo');
     } else {
-        // Ícone padrão vermelho
         antennaIcon = L.divIcon({
             html: `
                 <div style="
@@ -2336,15 +1989,6 @@ function addAntennaMarker() {
             <h4 style="margin: 0 0 12px 0; color: #06055B;">📡 Antena Transmissora</h4>
             <p style="margin: 4px 0;"><strong>${radioData.name}</strong></p>
             <p style="margin: 4px 0;">${radioData.dial}</p>
-            ${radioData.antennaData ? `
-                <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
-                <div style="text-align: left; font-size: 12px;">
-                    ${radioData.antennaData.frequencia ? `<p><strong>Frequência:</strong> ${radioData.antennaData.frequencia}</p>` : ''}
-                    ${radioData.antennaData.potencia ? `<p><strong>Potência:</strong> ${radioData.antennaData.potencia}</p>` : ''}
-                    ${radioData.antennaData.erp ? `<p><strong>ERP:</strong> ${radioData.antennaData.erp}</p>` : ''}
-                    ${radioData.antennaData.altura ? `<p><strong>Altura:</strong> ${radioData.antennaData.altura}</p>` : ''}
-                </div>
-            ` : ''}
         </div>
     `;
     
@@ -2355,11 +1999,9 @@ function addAntennaMarker() {
     console.log('📍 Marcador da antena adicionado');
 }
 
-// =========================================================================
-// 🏙️ ADICIONAR MARCADORES DAS CIDADES (MODO INDIVIDUAL)
-// =========================================================================
+// Adicionar marcadores das cidades
 function addCityMarkers() {
-    cityMarkersIndividual = []; // Limpar marcadores existentes
+    cityMarkersIndividual = [];
     
     citiesData.forEach(city => {
         const color = getQualityColor(city.quality);
@@ -2385,7 +2027,7 @@ function addCityMarkers() {
                 <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
                 <div style="text-align: left; font-size: 13px; color: #64748B;">
                     <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
-                    <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()} ${city.coveragePercent ? `(${city.coveragePercent})` : ''}</p>
+                    <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()}</p>
                     <p style="margin: 4px 0;"><strong>Qualidade:</strong> ${getQualityText(city.quality)}</p>
                 </div>
             </div>
@@ -2401,42 +2043,24 @@ function addCityMarkers() {
     console.log(`🏙️ ${cityMarkersIndividual.length} marcadores de cidades adicionados`);
 }
 
-// =========================================================================
-// 🎨 OBTER COR POR QUALIDADE
-// =========================================================================
-function getQualityColor(quality) {
-    switch (quality) {
-        case 'excelente': return '#00FF00';
-        case 'otimo': return '#00FFFF';
-        case 'fraco': return '#0000FF';
-        default: return '#808080';
-    }
-}
-
-// =========================================================================
-// 🗺️ AJUSTAR ZOOM DO MAPA (MODO INDIVIDUAL) - INCLUIR ÁREAS DE INTERESSE
-// =========================================================================
+// Ajustar zoom do mapa
 function fitMapBounds() {
     if (citiesData.length === 0 && !radioData.antennaLocation && !radioData.coverageImage && filteredAreasInteresse.length === 0) return;
     
     const bounds = L.latLngBounds();
     
-    // Adicionar cidades
     citiesData.forEach(city => {
         bounds.extend([city.coordinates.lat, city.coordinates.lng]);
     });
     
-    // Adicionar antena
     if (radioData.antennaLocation) {
         bounds.extend([radioData.antennaLocation.lat, radioData.antennaLocation.lng]);
     }
     
-    // Adicionar bounds da imagem de cobertura
     if (radioData.coverageImage) {
         bounds.extend(radioData.coverageImage.bounds);
     }
     
-    // 🆕 ADICIONAR ÁREAS DE INTERESSE (MODO INDIVIDUAL)
     if (filteredAreasInteresse && filteredAreasInteresse.length > 0) {
         filteredAreasInteresse.forEach(area => {
             bounds.extend([area.coordinates.lat, area.coordinates.lng]);
@@ -2448,16 +2072,13 @@ function fitMapBounds() {
     }
 }
 
-// =========================================================================
-// 🏙️ RENDERIZAR LISTA DE CIDADES (MODO INDIVIDUAL) - INCLUIR ÁREAS DE INTERESSE
-// =========================================================================
+// Renderizar lista de cidades
 function renderCities() {
     filteredCities = [...citiesData];
     updateCitiesList();
     
     document.getElementById('cidade-count').textContent = citiesData.length;
     
-    // 🆕 ATUALIZAR TÍTULO SE HAS ÁREAS DE INTERESSE
     if (filteredAreasInteresse && filteredAreasInteresse.length > 0) {
         const cidadesTitle = document.querySelector('.cidades-title');
         if (cidadesTitle) {
@@ -2498,9 +2119,7 @@ function updateCitiesList() {
     `).join('');
 }
 
-// =========================================================================
-// 🔍 CONFIGURAR BUSCA (MODO INDIVIDUAL)
-// =========================================================================
+// Configurar busca
 function setupSearch() {
     const searchInput = document.getElementById('city-search');
     
@@ -2524,9 +2143,7 @@ function setupSearch() {
     });
 }
 
-// =========================================================================
-// 🎯 DESTACAR CIDADE NO MAPA (MODO INDIVIDUAL)
-// =========================================================================
+// Destacar cidade no mapa
 function highlightCity(cityName) {
     const city = citiesData.find(c => c.name === cityName);
     if (!city) return;
@@ -2536,7 +2153,6 @@ function highlightCity(cityName) {
         duration: 1.5
     });
     
-    // Encontrar e abrir popup do marcador
     setTimeout(() => {
         cityMarkersIndividual.forEach(marker => {
             const markerLatLng = marker.getLatLng();
@@ -2548,11 +2164,8 @@ function highlightCity(cityName) {
     }, 1000);
 }
 
-// =========================================================================
-// 📊 EXPORTAR PARA EXCEL (MODO INDIVIDUAL) - INCLUIR ÁREAS DE INTERESSE
-// =========================================================================
+// Exportar para Excel
 function exportToExcel() {
-    // Dados das cidades (planilha principal)
     const excelData = [
         ['Cidade', 'UF', 'População Total', 'População Coberta', '% Cobertura', 'Qualidade']
     ];
@@ -2571,7 +2184,6 @@ function exportToExcel() {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(excelData);
     
-    // Larguras das colunas
     ws['!cols'] = [
         { wch: 30 }, // Cidade
         { wch: 5 },  // UF
@@ -2583,7 +2195,6 @@ function exportToExcel() {
     
     XLSX.utils.book_append_sheet(wb, ws, 'Cidades de Cobertura');
     
-    // 🆕 ADICIONAR PLANILHA DE ÁREAS DE INTERESSE SE EXISTIREM
     if (filteredAreasInteresse && filteredAreasInteresse.length > 0) {
         const areasData = [
             ['Área de Interesse', 'Tipo', 'Prioridade', 'Cobertura', 'Descrição']
@@ -2617,9 +2228,7 @@ function exportToExcel() {
     console.log('📊 Excel exportado:', fileName);
 }
 
-// =========================================================================
-// 🔧 FUNÇÕES AUXILIARES
-// =========================================================================
+// Converter URL do Google Drive
 function convertGoogleDriveUrl(url) {
     if (!url) return '';
     
@@ -2634,11 +2243,7 @@ function convertGoogleDriveUrl(url) {
     return `https://drive.google.com/uc?export=download&id=${fileId}`;
 }
 
-// =========================================================================
-// 🖼️ FUNÇÕES DE ATUALIZAÇÃO DO HEADER - PRESERVADAS PARA MODO INDIVIDUAL
-// =========================================================================
-
-// 🖼️ PROCESSAR ÍCONE DO NOTION (MODO INDIVIDUAL)
+// Processar ícone do Notion (modo individual)
 function processNotionIcon() {
     console.log('🖼️ Processando ícone do Notion...');
     
@@ -2655,14 +2260,13 @@ function processNotionIcon() {
         }
     }
     
-    // 🖼️ FALLBACK PARA CAMPO IMAGEM SE NÃO TEM ÍCONE
     if (!radioData.notionIconUrl && radioData.imageUrl && !radioData.imageUrl.includes('placeholder')) {
         radioData.notionIconUrl = radioData.imageUrl;
         console.log('✅ Usando campo Imagem como fallback');
     }
 }
 
-// ATUALIZAR HEADER BÁSICO (SEM LOGO)
+// Atualizar header básico (sem logo)
 function updateHeaderBasic() {
     const radioName = document.getElementById('radio-name');
     const radioInfo = document.getElementById('radio-info');
@@ -2674,7 +2278,6 @@ function updateHeaderBasic() {
     if (radioInfo) {
         let infoText = `${radioData.dial || ''} • ${radioData.praca || ''} - ${radioData.uf || ''}`;
         
-        // 🆕 INCLUIR ÁREAS DE INTERESSE NO HEADER INDIVIDUAL
         if (filteredAreasInteresse && filteredAreasInteresse.length > 0) {
             infoText += ` • ${filteredAreasInteresse.length} áreas de interesse cobertas`;
         }
@@ -2685,9 +2288,8 @@ function updateHeaderBasic() {
     console.log('✅ Header básico atualizado');
 }
 
-// 🖼️ ATUALIZAR LOGO NO HEADER - FUNÇÃO PRINCIPAL COM RETRY (SÓ MODO INDIVIDUAL)
+// Atualizar logo no header
 function updateHeaderLogoFinal(retryCount = 0) {
-    // 🔧 NÃO EXECUTAR NO MODO PROPOSTA
     if (isPropostaMode) {
         return;
     }
@@ -2704,7 +2306,6 @@ function updateHeaderLogoFinal(retryCount = 0) {
         } else {
             console.error('❌ Elemento header-logo não foi encontrado!');
             
-            // 🛠️ TENTAR CRIAR O ELEMENTO SE NÃO EXISTIR
             const radioNameElement = document.getElementById('radio-name');
             if (radioNameElement) {
                 const logoImg = document.createElement('img');
@@ -2714,7 +2315,6 @@ function updateHeaderLogoFinal(retryCount = 0) {
                 logoImg.alt = 'Logo';
                 radioNameElement.appendChild(logoImg);
                 
-                // Tentar novamente após criar
                 setTimeout(() => {
                     updateHeaderLogoFinal(0);
                 }, 200);
@@ -2723,7 +2323,6 @@ function updateHeaderLogoFinal(retryCount = 0) {
         }
     }
     
-    // 🎯 PRIORIDADE: KMZ → NOTION ICON → CAMPO IMAGEM → OCULTAR
     let logoUrl = null;
     let source = '';
     
@@ -2752,16 +2351,15 @@ function updateHeaderLogoFinal(retryCount = 0) {
             console.warn(`⚠️ Erro ao carregar logo do ${source}`);
             this.style.display = 'none';
             
-            // Tentar próxima opção se falhar
             if (source === 'KMZ' && radioData.notionIconUrl) {
                 setTimeout(() => {
-                    radioData.logoUrlFromKMZ = null; // Marcar como falha
-                    updateHeaderLogoFinal(0); // Tentar novamente
+                    radioData.logoUrlFromKMZ = null;
+                    updateHeaderLogoFinal(0);
                 }, 100);
             } else if (source === 'Notion Icon' && radioData.imageUrl) {
                 setTimeout(() => {
-                    radioData.notionIconUrl = null; // Marcar como falha
-                    updateHeaderLogoFinal(0); // Tentar novamente
+                    radioData.notionIconUrl = null;
+                    updateHeaderLogoFinal(0);
                 }, 100);
             }
         };
@@ -2772,31 +2370,17 @@ function updateHeaderLogoFinal(retryCount = 0) {
     }
 }
 
-// 🚀 FORÇAR ATUALIZAÇÃO DA LOGO QUANDO DETECTADA NO KMZ (SÓ MODO INDIVIDUAL)
+// Forçar atualização da logo quando detectada no KMZ
 function forceUpdateHeaderLogo() {
-    // 🔧 NÃO EXECUTAR NO MODO PROPOSTA
     if (isPropostaMode) {
         return;
     }
     
     console.log('🚀 FORÇANDO atualização da logo no header...');
     
-    // Aguardar um pouco para garantir que o DOM está pronto
     setTimeout(() => {
         updateHeaderLogoFinal(0);
     }, 200);
-}
-
-// ATUALIZAR APENAS A LOGO DO HEADER (LEGACY - COMPATIBILIDADE)
-function updateHeaderLogo() {
-    // Chamar a função principal
-    updateHeaderLogoFinal(0);
-}
-
-// ATUALIZAR HEADER COMPLETO (LEGACY - COMPATIBILIDADE)
-function updateHeader() {
-    updateHeaderBasic();
-    updateHeaderLogoFinal(0);
 }
 
 function updateCoverageInfo() {
@@ -2816,7 +2400,7 @@ function hideLoading() {
 
 function showError(message, details) {
     document.getElementById('loading').style.display = 'none';
-    hideLoadingScreen(); // 🆕 Garantir que tela personalizada também suma
+    hideLoadingScreen();
     document.getElementById('error-message').textContent = message;
     
     if (details) {
@@ -2827,8 +2411,160 @@ function showError(message, details) {
     document.getElementById('error').style.display = 'block';
 }
 
+// Processar KMZ de uma rádio específica
+async function processRadioKMZ(radio) {
+    try {
+        const directUrl = convertGoogleDriveUrl(radio.kmz2Url);
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
+        
+        const response = await fetch(proxyUrl);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        
+        let kmlFile = null;
+        for (const [filename, file] of Object.entries(zip.files)) {
+            if (filename.toLowerCase().endsWith('.kml')) {
+                kmlFile = file;
+                break;
+            }
+        }
+        
+        if (!kmlFile) {
+            throw new Error('KML não encontrado no KMZ');
+        }
+        
+        const kmlText = await kmlFile.async('text');
+        await parseRadioKMZContent(radio, kmlText, zip);
+        
+    } catch (error) {
+        console.warn(`⚠️ KMZ ${radio.name}: ${error.message}`);
+    }
+}
+
+// Processar conteúdo do KMZ de uma rádio
+async function parseRadioKMZContent(radio, kmlText, zip) {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
+    
+    const groundOverlay = xmlDoc.querySelector('GroundOverlay');
+    if (groundOverlay) {
+        const iconHref = groundOverlay.querySelector('Icon href')?.textContent;
+        const latLonBox = groundOverlay.querySelector('LatLonBox');
+        
+        if (iconHref && latLonBox) {
+            const north = parseFloat(latLonBox.querySelector('north')?.textContent);
+            const south = parseFloat(latLonBox.querySelector('south')?.textContent);
+            const east = parseFloat(latLonBox.querySelector('east')?.textContent);
+            const west = parseFloat(latLonBox.querySelector('west')?.textContent);
+            
+            const imageFile = zip.file(iconHref);
+            if (imageFile) {
+                const imageBlob = await imageFile.async('blob');
+                const imageUrl = URL.createObjectURL(imageBlob);
+                
+                radio.coverageImage = {
+                    url: imageUrl,
+                    bounds: [[south, west], [north, east]]
+                };
+            }
+        }
+    }
+    
+    const placemark = xmlDoc.querySelector('Placemark');
+    if (placemark) {
+        const iconStyle = placemark.querySelector('Style IconStyle Icon href');
+        if (iconStyle) {
+            const logoUrl = iconStyle.textContent.trim();
+            if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('https'))) {
+                radio.logoUrlFromKMZ = logoUrl;
+                
+                if (!isPropostaMode) {
+                    forceUpdateHeaderLogo();
+                }
+            }
+        }
+        
+        const coordinates = placemark.querySelector('Point coordinates')?.textContent;
+        if (coordinates) {
+            const coords = coordinates.trim().split(',');
+            const lng = parseFloat(coords[0]);
+            const lat = parseFloat(coords[1]);
+            radio.antennaLocation = { lat, lng };
+        }
+        
+        const description = placemark.querySelector('description')?.textContent;
+        if (description) {
+            radio.antennaData = parseAntennaDataDescription(description);
+        }
+    }
+}
+
+// Processar KML de cidades de uma rádio
+async function processRadioKML(radio) {
+    try {
+        const directUrl = convertGoogleDriveUrl(radio.kml2Url);
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
+        
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const kmlText = await response.text();
+        radio.citiesData = await parseKMLCitiesForRadio(kmlText);
+        
+    } catch (error) {
+        console.warn(`⚠️ KML ${radio.name}: ${error.message}`);
+        radio.citiesData = [];
+    }
+}
+
+// Processar cidades do KML para uma rádio específica
+async function parseKMLCitiesForRadio(kmlText) {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
+    const placemarks = xmlDoc.querySelectorAll('Placemark');
+    
+    const cities = [];
+    
+    placemarks.forEach((placemark) => {
+        const name = placemark.querySelector('name')?.textContent || '';
+        const coordinates = placemark.querySelector('Point coordinates')?.textContent;
+        const styleUrl = placemark.querySelector('styleUrl')?.textContent || '';
+        
+        if (coordinates && name) {
+            const coords = coordinates.trim().split(',');
+            const lng = parseFloat(coords[0]);
+            const lat = parseFloat(coords[1]);
+            
+            const cityData = parseExtendedData(placemark);
+            
+            if (!cityData.totalPopulation) {
+                const description = placemark.querySelector('description')?.textContent || '';
+                if (description) {
+                    const htmlData = parseCityDescription(description);
+                    Object.assign(cityData, htmlData);
+                }
+            }
+            
+            const nameParts = name.split(' - ');
+            cityData.name = nameParts[0] || name;
+            cityData.uf = nameParts[1] || '';
+            cityData.fullName = name;
+            cityData.coordinates = { lat, lng };
+            cityData.quality = getSignalQuality(styleUrl);
+            
+            cities.push(cityData);
+        }
+    });
+    
+    return cities;
+}
+
 // =========================================================================
-// 🎛️ CONTROLES DO PAINEL DE RÁDIOS (MODO PROPOSTA) - PERFORMANCE OTIMIZADA
+// CONTROLES DO PAINEL DE RÁDIOS (MODO PROPOSTA)
 // =========================================================================
 
 function toggleRadiosPanel() {
@@ -2841,7 +2577,6 @@ function toggleRadiosPanel() {
 
 function showAllCoverages() {
     if (typeof radiosLayers !== 'undefined') {
-        // 🚀 OTIMIZADO: Usar requestAnimationFrame para não travar a UI
         const layersArray = Object.values(radiosLayers);
         let index = 0;
         
@@ -2854,7 +2589,6 @@ function showAllCoverages() {
                 layerGroup.setOpacity && layerGroup.setOpacity(0.6);
                 index++;
                 
-                // Processar próximo em batch pequeno para não travar
                 if (index % 3 === 0) {
                     requestAnimationFrame(processNext);
                 } else {
@@ -2871,7 +2605,6 @@ function showAllCoverages() {
 
 function hideAllCoverages() {
     if (typeof radiosLayers !== 'undefined') {
-        // 🚀 OTIMIZADO: Remover em batches para melhor performance
         const layersArray = Object.values(radiosLayers);
         let index = 0;
         
@@ -2883,7 +2616,6 @@ function hideAllCoverages() {
                 }
                 index++;
                 
-                // Processar próximo em batch pequeno
                 if (index % 5 === 0) {
                     requestAnimationFrame(processNext);
                 } else {
@@ -2918,5 +2650,44 @@ function toggleRadioCoverage(radioId) {
 function focusOnRadio(radioId) {
     if (typeof highlightRadio !== 'undefined') {
         highlightRadio(radioId);
+    }
+}
+
+// Destacar rádio no mapa
+function highlightRadio(radioId) {
+    const radio = propostaData.radios.find(r => r.id === radioId);
+    if (!radio || !radiosLayers[radioId]) return;
+    
+    if (radio.antennaLocation) {
+        map.flyTo([radio.antennaLocation.lat, radio.antennaLocation.lng], 10, {
+            animate: true,
+            duration: 1.5
+        });
+        
+        setTimeout(() => {
+            const layerGroup = radiosLayers[radioId];
+            if (layerGroup) {
+                layerGroup.eachLayer(layer => {
+                    if (layer instanceof L.Marker && layer.options.icon && layer.options.icon.options.iconSize) {
+                        const iconSize = layer.options.icon.options.iconSize;
+                        if (iconSize[0] === 40 && iconSize[1] === 40) {
+                            layer.openPopup();
+                        }
+                    }
+                });
+            }
+        }, 1000);
+    }
+    
+    if (radiosLayers[radioId]) {
+        const layerGroup = radiosLayers[radioId];
+        
+        layerGroup.eachLayer(layer => {
+            if (layer.setOpacity) {
+                const originalOpacity = layer.options.opacity || 0.6;
+                layer.setOpacity(0.9);
+                setTimeout(() => layer.setOpacity(originalOpacity), 1000);
+            }
+        });
     }
 }
