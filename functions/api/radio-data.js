@@ -142,42 +142,51 @@ async function processRadioData(notionData) {
     }
   };
 
-  // 🆕 FUNÇÃO HELPER PARA EXTRAIR TODOS OS ARQUIVOS (ÁREAS DE INTERESSE) - CORRIGIDA
+  // 🆕 FUNÇÃO HELPER PARA EXTRAIR TODOS OS ARQUIVOS (ÁREAS DE INTERESSE) - CORRIGIDA E ROBUSTA
   const extractAllFiles = (prop) => {
     if (!prop || prop.type !== 'files' || !prop.files || prop.files.length === 0) {
       return [];
     }
     
-    console.log(`📁 Encontrados ${prop.files.length} arquivo(s) de áreas de interesse`);
+    console.log(`📁 Processando ${prop.files.length} arquivo(s) de áreas`);
     
     return prop.files.map((file, index) => {
-      console.log(`📄 Arquivo ${index + 1}:`, {
-        name: file.name,
-        hasFile: !!file.file,
-        hasExternal: !!file.external,
+      const fileData = {
+        name: file.name || `Arquivo ${index + 1}`,
         type: file.type || 'unknown'
-      });
-      
-      return {
-        name: file.name,
-        file: file.file,
-        external: file.external,
-        url: file.file?.url || file.external?.url
       };
+      
+      // 🔧 EXTRAIR URL DE MÚLTIPLAS FONTES POSSÍVEIS
+      if (file.file && file.file.url) {
+        fileData.file = file.file;
+        fileData.url = file.file.url;
+        console.log(`📄 Arquivo ${index + 1}: ${file.name} - URL interna encontrada`);
+      } else if (file.external && file.external.url) {
+        fileData.external = file.external;
+        fileData.url = file.external.url;
+        console.log(`📄 Arquivo ${index + 1}: ${file.name} - URL externa encontrada`);
+      } else {
+        console.warn(`⚠️ Arquivo ${index + 1}: ${file.name} - Nenhuma URL encontrada`);
+        fileData.url = null;
+      }
+      
+      return fileData;
     });
   };
 
-  // 🔧 BUSCAR ÁREAS DE INTERESSE COM MÚLTIPLAS VARIAÇÕES DE NOME
+  // 🔧 BUSCAR ÁREAS DE INTERESSE COM MÚLTIPLAS VARIAÇÕES DE NOME - MAIS ROBUSTA
   let areasInteresse = [];
   const possibleAreasFields = [
     'Areas_Interesse',
     'areas_interesse', 
     'AreasInteresse',
-    'Áreas de Interesse',
-    'Areas de Interesse',
     'Areas Interesse',
     'areas interesse',
-    'areasinteresse'
+    'Áreas de Interesse',
+    'Areas de Interesse',
+    'areasinteresse',
+    'Areas_interesse',
+    'areas_Interesse'
   ];
   
   console.log('🎯 Buscando campo de áreas de interesse...');
@@ -186,12 +195,18 @@ async function processRadioData(notionData) {
     if (properties[fieldName]) {
       console.log(`✅ Campo encontrado: "${fieldName}"`);
       areasInteresse = extractAllFiles(properties[fieldName]);
-      break;
+      
+      if (areasInteresse.length > 0) {
+        console.log(`🎯 ${areasInteresse.length} arquivo(s) extraído(s) do campo "${fieldName}"`);
+        break;
+      } else {
+        console.log(`⚠️ Campo "${fieldName}" encontrado mas vazio`);
+      }
     }
   }
   
   if (areasInteresse.length === 0) {
-    console.log('⚠️ Nenhum campo de áreas de interesse encontrado. Campos disponíveis:', Object.keys(properties));
+    console.log('ℹ️ Nenhum campo de áreas de interesse encontrado ou populado');
   }
 
   // MAPEAR DADOS BÁSICOS
@@ -212,7 +227,7 @@ async function processRadioData(notionData) {
     // URLs e mídias - remover placeholder inválido
     imageUrl: extractValue(properties['Imagem'] || properties['imagem'], '', 'Imagem'),
     
-    // 🆕 ÁREAS DE INTERESSE - CORRIGIDO
+    // 🆕 ÁREAS DE INTERESSE - CORRIGIDO E ROBUSTO
     areasInteresse: areasInteresse,
     
     // Metadata
@@ -265,11 +280,14 @@ async function processRadioData(notionData) {
     console.warn('⚠️ KML2 URL não encontrada');
   }
 
-  // 🆕 LOG DE ÁREAS DE INTERESSE - CORRIGIDO
+  // 🆕 LOG DE ÁREAS DE INTERESSE - CORRIGIDO E DETALHADO
   if (radioData.areasInteresse.length > 0) {
     console.log('🎯 Áreas de interesse encontradas:', radioData.areasInteresse.length);
     radioData.areasInteresse.forEach((area, index) => {
-      console.log(`  ${index + 1}. ${area.name} - URL: ${area.url ? 'Sim' : 'Não'}`);
+      console.log(`  📄 ${index + 1}. ${area.name} - URL: ${area.url ? 'OK' : 'ERRO'}`);
+      if (area.url) {
+        console.log(`    🔗 ${area.url.substring(0, 60)}...`);
+      }
     });
   } else {
     console.log('ℹ️ Nenhuma área de interesse encontrada');
