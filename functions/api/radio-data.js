@@ -1,5 +1,5 @@
 // =========================================================================
-// 📡 CLOUDFLARE PAGES FUNCTION - RADIO DATA API 2.0 - COM ÍCONE
+// 📡 CLOUDFLARE PAGES FUNCTION - RADIO DATA API 2.0 - COM ÍCONE + ÁREAS DE INTERESSE
 // =========================================================================
 
 export async function onRequest(context) {
@@ -100,7 +100,7 @@ export async function onRequest(context) {
 }
 
 // =========================================================================
-// 🔧 PROCESSAR DADOS DE UMA RÁDIO
+// 🔧 PROCESSAR DADOS DE UMA RÁDIO - COM ÁREAS DE INTERESSE
 // =========================================================================
 async function processRadioData(notionData) {
   console.log('✅ Processando rádio:', {
@@ -140,6 +140,19 @@ async function processRadioData(notionData) {
     }
   };
 
+  // 🆕 FUNÇÃO HELPER PARA EXTRAIR ARQUIVOS (ÁREAS DE INTERESSE)
+  const extractFiles = (prop) => {
+    if (!prop || prop.type !== 'files' || !prop.files || prop.files.length === 0) {
+      return [];
+    }
+    
+    return prop.files.map(file => ({
+      name: file.name,
+      file: file.file,
+      external: file.external
+    }));
+  };
+
   // MAPEAR DADOS BÁSICOS
   const radioData = {
     // Informações básicas
@@ -157,6 +170,9 @@ async function processRadioData(notionData) {
     
     // URLs e mídias - remover placeholder inválido
     imageUrl: extractValue(properties['Imagem'] || properties['imagem'], '', 'Imagem'),
+    
+    // 🆕 ÁREAS DE INTERESSE
+    areasInteresse: extractFiles(properties['Areas_Interesse'] || properties['areas_interesse']),
     
     // Metadata
     source: 'notion',
@@ -195,6 +211,7 @@ async function processRadioData(notionData) {
     uf: radioData.uf,
     kmz2Url: radioData.kmz2Url ? 'Sim' : 'Não',
     kml2Url: radioData.kml2Url ? 'Sim' : 'Não',
+    areasInteresse: radioData.areasInteresse.length > 0 ? `${radioData.areasInteresse.length} arquivo(s)` : 'Não',
     hasIcon: !!radioData.icon
   });
 
@@ -205,6 +222,16 @@ async function processRadioData(notionData) {
   
   if (!radioData.kml2Url) {
     console.warn('⚠️ KML2 URL não encontrada');
+  }
+
+  // 🆕 LOG DE ÁREAS DE INTERESSE
+  if (radioData.areasInteresse.length > 0) {
+    console.log('🎯 Áreas de interesse encontradas:', radioData.areasInteresse.length);
+    radioData.areasInteresse.forEach((area, index) => {
+      console.log(`  ${index + 1}. ${area.name} - ${area.file ? 'Arquivo interno' : 'Arquivo externo'}`);
+    });
+  } else {
+    console.log('ℹ️ Nenhuma área de interesse encontrada');
   }
 
   return radioData;
