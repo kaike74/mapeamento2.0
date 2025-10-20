@@ -1,5 +1,5 @@
 // =========================================================================
-// 📡 CLOUDFLARE PAGES FUNCTION - RADIO DATA API 2.0 - COM ÍCONE + ÁREAS DE INTERESSE
+// 📡 CLOUDFLARE PAGES FUNCTION - RADIO DATA API 2.0 - COM ÁREAS DE INTERESSE CORRIGIDO
 // =========================================================================
 
 export async function onRequest(context) {
@@ -23,7 +23,6 @@ export async function onRequest(context) {
     // Obter parâmetros da URL
     const url = new URL(context.request.url);
     const id = url.searchParams.get('id');
-    const includeIcon = url.searchParams.get('include_icon') === 'true';
     
     if (!id) {
       return new Response(JSON.stringify({ 
@@ -100,7 +99,7 @@ export async function onRequest(context) {
 }
 
 // =========================================================================
-// 🔧 PROCESSAR DADOS DE UMA RÁDIO - COM ÁREAS DE INTERESSE
+// 🔧 PROCESSAR DADOS DE UMA RÁDIO - CORRIGIDO PARA ÁREAS DE INTERESSE
 // =========================================================================
 async function processRadioData(notionData) {
   console.log('✅ Processando rádio:', {
@@ -111,6 +110,9 @@ async function processRadioData(notionData) {
   });
 
   const properties = notionData.properties || {};
+  
+  // 🔧 LOG DETALHADO DOS CAMPOS PARA DEBUG
+  console.log('🔍 Campos disponíveis:', Object.keys(properties));
   
   // Função helper para extrair valores
   const extractValue = (prop, defaultValue = '', propName = '') => {
@@ -140,18 +142,57 @@ async function processRadioData(notionData) {
     }
   };
 
-  // 🆕 FUNÇÃO HELPER PARA EXTRAIR ARQUIVOS (ÁREAS DE INTERESSE)
-  const extractFiles = (prop) => {
+  // 🆕 FUNÇÃO HELPER PARA EXTRAIR TODOS OS ARQUIVOS (ÁREAS DE INTERESSE) - CORRIGIDA
+  const extractAllFiles = (prop) => {
     if (!prop || prop.type !== 'files' || !prop.files || prop.files.length === 0) {
       return [];
     }
     
-    return prop.files.map(file => ({
-      name: file.name,
-      file: file.file,
-      external: file.external
-    }));
+    console.log(`📁 Encontrados ${prop.files.length} arquivo(s) de áreas de interesse`);
+    
+    return prop.files.map((file, index) => {
+      console.log(`📄 Arquivo ${index + 1}:`, {
+        name: file.name,
+        hasFile: !!file.file,
+        hasExternal: !!file.external,
+        type: file.type || 'unknown'
+      });
+      
+      return {
+        name: file.name,
+        file: file.file,
+        external: file.external,
+        url: file.file?.url || file.external?.url
+      };
+    });
   };
+
+  // 🔧 BUSCAR ÁREAS DE INTERESSE COM MÚLTIPLAS VARIAÇÕES DE NOME
+  let areasInteresse = [];
+  const possibleAreasFields = [
+    'Areas_Interesse',
+    'areas_interesse', 
+    'AreasInteresse',
+    'Áreas de Interesse',
+    'Areas de Interesse',
+    'Areas Interesse',
+    'areas interesse',
+    'areasinteresse'
+  ];
+  
+  console.log('🎯 Buscando campo de áreas de interesse...');
+  
+  for (const fieldName of possibleAreasFields) {
+    if (properties[fieldName]) {
+      console.log(`✅ Campo encontrado: "${fieldName}"`);
+      areasInteresse = extractAllFiles(properties[fieldName]);
+      break;
+    }
+  }
+  
+  if (areasInteresse.length === 0) {
+    console.log('⚠️ Nenhum campo de áreas de interesse encontrado. Campos disponíveis:', Object.keys(properties));
+  }
 
   // MAPEAR DADOS BÁSICOS
   const radioData = {
@@ -171,8 +212,8 @@ async function processRadioData(notionData) {
     // URLs e mídias - remover placeholder inválido
     imageUrl: extractValue(properties['Imagem'] || properties['imagem'], '', 'Imagem'),
     
-    // 🆕 ÁREAS DE INTERESSE
-    areasInteresse: extractFiles(properties['Areas_Interesse'] || properties['areas_interesse']),
+    // 🆕 ÁREAS DE INTERESSE - CORRIGIDO
+    areasInteresse: areasInteresse,
     
     // Metadata
     source: 'notion',
@@ -205,7 +246,7 @@ async function processRadioData(notionData) {
     }
   }
 
-  console.log('📊 Valores extraídos:', {
+  console.log('📊 Dados processados:', {
     name: radioData.name,
     dial: radioData.dial,
     uf: radioData.uf,
@@ -224,11 +265,11 @@ async function processRadioData(notionData) {
     console.warn('⚠️ KML2 URL não encontrada');
   }
 
-  // 🆕 LOG DE ÁREAS DE INTERESSE
+  // 🆕 LOG DE ÁREAS DE INTERESSE - CORRIGIDO
   if (radioData.areasInteresse.length > 0) {
     console.log('🎯 Áreas de interesse encontradas:', radioData.areasInteresse.length);
     radioData.areasInteresse.forEach((area, index) => {
-      console.log(`  ${index + 1}. ${area.name} - ${area.file ? 'Arquivo interno' : 'Arquivo externo'}`);
+      console.log(`  ${index + 1}. ${area.name} - URL: ${area.url ? 'Sim' : 'Não'}`);
     });
   } else {
     console.log('ℹ️ Nenhuma área de interesse encontrada');
