@@ -319,7 +319,7 @@ async function loadAndProcessAreasInteresseIndividual() {
 }
 
 // =========================================================================
-// 🆕 PROCESSAR ARQUIVO KML DAS ÁREAS DE INTERESSE - SIMPLIFICADO PARA BATCHGEO
+// 🆕 PROCESSAR ARQUIVO KML DAS ÁREAS DE INTERESSE - COM VERIFICAÇÃO EXTRA
 // =========================================================================
 async function processAreasInteresseKML(kmlUrl) {
     try {
@@ -337,15 +337,15 @@ async function processAreasInteresseKML(kmlUrl) {
         
         console.log(`✅ ${areasInteresseData.length} áreas de interesse processadas`);
         
-        // 🔧 LOG DETALHADO APENAS SE HOUVER PROBLEMAS
-        if (areasInteresseData.length === 0) {
-            console.warn('⚠️ NENHUMA ÁREA ENCONTRADA - Debug do KML:');
-            console.warn('Primeiros 500 caracteres:', kmlText.substring(0, 500));
-        } else {
-            // Log das primeiras 3 áreas para verificação
-            console.log('📍 Primeiras áreas processadas:');
-            areasInteresseData.slice(0, 3).forEach((area, i) => {
-                console.log(`  ${i+1}. "${area.name}" - [${area.coordinates.lat}, ${area.coordinates.lng}]`);
+        // 🔧 VERIFICAÇÃO DETALHADA DAS COORDENADAS
+        if (areasInteresseData.length > 0) {
+            console.log('📍 VERIFICAÇÃO DAS COORDENADAS:');
+            areasInteresseData.slice(0, 5).forEach((area, i) => {
+                const noBrasil = (area.coordinates.lat >= -35 && area.coordinates.lat <= 5 && 
+                                area.coordinates.lng >= -75 && area.coordinates.lng <= -30);
+                console.log(`  ${i+1}. "${area.name}"`);
+                console.log(`     → LAT: ${area.coordinates.lat}, LNG: ${area.coordinates.lng}`);
+                console.log(`     → No Brasil: ${noBrasil ? '✅' : '❌'}`);
             });
         }
         
@@ -356,7 +356,7 @@ async function processAreasInteresseKML(kmlUrl) {
 }
 
 // =========================================================================
-// 🆕 PARSER KML SIMPLIFICADO PARA BATCHGEO - CORRIGIDO (COORDENADAS CORRETAS)
+// 🆕 PARSER KML SIMPLIFICADO PARA BATCHGEO - COM MAIS VERIFICAÇÕES
 // =========================================================================
 function parseAreasInteresseBatchGeo(kmlText) {
     console.log('🎯 Parseando KML com parser simplificado BatchGeo...');
@@ -369,6 +369,7 @@ function parseAreasInteresseBatchGeo(kmlText) {
     console.log(`🎯 Encontrados ${placemarks.length} placemarks no KML`);
     
     const areas = [];
+    let coordenadasInvalidas = 0;
     
     placemarks.forEach((placemark, index) => {
         try {
@@ -394,12 +395,12 @@ function parseAreasInteresseBatchGeo(kmlText) {
             }
             
             const coordsText = pointCoords.textContent.trim();
-            console.log(`🔍 Coordenadas brutas ${index + 1}: "${coordsText}"`);
             
             // 3. PARSEAR COORDENADAS (formato: lng,lat,alt - CORRIGIDO)
             const coords = coordsText.split(',');
             if (coords.length < 2) {
                 console.warn(`⚠️ Coordenadas inválidas ${index + 1}: ${coordsText}`);
+                coordenadasInvalidas++;
                 return;
             }
             
@@ -409,13 +410,15 @@ function parseAreasInteresseBatchGeo(kmlText) {
             
             if (isNaN(lat) || isNaN(lng)) {
                 console.warn(`⚠️ Coordenadas não numéricas ${index + 1}: lat=${lat}, lng=${lng}`);
+                coordenadasInvalidas++;
                 return;
             }
             
-            // 4. VALIDAÇÃO SIMPLES (Brasil) - CORRIGIDA
-            if (lat < -35 || lat > 5 || lng < -75 || lng > -30) {
-                console.warn(`⚠️ Coordenadas fora do Brasil ${index + 1}: lat=${lat}, lng=${lng} - INCLUINDO MESMO ASSIM`);
-                // Continuar mesmo assim para debug
+            // 4. VALIDAÇÃO GEOGRÁFICA DO BRASIL
+            const noBrasil = (lat >= -35 && lat <= 5 && lng >= -75 && lng <= -30);
+            if (!noBrasil) {
+                console.warn(`🌎 Coordenadas fora do Brasil ${index + 1}: LAT=${lat}, LNG=${lng}`);
+                // 🔧 CONTINUAR MESMO ASSIM PARA DEBUG
             }
             
             // 5. EXTRAIR DESCRIÇÃO (opcional)
@@ -440,22 +443,28 @@ function parseAreasInteresseBatchGeo(kmlText) {
             
             areas.push(area);
             
-            // Log apenas das primeiras 5 para não poluir
-            if (index < 5) {
-                console.log(`✅ Área ${index + 1}: "${name}" - [${lat}, ${lng}]`);
+            // Log detalhado das primeiras 3 áreas
+            if (index < 3) {
+                console.log(`✅ Área ${index + 1}: "${name}"`);
+                console.log(`   → Coordenadas brutas: "${coordsText}"`);
+                console.log(`   → Parseadas: LAT=${lat}, LNG=${lng}`);
+                console.log(`   → No Brasil: ${noBrasil ? '✅' : '❌'}`);
             }
             
         } catch (error) {
             console.warn(`⚠️ Erro ao processar placemark ${index + 1}:`, error);
+            coordenadasInvalidas++;
         }
     });
     
     console.log(`📊 Parser concluído: ${areas.length} áreas válidas de ${placemarks.length} placemarks`);
+    console.log(`❌ ${coordenadasInvalidas} coordenadas inválidas/puladas`);
+    
     return areas;
 }
 
 // =========================================================================
-// 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA - SIMPLIFICADO
+// 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA - COM DEBUG VISUAL
 // =========================================================================
 function addAreasInteresseToMap() {
     if (!areasInteresseData || areasInteresseData.length === 0) {
@@ -481,21 +490,38 @@ function addAreasInteresseToMap() {
     }
     
     let markersAdicionados = 0;
+    let markersComProblema = 0;
+    
+    console.log(`📍 Tentando adicionar ${areasToShow.length} áreas ao mapa`);
     
     areasToShow.forEach((area, index) => {
         try {
+            // 🔧 VERIFICAÇÃO ANTES DE CRIAR O MARCADOR
+            const lat = area.coordinates.lat;
+            const lng = area.coordinates.lng;
+            
+            if (isNaN(lat) || isNaN(lng)) {
+                console.warn(`❌ Coordenadas inválidas: "${area.name}" - LAT=${lat}, LNG=${lng}`);
+                markersComProblema++;
+                return;
+            }
+            
             const marker = createAreaInteresseMarker(area);
             if (marker) {
                 areasInteresseLayer.addLayer(marker);
                 markersAdicionados++;
                 
-                // 🔧 LOG APENAS PARA PRIMEIROS MARCADORES
+                // 🔧 LOG DETALHADO PARA PRIMEIROS MARCADORES
                 if (index < 3) {
-                    console.log(`📍 Marcador criado: "${area.name}" (${area.coordinates.lat}, ${area.coordinates.lng})`);
+                    console.log(`📍 Marcador ${index + 1} criado: "${area.name}"`);
+                    console.log(`   → Posição no mapa: LAT=${lat}, LNG=${lng}`);
                 }
+            } else {
+                markersComProblema++;
             }
         } catch (error) {
             console.warn(`⚠️ Erro ao criar marcador ${index + 1}:`, error);
+            markersComProblema++;
         }
     });
     
@@ -503,20 +529,37 @@ function addAreasInteresseToMap() {
     if (markersAdicionados > 0) {
         areasInteresseLayer.addTo(map);
         console.log(`✅ ${markersAdicionados} áreas adicionadas ao mapa`);
+        if (markersComProblema > 0) {
+            console.warn(`⚠️ ${markersComProblema} marcadores com problemas`);
+        }
+        
+        // 🔧 DEBUG VISUAL: Mostrar bounds das áreas
+        setTimeout(() => {
+            const bounds = areasInteresseLayer.getBounds();
+            if (bounds.isValid()) {
+                console.log('🗺️ Bounds das áreas de interesse:');
+                console.log(`   → Norte: ${bounds.getNorth().toFixed(4)}`);
+                console.log(`   → Sul: ${bounds.getSouth().toFixed(4)}`);
+                console.log(`   → Leste: ${bounds.getEast().toFixed(4)}`);
+                console.log(`   → Oeste: ${bounds.getWest().toFixed(4)}`);
+            }
+        }, 1000);
+        
     } else {
         console.warn('⚠️ Nenhum marcador foi criado com sucesso');
     }
 }
 
 // =========================================================================
-// 🆕 CRIAR MARCADOR SIMPLIFICADO - SEM VALIDAÇÕES EXTRAS
+// 🆕 CRIAR MARCADOR SIMPLIFICADO - CORRIGIDO (SEM INVERSÃO)
 // =========================================================================
 function createAreaInteresseMarker(area) {
     try {
+        // 🔧 GARANTIR QUE AS COORDENADAS ESTEJAM CORRETAS
         const lat = area.coordinates.lat;
         const lng = area.coordinates.lng;
         
-        console.log(`🔍 Criando marcador para "${area.name}": [${lat}, ${lng}]`);
+        console.log(`🔍 Criando marcador para "${area.name}": LAT=${lat}, LNG=${lng}`);
         
         // Verificar se coordenadas são válidas
         if (isNaN(lat) || isNaN(lng)) {
@@ -524,23 +567,23 @@ function createAreaInteresseMarker(area) {
             return null;
         }
         
+        // 🔧 VERIFICAÇÃO EXTRA - coordenadas devem estar no formato correto para Brasil
+        if (lat < -35 || lat > 5 || lng < -75 || lng > -30) {
+            console.warn(`🚨 COORDENADAS SUSPEITAS: "${area.name}" - LAT=${lat}, LNG=${lng}`);
+            console.warn('   Esperado: LAT entre -35 e 5, LNG entre -75 e -30');
+        }
+        
         // Definir cor baseada no modo
         let color, borderColor, icon;
         
         if (isPropostaMode) {
-            if (area.coveringRadios.length > 1) {
-                color = '#3B82F6'; // Azul (múltiplas rádios)
-                borderColor = '#1E40AF';
-                icon = '💎';
-            } else if (area.coveringRadios.length === 1) {
-                color = '#10B981'; // Verde (uma rádio)
-                borderColor = '#059669';
-                icon = '⭐';
-            } else {
-                color = '#EF4444'; // Vermelho (sem cobertura)
-                borderColor = '#DC2626';
-                icon = '⚠️';
-            }
+            // No modo proposta, mostrar todas as áreas (vermelho = sem cobertura)
+            color = '#EF4444'; // Vermelho (sem cobertura)
+            borderColor = '#DC2626';
+            icon = '📍'; // Ícone neutro para todas as áreas
+            
+            // 🔧 REMOVER LÓGICA DE CORES POR COBERTURA POR ENQUANTO
+            // Manter todas as áreas com a mesma cor conforme solicitado
         } else {
             // Modo individual: só mostra áreas cobertas
             color = '#F59E0B'; // Dourado
@@ -567,7 +610,7 @@ function createAreaInteresseMarker(area) {
                         position: absolute;
                         top: -8px;
                         right: -8px;
-                        font-size: 10px;
+                        font-size: 14px;
                     ">${icon}</span>
                 </div>
             `,
@@ -579,17 +622,41 @@ function createAreaInteresseMarker(area) {
         // Criar popup simples
         const popupContent = createAreaInteressePopup(area);
         
-        // 🔧 CRIAR MARCADOR COM COORDENADAS CORRETAS
-        const marker = L.marker([lat, lng], { icon: areaIcon })
-            .bindPopup(popupContent);
+        // 🔧 CRIAR MARCADOR COM COORDENADAS CORRETAS - VERIFICAR ORDEM
+        const marker = L.marker([lat, lng], { 
+            icon: areaIcon,
+            // 🔧 ADICIONAR OPÇÕES PARA EVITAR COMPORTAMENTOS ESTRANHOS
+            keyboard: false,
+            title: area.name,
+            alt: area.name
+        }).bindPopup(popupContent);
         
-        console.log(`✅ Marcador criado para "${area.name}" em [${lat}, ${lng}]`);
+        console.log(`✅ Marcador criado para "${area.name}" em LAT=${lat}, LNG=${lng}`);
         return marker;
         
     } catch (error) {
         console.warn(`⚠️ Erro ao criar marcador para ${area.name}:`, error);
         return null;
     }
+}
+
+// =========================================================================
+// 🆕 CRIAR POPUP PARA ÁREA DE INTERESSE - SIMPLIFICADO
+// =========================================================================
+function createAreaInteressePopup(area) {
+    // 🔧 POPUP SIMPLES APENAS COM INFORMAÇÕES BÁSICAS
+    return `
+        <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
+            <h4 style="margin: 0 0 8px 0; color: #06055B;">📍 ${area.name}</h4>
+            <div style="text-align: left; font-size: 13px; color: #64748B;">
+                ${area.description ? `<p style="margin: 4px 0;"><strong>Descrição:</strong> ${area.description}</p>` : ''}
+                <p style="margin: 4px 0;"><strong>Coordenadas:</strong><br>
+                LAT: ${area.coordinates.lat.toFixed(6)}<br>
+                LNG: ${area.coordinates.lng.toFixed(6)}</p>
+                <p style="margin: 4px 0; color: #EF4444;"><strong>Status:</strong> 🎯 Área de Interesse</p>
+            </div>
+        </div>
+    `;
 }
 
 // =========================================================================
@@ -704,48 +771,6 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
               Math.sin(dLng/2) * Math.sin(dLng/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
-}
-
-// Criar popup para área de interesse
-function createAreaInteressePopup(area) {
-    let coverageInfo = '';
-    
-    if (isPropostaMode) {
-        if (area.coveringRadios.length > 0) {
-            const radiosList = area.coveringRadios.map(r => `📻 ${r.name} (${r.dial})`).join('<br>');
-            coverageInfo = `
-                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;">
-                    <strong>Cobertura:</strong><br>
-                    ${radiosList}
-                </div>
-            `;
-        } else {
-            coverageInfo = `
-                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; color: #EF4444;">
-                    <strong>⚠️ Sem cobertura</strong>
-                </div>
-            `;
-        }
-    } else {
-        // Modo individual
-        coverageInfo = `
-            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; color: #10B981;">
-                <strong>✅ Coberto por:</strong><br>
-                📻 ${radioData.name} (${radioData.dial})
-            </div>
-        `;
-    }
-    
-    return `
-        <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
-            <h4 style="margin: 0 0 8px 0; color: #06055B;">🎯 ${area.name}</h4>
-            <div style="text-align: left; font-size: 13px; color: #64748B;">
-                ${area.description ? `<p style="margin: 4px 0;"><strong>Descrição:</strong> ${area.description}</p>` : ''}
-                <p style="margin: 4px 0;"><strong>Coordenadas:</strong> ${area.coordinates.lat.toFixed(4)}, ${area.coordinates.lng.toFixed(4)}</p>
-                ${coverageInfo}
-            </div>
-        </div>
-    `;
 }
 
 // Funções auxiliares para áreas
