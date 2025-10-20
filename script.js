@@ -38,7 +38,7 @@ async function addStateBorders() {
 }
 
 // =========================================================================
-// 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO COM PROPOSTA MÚLTIPLA
+// 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO COM PROPOSTA MÚLTIPLA + ÁREAS DE INTERESSE
 // =========================================================================
 
 let map;
@@ -56,6 +56,11 @@ let isPropostaMode = false;
 let radiosLayers = {}; // Layer Groups completos de cada rádio (cobertura + antena + cidades)
 let layersControl = null; // Controle de layers dinâmico
 
+// 🆕 VARIÁVEIS PARA ÁREAS DE INTERESSE
+let areasInteresseData = []; // Todas as áreas de interesse
+let areasInteresseLayer = null; // Layer das áreas de interesse
+let filteredAreasInteresse = []; // Áreas filtradas por modo
+
 // 🆕 VARIÁVEIS PARA TELA DE CARREGAMENTO
 let loadingInterval = null;
 const loadingTexts = [
@@ -66,7 +71,9 @@ const loadingTexts = [
     "Contando universo: 1, 2, 3... quase lá!",
     "Sintonizando frequências...",
     "Mapeando cobertura em tempo real...",
-    "Preparando antenas para transmissão..."
+    "Preparando antenas para transmissão...",
+    "🎯 Carregando áreas de interesse...",
+    "📍 Analisando locais prioritários..."
 ];
 
 // =========================================================================
@@ -74,7 +81,7 @@ const loadingTexts = [
 // =========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        console.log('🚀 Iniciando Mapeamento 2.0...');
+        console.log('🚀 Iniciando Mapeamento 2.0 com Áreas de Interesse...');
         
         // 🔍 DETECTAR MODO: INDIVIDUAL OU PROPOSTA
         const params = new URLSearchParams(window.location.search);
@@ -172,6 +179,9 @@ async function initPropostaMode(propostaId) {
     // Carregar dados da proposta
     await loadPropostaData(propostaId);
     
+    // 🆕 BUSCAR E PROCESSAR ÁREAS DE INTERESSE
+    await loadAndProcessAreasInteresse();
+    
     // Configurar interface para proposta ANTES do mapa
     setupPropostaInterface();
     
@@ -186,6 +196,9 @@ async function initPropostaMode(propostaId) {
     requestAnimationFrame(() => {
         addAllRadiosToMap(); // Agora é otimizado com batches
         
+        // 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA
+        addAreasInteresseToMap();
+        
         // 🆕 ESTATÍSTICAS E TELA DE CARREGAMENTO APÓS TUDO PRONTO
         setTimeout(() => {
             setupConsolidatedStats(); // Agora é otimizado
@@ -193,7 +206,7 @@ async function initPropostaMode(propostaId) {
         }, 500);
     });
     
-    console.log('✅ Modo proposta inicializado');
+    console.log('✅ Modo proposta inicializado com áreas de interesse');
 }
 
 // =========================================================================
@@ -203,10 +216,17 @@ async function initIndividualMode(radioId) {
     console.log('📻 Inicializando modo individual...');
     
     await loadRadioData(radioId);
+    
+    // 🆕 BUSCAR E PROCESSAR ÁREAS DE INTERESSE (MODO INDIVIDUAL)
+    await loadAndProcessAreasInteresseIndividual();
+    
     await processFiles(); // Logo será extraída do KMZ automaticamente
     initializeMap();
     renderCities();
     setupSearch();
+    
+    // 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA (MODO INDIVIDUAL)
+    addAreasInteresseToMap();
     
     // 🖼️ ATUALIZAR LOGO NO FINAL (GARANTIR QUE DOM ESTÁ PRONTO)
     setTimeout(() => {
@@ -219,7 +239,433 @@ async function initIndividualMode(radioId) {
         console.log('✅ Tela de carregamento ocultada - modo individual pronto');
     }, 1500);
     
-    console.log('✅ Modo individual inicializado');
+    console.log('✅ Modo individual inicializado com áreas de interesse');
+}
+
+// =========================================================================
+// 🆕 BUSCAR E PROCESSAR ÁREAS DE INTERESSE (MODO PROPOSTA)
+// =========================================================================
+async function loadAndProcessAreasInteresse() {
+    console.log('🎯 Buscando áreas de interesse em todos os registros da proposta...');
+    
+    // Buscar arquivo em qualquer registro da proposta
+    let areasInteresseUrl = null;
+    for (const radio of propostaData.radios) {
+        if (radio.areasInteresse && radio.areasInteresse.length > 0) {
+            // Notion retorna array de arquivos
+            areasInteresseUrl = radio.areasInteresse[0].file?.url || radio.areasInteresse[0].external?.url;
+            if (areasInteresseUrl) {
+                console.log(`🎯 Arquivo de áreas encontrado na rádio: ${radio.name}`);
+                break;
+            }
+        }
+    }
+    
+    if (areasInteresseUrl) {
+        await processAreasInteresseKML(areasInteresseUrl);
+        
+        // 🎯 MODO PROPOSTA: Analisar cobertura para todas as áreas
+        analyzeAreasForProposta();
+    } else {
+        console.log('ℹ️ Nenhum arquivo de áreas de interesse encontrado na proposta');
+        areasInteresseData = [];
+    }
+}
+
+// =========================================================================
+// 🆕 BUSCAR E PROCESSAR ÁREAS DE INTERESSE (MODO INDIVIDUAL)
+// =========================================================================
+async function loadAndProcessAreasInteresseIndividual() {
+    console.log('🎯 Buscando áreas de interesse para modo individual...');
+    
+    // Para modo individual, buscar o arquivo da própria rádio ou de uma proposta relacionada
+    let areasInteresseUrl = null;
+    
+    // Verificar se tem arquivo na própria rádio
+    if (radioData.areasInteresse && radioData.areasInteresse.length > 0) {
+        areasInteresseUrl = radioData.areasInteresse[0].file?.url || radioData.areasInteresse[0].external?.url;
+        console.log('🎯 Arquivo de áreas encontrado na própria rádio');
+    }
+    
+    if (areasInteresseUrl) {
+        await processAreasInteresseKML(areasInteresseUrl);
+        
+        // 🎯 MODO INDIVIDUAL: Filtrar apenas áreas cobertas por esta rádio
+        filterAreasForIndividualRadio();
+    } else {
+        console.log('ℹ️ Nenhum arquivo de áreas de interesse encontrado');
+        areasInteresseData = [];
+        filteredAreasInteresse = [];
+    }
+}
+
+// =========================================================================
+// 🆕 PROCESSAR ARQUIVO KML DAS ÁREAS DE INTERESSE
+// =========================================================================
+async function processAreasInteresseKML(kmlUrl) {
+    try {
+        console.log('🎯 Processando KML de áreas de interesse:', kmlUrl);
+        
+        // Buscar arquivo via proxy (igual aos outros KMLs)
+        const response = await fetch(`/api/proxy?url=${encodeURIComponent(kmlUrl)}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const kmlText = await response.text();
+        console.log('📄 KML de áreas baixado, tamanho:', kmlText.length);
+        
+        // Parsear áreas de interesse
+        areasInteresseData = await parseAreasInteresseKML(kmlText);
+        
+        console.log(`✅ ${areasInteresseData.length} áreas de interesse processadas`);
+        
+    } catch (error) {
+        console.error('❌ Erro ao processar KML de áreas de interesse:', error);
+        areasInteresseData = [];
+    }
+}
+
+// =========================================================================
+// 🆕 PARSER KML PARA ÁREAS DE INTERESSE
+// =========================================================================
+async function parseAreasInteresseKML(kmlText) {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
+    const placemarks = xmlDoc.querySelectorAll('Placemark');
+    
+    console.log(`🎯 Encontrados ${placemarks.length} placemarks de áreas de interesse`);
+    
+    const areas = [];
+    
+    placemarks.forEach((placemark, index) => {
+        const name = placemark.querySelector('name')?.textContent || `Área ${index + 1}`;
+        const description = placemark.querySelector('description')?.textContent || '';
+        
+        // Buscar coordenadas (Point ou Polygon)
+        let coordinates = null;
+        
+        // Tentar Point primeiro
+        const pointCoords = placemark.querySelector('Point coordinates')?.textContent;
+        if (pointCoords) {
+            const coords = pointCoords.trim().split(',');
+            coordinates = {
+                type: 'point',
+                lat: parseFloat(coords[1]),
+                lng: parseFloat(coords[0])
+            };
+        } else {
+            // Tentar Polygon
+            const polygonCoords = placemark.querySelector('Polygon coordinates')?.textContent;
+            if (polygonCoords) {
+                const coordsArray = polygonCoords.trim().split(' ').map(coord => {
+                    const [lng, lat] = coord.split(',');
+                    return [parseFloat(lat), parseFloat(lng)];
+                });
+                
+                // Para polígonos, usar o centro
+                const bounds = L.latLngBounds(coordsArray);
+                const center = bounds.getCenter();
+                
+                coordinates = {
+                    type: 'polygon',
+                    lat: center.lat,
+                    lng: center.lng,
+                    polygon: coordsArray
+                };
+            }
+        }
+        
+        if (coordinates && name) {
+            // Extrair informações adicionais da descrição se houver
+            const area = {
+                name: name.trim(),
+                description: description.trim(),
+                coordinates: coordinates,
+                type: extractAreaType(name, description),
+                priority: extractAreaPriority(name, description),
+                covered: false,
+                coveringRadios: []
+            };
+            
+            areas.push(area);
+            console.log(`📍 Área processada: ${name} (${coordinates.type})`);
+        }
+    });
+    
+    return areas;
+}
+
+// =========================================================================
+// 🆕 EXTRAIR TIPO E PRIORIDADE DAS ÁREAS
+// =========================================================================
+function extractAreaType(name, description) {
+    const nameDesc = (name + ' ' + description).toLowerCase();
+    
+    if (nameDesc.includes('shopping') || nameDesc.includes('mall')) return 'shopping';
+    if (nameDesc.includes('escola') || nameDesc.includes('universidade')) return 'educacao';
+    if (nameDesc.includes('hospital') || nameDesc.includes('clinica')) return 'saude';
+    if (nameDesc.includes('centro') || nameDesc.includes('comercial')) return 'comercial';
+    if (nameDesc.includes('industrial') || nameDesc.includes('fabrica')) return 'industrial';
+    if (nameDesc.includes('residencial') || nameDesc.includes('bairro')) return 'residencial';
+    
+    return 'geral';
+}
+
+function extractAreaPriority(name, description) {
+    const nameDesc = (name + ' ' + description).toLowerCase();
+    
+    if (nameDesc.includes('alta') || nameDesc.includes('priority') || nameDesc.includes('importante')) return 'alta';
+    if (nameDesc.includes('baixa') || nameDesc.includes('secundar')) return 'baixa';
+    
+    return 'media';
+}
+
+// =========================================================================
+// 🆕 ANALISAR ÁREAS PARA MODO PROPOSTA
+// =========================================================================
+function analyzeAreasForProposta() {
+    console.log('🎯 Analisando cobertura das áreas para modo proposta...');
+    
+    areasInteresseData.forEach(area => {
+        area.coveringRadios = [];
+        area.covered = false;
+        
+        // Verificar cobertura por cada rádio da proposta
+        propostaData.radios.forEach(radio => {
+            if (isAreaCoveredByRadio(area, radio)) {
+                area.coveringRadios.push(radio);
+                area.covered = true;
+            }
+        });
+        
+        console.log(`📍 ${area.name}: ${area.coveringRadios.length} rádio(s) cobrindo`);
+    });
+    
+    const cobertas = areasInteresseData.filter(a => a.covered).length;
+    console.log(`✅ Análise completa: ${cobertas}/${areasInteresseData.length} áreas cobertas`);
+}
+
+// =========================================================================
+// 🆕 FILTRAR ÁREAS PARA MODO INDIVIDUAL
+// =========================================================================
+function filterAreasForIndividualRadio() {
+    console.log('🎯 Filtrando áreas cobertas pela rádio individual...');
+    
+    filteredAreasInteresse = areasInteresseData.filter(area => {
+        const covered = isAreaCoveredByRadio(area, radioData);
+        if (covered) {
+            area.covered = true;
+            area.coveringRadios = [radioData];
+        }
+        return covered;
+    });
+    
+    console.log(`✅ ${filteredAreasInteresse.length}/${areasInteresseData.length} áreas cobertas por esta rádio`);
+}
+
+// =========================================================================
+// 🆕 VERIFICAR SE ÁREA ESTÁ COBERTA POR RÁDIO
+// =========================================================================
+function isAreaCoveredByRadio(area, radio) {
+    // Verificar se a área está dentro da imagem de cobertura
+    if (radio.coverageImage && radio.coverageImage.bounds) {
+        const bounds = L.latLngBounds(radio.coverageImage.bounds);
+        const areaLatLng = L.latLng(area.coordinates.lat, area.coordinates.lng);
+        return bounds.contains(areaLatLng);
+    }
+    
+    // Se não tem imagem de cobertura, verificar por proximidade com cidades cobertas
+    if (radio.citiesData && radio.citiesData.length > 0) {
+        const maxDistance = 50; // km
+        
+        for (const city of radio.citiesData) {
+            const distance = calculateDistance(
+                area.coordinates.lat, area.coordinates.lng,
+                city.coordinates.lat, city.coordinates.lng
+            );
+            
+            if (distance <= maxDistance) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+// =========================================================================
+// 🆕 CALCULAR DISTÂNCIA ENTRE PONTOS (HAVERSINE)
+// =========================================================================
+function calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371; // Raio da Terra em km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// =========================================================================
+// 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA
+// =========================================================================
+function addAreasInteresseToMap() {
+    if (!areasInteresseData || areasInteresseData.length === 0) {
+        console.log('ℹ️ Nenhuma área de interesse para adicionar ao mapa');
+        return;
+    }
+    
+    console.log('🎯 Adicionando áreas de interesse ao mapa...');
+    
+    // Criar layer group para áreas de interesse
+    areasInteresseLayer = L.layerGroup();
+    
+    const areasToShow = isPropostaMode ? areasInteresseData : filteredAreasInteresse;
+    
+    areasToShow.forEach(area => {
+        const marker = createAreaInteresseMarker(area);
+        areasInteresseLayer.addLayer(marker);
+    });
+    
+    // Adicionar ao mapa
+    areasInteresseLayer.addTo(map);
+    
+    console.log(`✅ ${areasToShow.length} áreas de interesse adicionadas ao mapa`);
+}
+
+// =========================================================================
+// 🆕 CRIAR MARCADOR PARA ÁREA DE INTERESSE
+// =========================================================================
+function createAreaInteresseMarker(area) {
+    // Definir cor baseada na cobertura e modo
+    let color, borderColor, icon;
+    
+    if (isPropostaMode) {
+        if (area.coveringRadios.length > 1) {
+            color = '#3B82F6'; // Azul (múltiplas rádios)
+            borderColor = '#1E40AF';
+            icon = '💎';
+        } else if (area.coveringRadios.length === 1) {
+            color = '#10B981'; // Verde (uma rádio)
+            borderColor = '#059669';
+            icon = '⭐';
+        } else {
+            color = '#EF4444'; // Vermelho (sem cobertura)
+            borderColor = '#DC2626';
+            icon = '⚠️';
+        }
+    } else {
+        // Modo individual: só mostra áreas cobertas
+        color = '#F59E0B'; // Dourado
+        borderColor = '#D97706';
+        icon = '🎯';
+    }
+    
+    const areaIcon = L.divIcon({
+        html: `
+            <div style="
+                width: 24px;
+                height: 24px;
+                background: ${color};
+                border: 3px solid ${borderColor};
+                border-radius: 50%;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                position: relative;
+            ">
+                <span style="
+                    position: absolute;
+                    top: -8px;
+                    right: -8px;
+                    font-size: 10px;
+                ">${icon}</span>
+            </div>
+        `,
+        className: 'area-interesse-marker',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+    });
+    
+    // Criar popup
+    const popupContent = createAreaInteressePopup(area);
+    
+    const marker = L.marker([area.coordinates.lat, area.coordinates.lng], { icon: areaIcon })
+        .bindPopup(popupContent);
+    
+    return marker;
+}
+
+// =========================================================================
+// 🆕 CRIAR POPUP PARA ÁREA DE INTERESSE
+// =========================================================================
+function createAreaInteressePopup(area) {
+    let coverageInfo = '';
+    
+    if (isPropostaMode) {
+        if (area.coveringRadios.length > 0) {
+            const radiosList = area.coveringRadios.map(r => `📻 ${r.name} (${r.dial})`).join('<br>');
+            coverageInfo = `
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;">
+                    <strong>Cobertura:</strong><br>
+                    ${radiosList}
+                </div>
+            `;
+        } else {
+            coverageInfo = `
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; color: #EF4444;">
+                    <strong>⚠️ Sem cobertura</strong>
+                </div>
+            `;
+        }
+    } else {
+        // Modo individual
+        coverageInfo = `
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; color: #10B981;">
+                <strong>✅ Coberto por:</strong><br>
+                📻 ${radioData.name} (${radioData.dial})
+            </div>
+        `;
+    }
+    
+    return `
+        <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
+            <h4 style="margin: 0 0 8px 0; color: #06055B;">🎯 ${area.name}</h4>
+            <div style="text-align: left; font-size: 13px; color: #64748B;">
+                ${area.description ? `<p style="margin: 4px 0;"><strong>Descrição:</strong> ${area.description}</p>` : ''}
+                <p style="margin: 4px 0;"><strong>Tipo:</strong> ${getAreaTypeText(area.type)}</p>
+                <p style="margin: 4px 0;"><strong>Prioridade:</strong> ${getAreaPriorityText(area.priority)}</p>
+                ${coverageInfo}
+            </div>
+        </div>
+    `;
+}
+
+// =========================================================================
+// 🆕 FUNÇÕES AUXILIARES PARA ÁREAS
+// =========================================================================
+function getAreaTypeText(type) {
+    const types = {
+        'shopping': '🛍️ Shopping',
+        'educacao': '🎓 Educação',
+        'saude': '🏥 Saúde',
+        'comercial': '🏢 Comercial',
+        'industrial': '🏭 Industrial',
+        'residencial': '🏘️ Residencial',
+        'geral': '📍 Geral'
+    };
+    return types[type] || '📍 Geral';
+}
+
+function getAreaPriorityText(priority) {
+    const priorities = {
+        'alta': '🔴 Alta',
+        'media': '🟡 Média',
+        'baixa': '🟢 Baixa'
+    };
+    return priorities[priority] || '🟡 Média';
 }
 
 // =========================================================================
@@ -826,7 +1272,7 @@ function createCityMarker(city, radio) {
 }
 
 // =========================================================================
-// 🎛️ CONFIGURAR CONTROLE DE LAYERS PARA PROPOSTA - COM DEBUG
+// 🎛️ CONFIGURAR CONTROLE DE LAYERS PARA PROPOSTA - COM DEBUG + ÁREAS INTERESSE
 // =========================================================================
 function setupLayersControlForProposta() {
     // Overlays para controle de coberturas
@@ -846,6 +1292,12 @@ function setupLayersControlForProposta() {
         }
     });
     
+    // 🆕 ADICIONAR ÁREAS DE INTERESSE SE EXISTIREM
+    if (areasInteresseLayer && areasInteresseData.length > 0) {
+        overlays[`🎯 Áreas de Interesse (${areasInteresseData.length})`] = areasInteresseLayer;
+        console.log(`✅ Layer de áreas de interesse adicionado: ${areasInteresseData.length} pontos`);
+    }
+    
     console.log(`📊 Total de overlays configurados: ${Object.keys(overlays).length}`);
     
     // Criar controle de layers completo
@@ -858,11 +1310,11 @@ function setupLayersControlForProposta() {
         collapsed: false
     }).addTo(map);
     
-    console.log('✅ Controle de layers configurado para proposta');
+    console.log('✅ Controle de layers configurado para proposta com áreas de interesse');
 }
 
 // =========================================================================
-// 🗺️ AJUSTAR ZOOM PARA PROPOSTA
+// 🗺️ AJUSTAR ZOOM PARA PROPOSTA - INCLUIR ÁREAS DE INTERESSE
 // =========================================================================
 function fitMapBoundsForProposta() {
     const bounds = L.latLngBounds();
@@ -889,6 +1341,14 @@ function fitMapBoundsForProposta() {
             hasData = true;
         }
     });
+    
+    // 🆕 ADICIONAR ÁREAS DE INTERESSE AOS BOUNDS
+    if (areasInteresseData && areasInteresseData.length > 0) {
+        areasInteresseData.forEach(area => {
+            bounds.extend([area.coordinates.lat, area.coordinates.lng]);
+            hasData = true;
+        });
+    }
     
     if (hasData && bounds.isValid()) {
         map.fitBounds(bounds, { padding: [50, 50] });
@@ -949,7 +1409,15 @@ function updateHeaderProposta() {
     if (radioInfo) {
         const radiosCount = propostaData.proposta.totalRadios;
         const estadosCount = propostaData.summary.estados.length;
-        radioInfo.textContent = `${radiosCount} rádios • ${estadosCount} estados • ${propostaData.proposta.title}`;
+        const areasCount = areasInteresseData ? areasInteresseData.length : 0;
+        
+        let infoText = `${radiosCount} rádios • ${estadosCount} estados`;
+        if (areasCount > 0) {
+            infoText += ` • ${areasCount} áreas de interesse`;
+        }
+        infoText += ` • ${propostaData.proposta.title}`;
+        
+        radioInfo.textContent = infoText;
     }
     
     // 🔧 FORÇAR REMOÇÃO COMPLETA DA LOGO
@@ -970,7 +1438,7 @@ function updateHeaderProposta() {
 }
 
 // =========================================================================
-// 📊 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS - 🚀 OTIMIZADO PARA PERFORMANCE
+// 📊 CONFIGURAR ESTATÍSTICAS CONSOLIDADAS - 🚀 OTIMIZADO PARA PERFORMANCE + ÁREAS INTERESSE
 // =========================================================================
 function setupConsolidatedStats() {
     console.log('📊 Configurando estatísticas consolidadas...');
@@ -994,6 +1462,10 @@ function calculateStatsWhenIdle() {
     let totalCoveredPopulation = 0;
     let radiosWithKmz = 0;
     let radiosWithKml = 0;
+    
+    // 🆕 ESTATÍSTICAS DE ÁREAS DE INTERESSE
+    let totalAreas = areasInteresseData ? areasInteresseData.length : 0;
+    let coveredAreas = 0;
     
     // 🚀 PROCESSAR EM BATCHES PEQUENOS PARA NÃO TRAVAR (MAS SEM PERDER DADOS)
     let processedRadios = 0;
@@ -1032,8 +1504,13 @@ function calculateStatsWhenIdle() {
             // 🚀 USAR requestAnimationFrame para próximo batch
             requestAnimationFrame(processBatch);
         } else {
+            // 🆕 CALCULAR ÁREAS DE INTERESSE COBERTAS
+            if (areasInteresseData) {
+                coveredAreas = areasInteresseData.filter(area => area.covered).length;
+            }
+            
             // Finalizar e renderizar
-            finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalCoveredPopulation, radiosWithKmz, radiosWithKml);
+            finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalCoveredPopulation, radiosWithKmz, radiosWithKml, totalAreas, coveredAreas);
         }
     }
     
@@ -1041,8 +1518,9 @@ function calculateStatsWhenIdle() {
     processBatch();
 }
 
-function finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalCoveredPopulation, radiosWithKmz, radiosWithKml) {
+function finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalCoveredPopulation, radiosWithKmz, radiosWithKml, totalAreas, coveredAreas) {
     const coveragePercent = totalPopulation > 0 ? ((totalCoveredPopulation / totalPopulation) * 100).toFixed(1) : 0;
+    const areasPercent = totalAreas > 0 ? ((coveredAreas / totalAreas) * 100).toFixed(1) : 0;
     
     console.log('📊 Estatísticas calculadas:', {
         totalRadios,
@@ -1051,13 +1529,16 @@ function finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalC
         totalCoveredPopulation,
         coveragePercent,
         radiosWithKmz,
-        radiosWithKml
+        radiosWithKml,
+        totalAreas,
+        coveredAreas,
+        areasPercent
     });
     
     // Renderizar estatísticas
     const statsGrid = document.getElementById('stats-grid');
     if (statsGrid) {
-        statsGrid.innerHTML = `
+        let statsHTML = `
             <div class="stat-card">
                 <div class="stat-card-title">📻 Total de Rádios</div>
                 <div class="stat-card-value">${totalRadios}</div>
@@ -1083,10 +1564,22 @@ function finalizarEstatisticas(totalRadios, totalCities, totalPopulation, totalC
             </div>
         `;
         
+        // 🆕 ADICIONAR CARD DE ÁREAS DE INTERESSE SE EXISTIREM
+        if (totalAreas > 0) {
+            statsHTML += `
+                <div class="stat-card stat-card-areas">
+                    <div class="stat-card-title">🎯 Áreas de Interesse</div>
+                    <div class="stat-card-value">${coveredAreas}/${totalAreas}</div>
+                    <div class="stat-card-detail">${areasPercent}% atendidas</div>
+                </div>
+            `;
+        }
+        
+        statsGrid.innerHTML = statsHTML;
         document.getElementById('stats-section').style.display = 'block';
     }
     
-    console.log('✅ Estatísticas consolidadas configuradas (dados completos + performance otimizada)');
+    console.log('✅ Estatísticas consolidadas configuradas (dados completos + performance otimizada + áreas de interesse)');
 }
 
 // =========================================================================
@@ -1765,10 +2258,10 @@ function getQualityColor(quality) {
 }
 
 // =========================================================================
-// 🗺️ AJUSTAR ZOOM DO MAPA (MODO INDIVIDUAL)
+// 🗺️ AJUSTAR ZOOM DO MAPA (MODO INDIVIDUAL) - INCLUIR ÁREAS DE INTERESSE
 // =========================================================================
 function fitMapBounds() {
-    if (citiesData.length === 0 && !radioData.antennaLocation && !radioData.coverageImage) return;
+    if (citiesData.length === 0 && !radioData.antennaLocation && !radioData.coverageImage && filteredAreasInteresse.length === 0) return;
     
     const bounds = L.latLngBounds();
     
@@ -1787,19 +2280,39 @@ function fitMapBounds() {
         bounds.extend(radioData.coverageImage.bounds);
     }
     
+    // 🆕 ADICIONAR ÁREAS DE INTERESSE (MODO INDIVIDUAL)
+    if (filteredAreasInteresse && filteredAreasInteresse.length > 0) {
+        filteredAreasInteresse.forEach(area => {
+            bounds.extend([area.coordinates.lat, area.coordinates.lng]);
+        });
+    }
+    
     if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [50, 50] });
     }
 }
 
 // =========================================================================
-// 🏙️ RENDERIZAR LISTA DE CIDADES (MODO INDIVIDUAL)
+// 🏙️ RENDERIZAR LISTA DE CIDADES (MODO INDIVIDUAL) - INCLUIR ÁREAS DE INTERESSE
 // =========================================================================
 function renderCities() {
     filteredCities = [...citiesData];
     updateCitiesList();
     
     document.getElementById('cidade-count').textContent = citiesData.length;
+    
+    // 🆕 ATUALIZAR TÍTULO SE HAS ÁREAS DE INTERESSE
+    if (filteredAreasInteresse && filteredAreasInteresse.length > 0) {
+        const cidadesTitle = document.querySelector('.cidades-title');
+        if (cidadesTitle) {
+            cidadesTitle.innerHTML = `
+                🏙️ Cidades de Cobertura
+                <span class="cidade-count" id="cidade-count">${citiesData.length}</span>
+                • 🎯 ${filteredAreasInteresse.length} áreas de interesse
+            `;
+        }
+    }
+    
     document.getElementById('cidades-section').style.display = 'block';
 }
 
@@ -1880,9 +2393,10 @@ function highlightCity(cityName) {
 }
 
 // =========================================================================
-// 📊 EXPORTAR PARA EXCEL (MODO INDIVIDUAL)
+// 📊 EXPORTAR PARA EXCEL (MODO INDIVIDUAL) - INCLUIR ÁREAS DE INTERESSE
 // =========================================================================
 function exportToExcel() {
+    // Dados das cidades (planilha principal)
     const excelData = [
         ['Cidade', 'UF', 'População Total', 'População Coberta', '% Cobertura', 'Qualidade']
     ];
@@ -1898,8 +2412,8 @@ function exportToExcel() {
         ]);
     });
     
-    const ws = XLSX.utils.aoa_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(excelData);
     
     // Larguras das colunas
     ws['!cols'] = [
@@ -1912,6 +2426,34 @@ function exportToExcel() {
     ];
     
     XLSX.utils.book_append_sheet(wb, ws, 'Cidades de Cobertura');
+    
+    // 🆕 ADICIONAR PLANILHA DE ÁREAS DE INTERESSE SE EXISTIREM
+    if (filteredAreasInteresse && filteredAreasInteresse.length > 0) {
+        const areasData = [
+            ['Área de Interesse', 'Tipo', 'Prioridade', 'Cobertura', 'Descrição']
+        ];
+        
+        filteredAreasInteresse.forEach(area => {
+            areasData.push([
+                area.name || '',
+                getAreaTypeText(area.type),
+                getAreaPriorityText(area.priority),
+                area.covered ? 'Sim' : 'Não',
+                area.description || ''
+            ]);
+        });
+        
+        const wsAreas = XLSX.utils.aoa_to_sheet(areasData);
+        wsAreas['!cols'] = [
+            { wch: 35 }, // Área
+            { wch: 15 }, // Tipo
+            { wch: 12 }, // Prioridade
+            { wch: 12 }, // Cobertura
+            { wch: 40 }  // Descrição
+        ];
+        
+        XLSX.utils.book_append_sheet(wb, wsAreas, 'Áreas de Interesse');
+    }
     
     const fileName = `${radioData.name || 'cobertura'}_mapeamento_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
@@ -1960,7 +2502,8 @@ function processNotionIcon() {
     }
     
     // 🖼️ FALLBACK PARA CAMPO IMAGEM SE NÃO TEM ÍCONE
-    if (!radioData.notionIconUrl && radioData.imageUrl && !radioData.imageUrl.includes('placeholder')) {radioData.notionIconUrl = radioData.imageUrl;
+    if (!radioData.notionIconUrl && radioData.imageUrl && !radioData.imageUrl.includes('placeholder')) {
+        radioData.notionIconUrl = radioData.imageUrl;
         console.log('✅ Usando campo Imagem como fallback:', radioData.notionIconUrl);
     }
 }
@@ -1975,7 +2518,14 @@ function updateHeaderBasic() {
     }
     
     if (radioInfo) {
-        radioInfo.textContent = `${radioData.dial || ''} • ${radioData.praca || ''} - ${radioData.uf || ''}`;
+        let infoText = `${radioData.dial || ''} • ${radioData.praca || ''} - ${radioData.uf || ''}`;
+        
+        // 🆕 INCLUIR ÁREAS DE INTERESSE NO HEADER INDIVIDUAL
+        if (filteredAreasInteresse && filteredAreasInteresse.length > 0) {
+            infoText += ` • ${filteredAreasInteresse.length} áreas de interesse cobertas`;
+        }
+        
+        radioInfo.textContent = infoText;
     }
     
     console.log('✅ Header básico atualizado');
