@@ -2062,6 +2062,95 @@ function toggleRadioCoverage(radioId) {
 function focusOnRadio(radioId) {
     if (typeof highlightRadio !== 'undefined') {
         highlightRadio(radioId);
+}
+
+// =========================================================================
+// CONTROLES DO PAINEL DE RÁDIOS (MODO PROPOSTA)
+// =========================================================================
+
+function toggleRadiosPanel() {
+    const panel = document.getElementById('radios-panel-content');
+    if (panel) {
+        const isVisible = panel.style.display !== 'none';
+        panel.style.display = isVisible ? 'none' : 'block';
+    }
+}
+
+function showAllCoverages() {
+    if (typeof radiosLayers !== 'undefined') {
+        const layersArray = Object.values(radiosLayers);
+        let index = 0;
+        
+        function processNext() {
+            if (index < layersArray.length) {
+                const layerGroup = layersArray[index];
+                if (!map.hasLayer(layerGroup)) {
+                    layerGroup.addTo(map);
+                }
+                layerGroup.setOpacity && layerGroup.setOpacity(0.6);
+                index++;
+                
+                if (index % 3 === 0) {
+                    requestAnimationFrame(processNext);
+                } else {
+                    processNext();
+                }
+            } else {
+                console.log('✅ Todas as coberturas mostradas');
+            }
+        }
+        
+        processNext();
+    }
+}
+
+function hideAllCoverages() {
+    if (typeof radiosLayers !== 'undefined') {
+        const layersArray = Object.values(radiosLayers);
+        let index = 0;
+        
+        function processNext() {
+            if (index < layersArray.length) {
+                const layerGroup = layersArray[index];
+                if (map.hasLayer(layerGroup)) {
+                    map.removeLayer(layerGroup);
+                }
+                index++;
+                
+                if (index % 5 === 0) {
+                    requestAnimationFrame(processNext);
+                } else {
+                    processNext();
+                }
+            } else {
+                console.log('👁️ Todas as coberturas ocultadas');
+            }
+        }
+        
+        processNext();
+    }
+}
+
+function toggleRadioCoverage(radioId) {
+    if (typeof radiosLayers !== 'undefined' && radiosLayers[radioId]) {
+        const layerGroup = radiosLayers[radioId];
+        const checkbox = document.getElementById(`radio-${radioId}`);
+        
+        if (map.hasLayer(layerGroup)) {
+            map.removeLayer(layerGroup);
+            if (checkbox) checkbox.checked = false;
+            console.log(`👁️ Grupo de ${radioId} ocultado`);
+        } else {
+            layerGroup.addTo(map);
+            if (checkbox) checkbox.checked = true;
+            console.log(`✅ Grupo de ${radioId} mostrado`);
+        }
+    }
+}
+
+function focusOnRadio(radioId) {
+    if (typeof highlightRadio !== 'undefined') {
+        highlightRadio(radioId);
     }
 }
 
@@ -2102,6 +2191,7 @@ function highlightRadio(radioId) {
             }
         });
     }
+}
         });
     }
     
