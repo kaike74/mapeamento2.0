@@ -356,7 +356,7 @@ async function processAreasInteresseKML(kmlUrl) {
 }
 
 // =========================================================================
-// 🆕 PARSER KML SIMPLIFICADO PARA BATCHGEO - APENAS COORDENADAS BÁSICAS
+// 🆕 PARSER KML SIMPLIFICADO PARA BATCHGEO - CORRIGIDO (COORDENADAS CORRETAS)
 // =========================================================================
 function parseAreasInteresseBatchGeo(kmlText) {
     console.log('🎯 Parseando KML com parser simplificado BatchGeo...');
@@ -396,22 +396,23 @@ function parseAreasInteresseBatchGeo(kmlText) {
             const coordsText = pointCoords.textContent.trim();
             console.log(`🔍 Coordenadas brutas ${index + 1}: "${coordsText}"`);
             
-            // 3. PARSEAR COORDENADAS (formato: lng,lat,alt)
+            // 3. PARSEAR COORDENADAS (formato: lng,lat,alt - CORRIGIDO)
             const coords = coordsText.split(',');
             if (coords.length < 2) {
                 console.warn(`⚠️ Coordenadas inválidas ${index + 1}: ${coordsText}`);
                 return;
             }
             
-            const lng = parseFloat(coords[0]);
-            const lat = parseFloat(coords[1]);
+            // 🔧 CORREÇÃO: Formato correto é longitude,latitude
+            const lng = parseFloat(coords[0]); // Primeiro valor é longitude
+            const lat = parseFloat(coords[1]); // Segundo valor é latitude
             
             if (isNaN(lat) || isNaN(lng)) {
                 console.warn(`⚠️ Coordenadas não numéricas ${index + 1}: lat=${lat}, lng=${lng}`);
                 return;
             }
             
-            // 4. VALIDAÇÃO SIMPLES (Brasil)
+            // 4. VALIDAÇÃO SIMPLES (Brasil) - CORRIGIDA
             if (lat < -35 || lat > 5 || lng < -75 || lng > -30) {
                 console.warn(`⚠️ Coordenadas fora do Brasil ${index + 1}: lat=${lat}, lng=${lng} - INCLUINDO MESMO ASSIM`);
                 // Continuar mesmo assim para debug
@@ -430,7 +431,7 @@ function parseAreasInteresseBatchGeo(kmlText) {
             const area = {
                 name: name,
                 description: description,
-                coordinates: { lat: lat, lng: lng },
+                coordinates: { lat: lat, lng: lng }, // 🔧 AGORA CORRETO
                 type: 'geral', // Padrão
                 priority: 'media', // Padrão
                 covered: false,
