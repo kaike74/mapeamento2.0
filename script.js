@@ -364,105 +364,71 @@ function parseAreasInteresseBatchGeo(kmlText) {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
     
-    // 🔧 BUSCAR TODOS OS PLACEMARKS
     const placemarks = xmlDoc.querySelectorAll('Placemark');
     console.log(`🎯 Encontrados ${placemarks.length} placemarks no KML`);
     
     const areas = [];
-    let coordenadasInvalidas = 0;
     
     placemarks.forEach((placemark, index) => {
         try {
-            // 1. EXTRAIR NOME (múltiplas estratégias)
             let name = '';
-            
             const nameEl = placemark.querySelector('name');
-            const addressEl = placemark.querySelector('address');
-            
             if (nameEl && nameEl.textContent.trim()) {
                 name = nameEl.textContent.trim();
-            } else if (addressEl && addressEl.textContent.trim()) {
-                name = addressEl.textContent.trim();
             } else {
                 name = `Área ${index + 1}`;
             }
             
-            // 2. EXTRAIR COORDENADAS (estratégia única para Point)
             const pointCoords = placemark.querySelector('Point coordinates');
             if (!pointCoords) {
-                console.warn(`⚠️ Placemark ${index + 1} sem Point coordinates`);
-                return; // Pular este placemark
+                return;
             }
             
             const coordsText = pointCoords.textContent.trim();
-            
-            // 3. PARSEAR COORDENADAS (formato: lng,lat,alt - CORRIGIDO)
             const coords = coordsText.split(',');
+            
             if (coords.length < 2) {
-                console.warn(`⚠️ Coordenadas inválidas ${index + 1}: ${coordsText}`);
-                coordenadasInvalidas++;
                 return;
             }
             
-            // 🔧 CORREÇÃO: Formato correto é longitude,latitude
-            const lng = parseFloat(coords[0]); // Primeiro valor é longitude
-            const lat = parseFloat(coords[1]); // Segundo valor é latitude
+            const lng = parseFloat(coords[0]);
+            const lat = parseFloat(coords[1]);
             
             if (isNaN(lat) || isNaN(lng)) {
-                console.warn(`⚠️ Coordenadas não numéricas ${index + 1}: lat=${lat}, lng=${lng}`);
-                coordenadasInvalidas++;
                 return;
             }
             
-            // 4. VALIDAÇÃO GEOGRÁFICA DO BRASIL
-            const noBrasil = (lat >= -35 && lat <= 5 && lng >= -75 && lng <= -30);
-            if (!noBrasil) {
-                console.warn(`🌎 Coordenadas fora do Brasil ${index + 1}: LAT=${lat}, LNG=${lng}`);
-                // 🔧 CONTINUAR MESMO ASSIM PARA DEBUG
-            }
-            
-            // 5. EXTRAIR DESCRIÇÃO (opcional)
             let description = '';
             const descEl = placemark.querySelector('description');
             if (descEl) {
                 description = descEl.textContent.trim();
-                // Remover HTML se houver
                 description = description.replace(/<[^>]*>/g, '').trim();
             }
             
-            // 6. CRIAR OBJETO DA ÁREA
             const area = {
                 name: name,
                 description: description,
-                coordinates: { lat: lat, lng: lng }, // 🔧 AGORA CORRETO
-                type: 'geral', // Padrão
-                priority: 'media', // Padrão
+                coordinates: { lat: lat, lng: lng },
+                type: 'geral',
+                priority: 'media',
                 covered: false,
                 coveringRadios: []
             };
             
             areas.push(area);
             
-            // Log detalhado das primeiras 3 áreas
             if (index < 3) {
-                console.log(`✅ Área ${index + 1}: "${name}"`);
-                console.log(`   → Coordenadas brutas: "${coordsText}"`);
-                console.log(`   → Parseadas: LAT=${lat}, LNG=${lng}`);
-                console.log(`   → No Brasil: ${noBrasil ? '✅' : '❌'}`);
+                console.log(`✅ Área ${index + 1}: "${name}" - LAT: ${lat}, LNG: ${lng}`);
             }
             
         } catch (error) {
             console.warn(`⚠️ Erro ao processar placemark ${index + 1}:`, error);
-            coordenadasInvalidas++;
         }
     });
     
-    console.log(`📊 Parser concluído: ${areas.length} áreas válidas de ${placemarks.length} placemarks`);
-    console.log(`❌ ${coordenadasInvalidas} coordenadas inválidas/puladas`);
-    
+    console.log(`📊 Parser concluído: ${areas.length} áreas válidas`);
     return areas;
 }
-
 // =========================================================================
 // 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA - COM DEBUG VISUAL
 // =========================================================================
