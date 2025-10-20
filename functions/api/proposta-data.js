@@ -1,5 +1,5 @@
 // =========================================================================
-// 📡 CLOUDFLARE PAGES FUNCTION - PROPOSTA DATA API - MÚLTIPLAS RÁDIOS + ÁREAS DE INTERESSE
+// 📡 CLOUDFLARE PAGES FUNCTION - PROPOSTA DATA API - CORRIGIDO PARA ÁREAS DE INTERESSE
 // =========================================================================
 
 export async function onRequest(context) {
@@ -86,19 +86,30 @@ export async function onRequest(context) {
     
     console.log(`📊 Encontrados ${notionData.results.length} registros na proposta`);
     
-    // Processar cada rádio da proposta
+    // Processar cada rádio da proposta - LOGS SIMPLIFICADOS
     const radiosData = [];
+    let processedCount = 0;
+    let errorCount = 0;
     
     for (const radioPage of notionData.results) {
       try {
         const processedRadio = await processRadioData(radioPage);
         radiosData.push(processedRadio);
-        console.log(`✅ Rádio processada: ${processedRadio.name}`);
+        processedCount++;
+        
+        // 🔧 LOG SIMPLIFICADO A CADA 10 RÁDIOS
+        if (processedCount % 10 === 0) {
+          console.log(`📊 Processadas ${processedCount}/${notionData.results.length} rádios`);
+        }
+        
       } catch (error) {
-        console.warn(`⚠️ Erro ao processar rádio ${radioPage.id}:`, error.message);
+        console.warn(`⚠️ Erro na rádio ${radioPage.id}:`, error.message);
+        errorCount++;
         // Continuar com as outras rádios mesmo se uma falhar
       }
     }
+
+    console.log(`✅ Processamento concluído: ${processedCount} sucessos, ${errorCount} erros`);
 
     // Buscar informações da database (título da proposta)
     let propostaInfo = {};
@@ -152,16 +163,9 @@ export async function onRequest(context) {
 }
 
 // =========================================================================
-// 🔧 PROCESSAR DADOS DE UMA RÁDIO (REUTILIZA LÓGICA EXISTENTE) + ÁREAS DE INTERESSE
+// 🔧 PROCESSAR DADOS DE UMA RÁDIO - CORRIGIDO PARA ÁREAS DE INTERESSE
 // =========================================================================
 async function processRadioData(notionData) {
-  console.log('✅ Processando rádio:', {
-    id: notionData.id,
-    object: notionData.object,
-    propertiesKeys: Object.keys(notionData.properties || {}),
-    hasIcon: !!notionData.icon
-  });
-
   const properties = notionData.properties || {};
   
   // Função helper para extrair valores (igual ao arquivo radio-data.js)
@@ -192,18 +196,41 @@ async function processRadioData(notionData) {
     }
   };
 
-  // 🆕 FUNÇÃO HELPER PARA EXTRAIR ARQUIVOS (ÁREAS DE INTERESSE)
-  const extractFiles = (prop) => {
+  // 🆕 FUNÇÃO HELPER PARA EXTRAIR TODOS OS ARQUIVOS (ÁREAS DE INTERESSE) - CORRIGIDA
+  const extractAllFiles = (prop) => {
     if (!prop || prop.type !== 'files' || !prop.files || prop.files.length === 0) {
       return [];
     }
     
-    return prop.files.map(file => ({
-      name: file.name,
-      file: file.file,
-      external: file.external
-    }));
+    return prop.files.map((file, index) => {
+      return {
+        name: file.name,
+        file: file.file,
+        external: file.external,
+        url: file.file?.url || file.external?.url
+      };
+    });
   };
+
+  // 🔧 BUSCAR ÁREAS DE INTERESSE COM MÚLTIPLAS VARIAÇÕES DE NOME
+  let areasInteresse = [];
+  const possibleAreasFields = [
+    'Areas_Interesse',
+    'areas_interesse', 
+    'AreasInteresse',
+    'Áreas de Interesse',
+    'Areas de Interesse',
+    'Areas Interesse',
+    'areas interesse',
+    'areasinteresse'
+  ];
+  
+  for (const fieldName of possibleAreasFields) {
+    if (properties[fieldName]) {
+      areasInteresse = extractAllFiles(properties[fieldName]);
+      break;
+    }
+  }
 
   // MAPEAR DADOS BÁSICOS
   const radioData = {
@@ -224,8 +251,8 @@ async function processRadioData(notionData) {
     // URLs e mídias
     imageUrl: extractValue(properties['Imagem'] || properties['imagem'], '', 'Imagem'),
     
-    // 🆕 ÁREAS DE INTERESSE
-    areasInteresse: extractFiles(properties['Areas_Interesse'] || properties['areas_interesse']),
+    // 🆕 ÁREAS DE INTERESSE - CORRIGIDO
+    areasInteresse: areasInteresse,
     
     // Metadata
     source: 'notion_proposta',
@@ -239,45 +266,22 @@ async function processRadioData(notionData) {
 
   // EXTRAIR ÍCONE DA PÁGINA
   if (notionData.icon) {
-    console.log('🖼️ Ícone encontrado no Notion:', notionData.icon);
-    
     if (notionData.icon.type === 'file' && notionData.icon.file) {
       radioData.icon = {
         type: 'file',
         url: notionData.icon.file.url
       };
-      console.log('✅ Ícone de arquivo extraído:', radioData.icon.url);
     } else if (notionData.icon.type === 'emoji') {
       radioData.icon = {
         type: 'emoji',
         emoji: notionData.icon.emoji
       };
-      console.log('✅ Emoji extraído:', radioData.icon.emoji);
     } else if (notionData.icon.type === 'external' && notionData.icon.external) {
       radioData.icon = {
         type: 'external',
         url: notionData.icon.external.url
       };
-      console.log('✅ Ícone externo extraído:', radioData.icon.url);
     }
-  }
-
-  console.log('📊 Valores extraídos:', {
-    name: radioData.name,
-    dial: radioData.dial,
-    uf: radioData.uf,
-    hasKmz: radioData.hasKmz,
-    hasKml: radioData.hasKml,
-    areasInteresse: radioData.areasInteresse.length > 0 ? `${radioData.areasInteresse.length} arquivo(s)` : 'Não',
-    hasIcon: !!radioData.icon
-  });
-
-  // 🆕 LOG DE ÁREAS DE INTERESSE
-  if (radioData.areasInteresse.length > 0) {
-    console.log(`🎯 Áreas de interesse encontradas na rádio ${radioData.name}:`, radioData.areasInteresse.length);
-    radioData.areasInteresse.forEach((area, index) => {
-      console.log(`  ${index + 1}. ${area.name} - ${area.file ? 'Arquivo interno' : 'Arquivo externo'}`);
-    });
   }
 
   return radioData;
@@ -316,14 +320,11 @@ function generateSummary(radiosData) {
 
   summary.totalAreasFiles = totalAreasFiles;
 
-  console.log('📊 Resumo da proposta gerado:', {
+  console.log('📊 Resumo gerado:', {
     totalRadios: summary.totalRadios,
-    radiosWithKmz: summary.radiosWithKmz,
-    radiosWithKml: summary.radiosWithKml,
     radiosWithAreas: summary.radiosWithAreas,
     totalAreasFiles: summary.totalAreasFiles,
-    estados: summary.estados.length,
-    dialTypes: summary.dialTypes
+    estados: summary.estados.length
   });
 
   return summary;
