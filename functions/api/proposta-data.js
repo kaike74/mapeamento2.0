@@ -196,40 +196,72 @@ async function processRadioData(notionData) {
     }
   };
 
-  // 🆕 FUNÇÃO HELPER PARA EXTRAIR TODOS OS ARQUIVOS (ÁREAS DE INTERESSE) - CORRIGIDA
+  // 🆕 FUNÇÃO HELPER PARA EXTRAIR TODOS OS ARQUIVOS (ÁREAS DE INTERESSE) - CORRIGIDA E ROBUSTA
   const extractAllFiles = (prop) => {
     if (!prop || prop.type !== 'files' || !prop.files || prop.files.length === 0) {
       return [];
     }
     
+    console.log(`📁 Processando ${prop.files.length} arquivo(s) de áreas`);
+    
     return prop.files.map((file, index) => {
-      return {
-        name: file.name,
-        file: file.file,
-        external: file.external,
-        url: file.file?.url || file.external?.url
+      const fileData = {
+        name: file.name || `Arquivo ${index + 1}`,
+        type: file.type || 'unknown'
       };
+      
+      // 🔧 EXTRAIR URL DE MÚLTIPLAS FONTES POSSÍVEIS
+      if (file.file && file.file.url) {
+        fileData.file = file.file;
+        fileData.url = file.file.url;
+        console.log(`📄 Arquivo ${index + 1}: ${file.name} - URL interna encontrada`);
+      } else if (file.external && file.external.url) {
+        fileData.external = file.external;
+        fileData.url = file.external.url;
+        console.log(`📄 Arquivo ${index + 1}: ${file.name} - URL externa encontrada`);
+      } else {
+        console.warn(`⚠️ Arquivo ${index + 1}: ${file.name} - Nenhuma URL encontrada`);
+        fileData.url = null;
+      }
+      
+      return fileData;
     });
   };
 
-  // 🔧 BUSCAR ÁREAS DE INTERESSE COM MÚLTIPLAS VARIAÇÕES DE NOME
+  // 🔧 BUSCAR ÁREAS DE INTERESSE COM MÚLTIPLAS VARIAÇÕES DE NOME - MAIS ROBUSTA
   let areasInteresse = [];
   const possibleAreasFields = [
     'Areas_Interesse',
     'areas_interesse', 
     'AreasInteresse',
-    'Áreas de Interesse',
-    'Areas de Interesse',
     'Areas Interesse',
     'areas interesse',
-    'areasinteresse'
+    'Áreas de Interesse',
+    'Areas de Interesse',
+    'areasinteresse',
+    'Areas_interesse',
+    'areas_Interesse'
   ];
+  
+  console.log('🎯 Buscando campo de áreas de interesse...');
+  console.log('🔍 Campos disponíveis:', Object.keys(properties));
   
   for (const fieldName of possibleAreasFields) {
     if (properties[fieldName]) {
+      console.log(`✅ Campo encontrado: "${fieldName}"`);
       areasInteresse = extractAllFiles(properties[fieldName]);
-      break;
+      
+      if (areasInteresse.length > 0) {
+        console.log(`🎯 ${areasInteresse.length} arquivo(s) extraído(s) do campo "${fieldName}"`);
+        break;
+      } else {
+        console.log(`⚠️ Campo "${fieldName}" encontrado mas vazio`);
+      }
     }
+  }
+  
+  if (areasInteresse.length === 0) {
+    console.log('ℹ️ Nenhum campo de áreas de interesse encontrado ou populado');
   }
 
   // MAPEAR DADOS BÁSICOS
@@ -251,7 +283,7 @@ async function processRadioData(notionData) {
     // URLs e mídias
     imageUrl: extractValue(properties['Imagem'] || properties['imagem'], '', 'Imagem'),
     
-    // 🆕 ÁREAS DE INTERESSE - CORRIGIDO
+    // 🆕 ÁREAS DE INTERESSE - CORRIGIDO E ROBUSTO
     areasInteresse: areasInteresse,
     
     // Metadata
@@ -282,6 +314,14 @@ async function processRadioData(notionData) {
         url: notionData.icon.external.url
       };
     }
+  }
+
+  // 🔧 LOG FINAL DE DEBUG PARA ÁREAS DE INTERESSE
+  if (radioData.areasInteresse.length > 0) {
+    console.log(`🎯 RÁDIO "${radioData.name}": ${radioData.areasInteresse.length} área(s) de interesse`);
+    radioData.areasInteresse.forEach((area, i) => {
+      console.log(`  📄 ${i+1}. ${area.name} - URL: ${area.url ? 'OK' : 'ERRO'}`);
+    });
   }
 
   return radioData;
