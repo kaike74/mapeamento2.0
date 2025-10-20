@@ -38,7 +38,7 @@ async function addStateBorders() {
 }
 
 // =========================================================================
-// 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO COM COORDENADAS CORRIGIDAS
+// 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO CORRIGIDA PARA BATCHGEO
 // =========================================================================
 
 let map;
@@ -56,7 +56,7 @@ let isPropostaMode = false;
 let radiosLayers = {}; // Layer Groups completos de cada rádio (cobertura + antena + cidades)
 let layersControl = null; // Controle de layers dinâmico
 
-// 🆕 VARIÁVEIS PARA ÁREAS DE INTERESSE
+// 🆕 VARIÁVEIS PARA ÁREAS DE INTERESSE - CORRIGIDAS
 let areasInteresseData = []; // Todas as áreas de interesse
 let areasInteresseLayer = null; // Layer das áreas de interesse
 let filteredAreasInteresse = []; // Áreas filtradas por modo
@@ -197,7 +197,7 @@ async function initPropostaMode(propostaId) {
         addAllRadiosToMap(); // Agora é otimizado com batches
         
         // 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA - CORRIGIDO
-        addAreasInteresseToMapFixed();
+        addAreasInteresseToMap();
         
         // 🆕 ESTATÍSTICAS E TELA DE CARREGAMENTO APÓS TUDO PRONTO
         setTimeout(() => {
@@ -223,14 +223,14 @@ async function initIndividualMode(radioId) {
     await processFiles(); // Logo será extraída do KMZ automaticamente
     initializeMap();
     
-    // 🔧 ADICIONAR CONTROLE DE LAYERS NO MODO INDIVIDUAL TAMBÉM
+    // 🔧 ADICIONAR CONTROLE DE LAYERS NO MODO INDIVIDUAL - CORRIGIDO
     setupLayersControlForIndividual();
     
     renderCities();
     setupSearch();
     
     // 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA (MODO INDIVIDUAL) - CORRIGIDO
-    addAreasInteresseToMapFixed();
+    addAreasInteresseToMap();
     
     // 🖼️ ATUALIZAR LOGO NO FINAL (GARANTIR QUE DOM ESTÁ PRONTO)
     setTimeout(() => {
@@ -270,7 +270,7 @@ async function loadAndProcessAreasInteresse() {
     
     if (areasInteresseUrl) {
         console.log('📁 Processando arquivo de áreas de interesse...');
-        await processAreasInteresseKMLFixed(areasInteresseUrl);
+        await processAreasInteresseKML(areasInteresseUrl);
         
         if (areasInteresseData.length > 0) {
             // 🎯 MODO PROPOSTA: Analisar cobertura para todas as áreas
@@ -302,7 +302,7 @@ async function loadAndProcessAreasInteresseIndividual() {
     
     if (areasInteresseUrl) {
         console.log('📁 Processando arquivo de áreas de interesse...');
-        await processAreasInteresseKMLFixed(areasInteresseUrl);
+        await processAreasInteresseKML(areasInteresseUrl);
         
         if (areasInteresseData.length > 0) {
             // 🎯 MODO INDIVIDUAL: Filtrar apenas áreas cobertas por esta rádio
@@ -319,9 +319,9 @@ async function loadAndProcessAreasInteresseIndividual() {
 }
 
 // =========================================================================
-// 🆕 PROCESSAR ARQUIVO KML DAS ÁREAS DE INTERESSE - CORRIGIDO COM NOVA FUNÇÃO
+// 🆕 PROCESSAR ARQUIVO KML DAS ÁREAS DE INTERESSE - SIMPLIFICADO PARA BATCHGEO
 // =========================================================================
-async function processAreasInteresseKMLFixed(kmlUrl) {
+async function processAreasInteresseKML(kmlUrl) {
     try {
         console.log('🎯 Baixando KML de áreas de interesse...');
         
@@ -332,8 +332,8 @@ async function processAreasInteresseKMLFixed(kmlUrl) {
         const kmlText = await response.text();
         console.log(`📄 KML baixado, tamanho: ${Math.round(kmlText.length/1024)}KB`);
         
-        // 🔧 USAR NOVA FUNÇÃO DE PARSING CORRIGIDA
-        areasInteresseData = await parseAreasInteresseKMLFixed(kmlText);
+        // 🔧 USAR PARSER SIMPLIFICADO PARA BATCHGEO
+        areasInteresseData = parseAreasInteresseBatchGeo(kmlText);
         
         console.log(`✅ ${areasInteresseData.length} áreas de interesse processadas`);
         
@@ -341,6 +341,12 @@ async function processAreasInteresseKMLFixed(kmlUrl) {
         if (areasInteresseData.length === 0) {
             console.warn('⚠️ NENHUMA ÁREA ENCONTRADA - Debug do KML:');
             console.warn('Primeiros 500 caracteres:', kmlText.substring(0, 500));
+        } else {
+            // Log das primeiras 3 áreas para verificação
+            console.log('📍 Primeiras áreas processadas:');
+            areasInteresseData.slice(0, 3).forEach((area, i) => {
+                console.log(`  ${i+1}. "${area.name}" - [${area.coordinates.lat}, ${area.coordinates.lng}]`);
+            });
         }
         
     } catch (error) {
@@ -350,41 +356,68 @@ async function processAreasInteresseKMLFixed(kmlUrl) {
 }
 
 // =========================================================================
-// 🆕 PARSER KML CORRIGIDO PARA BATCHGEO - COORDENADAS FIXAS
+// 🆕 PARSER KML SIMPLIFICADO PARA BATCHGEO - APENAS COORDENADAS BÁSICAS
 // =========================================================================
-async function parseAreasInteresseKMLFixed(kmlText) {
+function parseAreasInteresseBatchGeo(kmlText) {
+    console.log('🎯 Parseando KML com parser simplificado BatchGeo...');
+    
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
     
-    // 🔧 BUSCAR TODOS OS ELEMENTOS QUE PODEM CONTER LOCAIS
+    // 🔧 BUSCAR TODOS OS PLACEMARKS
     const placemarks = xmlDoc.querySelectorAll('Placemark');
-    console.log(`🎯 Encontrados ${placemarks.length} elementos no KML`);
+    console.log(`🎯 Encontrados ${placemarks.length} placemarks no KML`);
     
     const areas = [];
-    let validCount = 0;
-    let invalidCount = 0;
     
     placemarks.forEach((placemark, index) => {
         try {
-            // 🔧 EXTRAIR NOME - MAIS FLEXÍVEL PARA BATCHGEO
+            // 1. EXTRAIR NOME (múltiplas estratégias)
             let name = '';
             
-            // BatchGeo pode usar diferentes campos para nome
             const nameEl = placemark.querySelector('name');
             const addressEl = placemark.querySelector('address');
-            const extendedDataName = placemark.querySelector('ExtendedData Data[name="Name"] value, ExtendedData Data[name="name"] value');
             
             if (nameEl && nameEl.textContent.trim()) {
                 name = nameEl.textContent.trim();
             } else if (addressEl && addressEl.textContent.trim()) {
                 name = addressEl.textContent.trim();
-            } else if (extendedDataName && extendedDataName.textContent.trim()) {
-                name = extendedDataName.textContent.trim();
             } else {
                 name = `Área ${index + 1}`;
             }
             
-            // 🔧 EXTRAIR DESCRIÇÃO - MAIS FLEXÍVEL
+            // 2. EXTRAIR COORDENADAS (estratégia única para Point)
+            const pointCoords = placemark.querySelector('Point coordinates');
+            if (!pointCoords) {
+                console.warn(`⚠️ Placemark ${index + 1} sem Point coordinates`);
+                return; // Pular este placemark
+            }
+            
+            const coordsText = pointCoords.textContent.trim();
+            console.log(`🔍 Coordenadas brutas ${index + 1}: "${coordsText}"`);
+            
+            // 3. PARSEAR COORDENADAS (formato: lng,lat,alt)
+            const coords = coordsText.split(',');
+            if (coords.length < 2) {
+                console.warn(`⚠️ Coordenadas inválidas ${index + 1}: ${coordsText}`);
+                return;
+            }
+            
+            const lng = parseFloat(coords[0]);
+            const lat = parseFloat(coords[1]);
+            
+            if (isNaN(lat) || isNaN(lng)) {
+                console.warn(`⚠️ Coordenadas não numéricas ${index + 1}: lat=${lat}, lng=${lng}`);
+                return;
+            }
+            
+            // 4. VALIDAÇÃO SIMPLES (Brasil)
+            if (lat < -35 || lat > 5 || lng < -75 || lng > -30) {
+                console.warn(`⚠️ Coordenadas fora do Brasil ${index + 1}: lat=${lat}, lng=${lng} - INCLUINDO MESMO ASSIM`);
+                // Continuar mesmo assim para debug
+            }
+            
+            // 5. EXTRAIR DESCRIÇÃO (opcional)
             let description = '';
             const descEl = placemark.querySelector('description');
             if (descEl) {
@@ -393,169 +426,37 @@ async function parseAreasInteresseKMLFixed(kmlText) {
                 description = description.replace(/<[^>]*>/g, '').trim();
             }
             
-            // 🔧 BUSCAR COORDENADAS - USANDO FUNÇÃO CORRIGIDA
-            let coordinates = findCoordinatesInPlacemarkFixed(placemark);
+            // 6. CRIAR OBJETO DA ÁREA
+            const area = {
+                name: name,
+                description: description,
+                coordinates: { lat: lat, lng: lng },
+                type: 'geral', // Padrão
+                priority: 'media', // Padrão
+                covered: false,
+                coveringRadios: []
+            };
             
-            if (coordinates && name) {
-                const area = {
-                    name: name,
-                    description: description,
-                    coordinates: coordinates, // Agora é {lat, lng}
-                    type: extractAreaTypeFlexible(name, description),
-                    priority: extractAreaPriorityFlexible(name, description),
-                    covered: false,
-                    coveringRadios: []
-                };
-                
-                areas.push(area);
-                validCount++;
-                
-                // 🔧 LOG APENAS PARA AS PRIMEIRAS 3 ÁREAS
-                if (index < 3) {
-                    console.log(`📍 Área ${index + 1}: "${name}" (${coordinates.lat}, ${coordinates.lng})`);
-                }
-            } else {
-                invalidCount++;
-                // 🔧 LOG APENAS PARA PROBLEMAS
-                if (invalidCount < 3) {
-                    console.warn(`⚠️ Área ${index + 1} inválida:`, { 
-                        name, 
-                        hasCoordinates: !!coordinates,
-                        coordsData: coordinates 
-                    });
-                }
+            areas.push(area);
+            
+            // Log apenas das primeiras 5 para não poluir
+            if (index < 5) {
+                console.log(`✅ Área ${index + 1}: "${name}" - [${lat}, ${lng}]`);
             }
             
         } catch (error) {
-            console.warn(`⚠️ Erro ao processar área ${index + 1}:`, error);
-            invalidCount++;
+            console.warn(`⚠️ Erro ao processar placemark ${index + 1}:`, error);
         }
     });
     
-    console.log(`📊 Processamento concluído: ${validCount} válidas, ${invalidCount} inválidas`);
+    console.log(`📊 Parser concluído: ${areas.length} áreas válidas de ${placemarks.length} placemarks`);
     return areas;
 }
 
 // =========================================================================
-// 🆕 FUNÇÃO PARA ENCONTRAR COORDENADAS - VERSÃO CORRIGIDA
+// 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA - SIMPLIFICADO
 // =========================================================================
-function findCoordinatesInPlacemarkFixed(placemark) {
-    try {
-        // 🔧 ESTRATÉGIA 1: Point coordinates (padrão KML)
-        const pointCoords = placemark.querySelector('Point coordinates');
-        if (pointCoords) {
-            const coordsText = pointCoords.textContent.trim();
-            const coords = parseCoordinateStringFixed(coordsText);
-            if (coords && coords.length > 0) {
-                return {
-                    lat: coords[0].lat, // Usar propriedades do objeto
-                    lng: coords[0].lng,
-                    type: 'point'
-                };
-            }
-        }
-        
-        // 🔧 ESTRATÉGIA 2: LineString coordinates
-        const lineCoords = placemark.querySelector('LineString coordinates');
-        if (lineCoords) {
-            const coordsText = lineCoords.textContent.trim();
-            const coords = parseCoordinateStringFixed(coordsText);
-            if (coords && coords.length > 0) {
-                return {
-                    lat: coords[0].lat,
-                    lng: coords[0].lng,
-                    type: 'line'
-                };
-            }
-        }
-        
-        // 🔧 ESTRATÉGIA 3: Polygon coordinates
-        const polygonCoords = placemark.querySelector('Polygon outerBoundaryIs LinearRing coordinates, Polygon coordinates');
-        if (polygonCoords) {
-            const coordsText = polygonCoords.textContent.trim();
-            const coords = parseCoordinateStringFixed(coordsText);
-            if (coords && coords.length > 0) {
-                // Calcular centro do polígono
-                const center = calculatePolygonCenterFixed(coords);
-                return {
-                    lat: center.lat,
-                    lng: center.lng,
-                    type: 'polygon'
-                };
-            }
-        }
-        
-        console.warn('⚠️ Nenhuma coordenada encontrada no placemark');
-        return null;
-        
-    } catch (error) {
-        console.warn('⚠️ Erro ao extrair coordenadas:', error);
-        return null;
-    }
-}
-
-// =========================================================================
-// 🆕 PARSER DE COORDENADAS CORRIGIDO - RETORNA OBJETOS {lat, lng}
-// =========================================================================
-function parseCoordinateStringFixed(coordsText) {
-    try {
-        // Remover quebras de linha e espaços extras
-        const cleanText = coordsText.replace(/\s+/g, ' ').trim();
-        
-        // BatchGeo/KML format: lng,lat,altitude (separado por vírgulas)
-        const coordGroups = cleanText.split(' ').filter(group => group.trim());
-        const coordsArray = [];
-        
-        for (const group of coordGroups) {
-            if (group.trim()) {
-                const coords = group.split(',');
-                if (coords.length >= 2) {
-                    const lng = parseFloat(coords[0]); // Longitude vem primeiro no KML
-                    const lat = parseFloat(coords[1]); // Latitude vem segundo no KML
-                    
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        // 🔧 RETORNAR OBJETO COM PROPRIEDADES NOMEADAS
-                        coordsArray.push({
-                            lat: lat,
-                            lng: lng
-                        });
-                        
-                        console.log(`📍 Coordenada processada: lat=${lat}, lng=${lng}`);
-                    }
-                }
-            }
-        }
-        
-        return coordsArray.length > 0 ? coordsArray : null;
-    } catch (error) {
-        console.warn('⚠️ Erro ao parsear coordenadas:', error);
-        return null;
-    }
-}
-
-// =========================================================================
-// 🆕 CALCULAR CENTRO DO POLÍGONO CORRIGIDO
-// =========================================================================
-function calculatePolygonCenterFixed(coordsArray) {
-    let latSum = 0;
-    let lngSum = 0;
-    const count = coordsArray.length;
-    
-    for (const coord of coordsArray) {
-        latSum += coord.lat; // Usar propriedades nomeadas
-        lngSum += coord.lng;
-    }
-    
-    return {
-        lat: latSum / count,
-        lng: lngSum / count
-    };
-}
-
-// =========================================================================
-// 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA - VERSÃO CORRIGIDA
-// =========================================================================
-function addAreasInteresseToMapFixed() {
+function addAreasInteresseToMap() {
     if (!areasInteresseData || areasInteresseData.length === 0) {
         console.log('ℹ️ Nenhuma área de interesse para adicionar');
         return;
@@ -582,7 +483,7 @@ function addAreasInteresseToMapFixed() {
     
     areasToShow.forEach((area, index) => {
         try {
-            const marker = createAreaInteresseMarkerFixed(area);
+            const marker = createAreaInteresseMarker(area);
             if (marker) {
                 areasInteresseLayer.addLayer(marker);
                 markersAdicionados++;
@@ -607,36 +508,22 @@ function addAreasInteresseToMapFixed() {
 }
 
 // =========================================================================
-// 🆕 CRIAR MARCADOR CORRIGIDO - VERIFICAÇÃO EXTRA DE COORDENADAS
+// 🆕 CRIAR MARCADOR SIMPLIFICADO - SEM VALIDAÇÕES EXTRAS
 // =========================================================================
-function createAreaInteresseMarkerFixed(area) {
+function createAreaInteresseMarker(area) {
     try {
-        // 🔧 VERIFICAÇÃO DETALHADA DE COORDENADAS
-        console.log(`🔍 Criando marcador para "${area.name}":`, {
-            lat: area.coordinates.lat,
-            lng: area.coordinates.lng,
-            type: typeof area.coordinates.lat,
-            isValidLat: !isNaN(area.coordinates.lat),
-            isValidLng: !isNaN(area.coordinates.lng)
-        });
+        const lat = area.coordinates.lat;
+        const lng = area.coordinates.lng;
+        
+        console.log(`🔍 Criando marcador para "${area.name}": [${lat}, ${lng}]`);
         
         // Verificar se coordenadas são válidas
-        if (!area.coordinates || isNaN(area.coordinates.lat) || isNaN(area.coordinates.lng)) {
+        if (isNaN(lat) || isNaN(lng)) {
             console.warn(`⚠️ Coordenadas inválidas para área: ${area.name}`, area.coordinates);
             return null;
         }
         
-        // 🔧 VERIFICAÇÃO DE FAIXA DE COORDENADAS PARA BRASIL
-        const lat = area.coordinates.lat;
-        const lng = area.coordinates.lng;
-        
-        // Brasil: lat entre -35 e +5, lng entre -75 e -30
-        if (lat < -35 || lat > 5 || lng < -75 || lng > -30) {
-            console.warn(`⚠️ Coordenadas fora do Brasil para "${area.name}": lat=${lat}, lng=${lng}`);
-            // Não retornar null, apenas avisar
-        }
-        
-        // Definir cor baseada na cobertura e modo
+        // Definir cor baseada no modo
         let color, borderColor, icon;
         
         if (isPropostaMode) {
@@ -688,10 +575,10 @@ function createAreaInteresseMarkerFixed(area) {
             iconAnchor: [12, 12]
         });
         
-        // Criar popup
+        // Criar popup simples
         const popupContent = createAreaInteressePopup(area);
         
-        // 🔧 USAR COORDENADAS CORRETAS - lat primeiro, lng segundo
+        // 🔧 CRIAR MARCADOR COM COORDENADAS CORRETAS
         const marker = L.marker([lat, lng], { icon: areaIcon })
             .bindPopup(popupContent);
         
@@ -853,8 +740,7 @@ function createAreaInteressePopup(area) {
             <h4 style="margin: 0 0 8px 0; color: #06055B;">🎯 ${area.name}</h4>
             <div style="text-align: left; font-size: 13px; color: #64748B;">
                 ${area.description ? `<p style="margin: 4px 0;"><strong>Descrição:</strong> ${area.description}</p>` : ''}
-                <p style="margin: 4px 0;"><strong>Tipo:</strong> ${getAreaTypeText(area.type)}</p>
-                <p style="margin: 4px 0;"><strong>Prioridade:</strong> ${getAreaPriorityText(area.priority)}</p>
+                <p style="margin: 4px 0;"><strong>Coordenadas:</strong> ${area.coordinates.lat.toFixed(4)}, ${area.coordinates.lng.toFixed(4)}</p>
                 ${coverageInfo}
             </div>
         </div>
@@ -1086,7 +972,7 @@ function initializeMap() {
 }
 
 // =========================================================================
-// CONFIGURAR CONTROLE DE LAYERS PARA MODO INDIVIDUAL - NOVA FUNÇÃO
+// CONFIGURAR CONTROLE DE LAYERS PARA MODO INDIVIDUAL - CORRIGIDO
 // =========================================================================
 function setupLayersControlForIndividual() {
     console.log('🎛️ Configurando controle de layers para modo individual...');
