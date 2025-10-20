@@ -398,9 +398,14 @@ function parseAreasInteresseBatchGeo(kmlText) {
                 return;
             }
             
-            // FORMATO KML: longitude,latitude,altitude
-            const lng = parseFloat(coords[0]);
-            const lat = parseFloat(coords[1]);
+            // FORMATO KML: longitude,latitude,altitude  
+const lng = parseFloat(coords[0]);
+const lat = parseFloat(coords[1]);
+
+// 🔍 DEBUG: Ver coordenadas brutas
+console.log(`🔍 COORDS BRUTOS [${index}]: "${coordsText}"`);
+console.log(`   → LNG parseado: ${lng}`);
+console.log(`   → LAT parseado: ${lat}`);
             
             if (isNaN(lat) || isNaN(lng)) {
                 return;
