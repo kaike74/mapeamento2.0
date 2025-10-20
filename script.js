@@ -420,9 +420,9 @@ async function parseAreasInteresseKMLFlexible(kmlText) {
 }
 
 // =========================================================================
-// 🆕 BUSCAR COORDENADAS NO PLACEMARK - MÚLTIPLAS ESTRATÉGIAS
+// 🆕 VERSÃO ASSÍNCRONA DA BUSCA DE COORDENADAS COM GEOCODIFICAÇÃO
 // =========================================================================
-function findCoordinatesInPlacemark(placemark) {
+async function findCoordinatesInPlacemarkAsync(placemark) {
     // Estratégia 1: Point coordinates (mais comum)
     let coordsEl = placemark.querySelector('Point coordinates');
     if (coordsEl) {
@@ -480,7 +480,72 @@ function findCoordinatesInPlacemark(placemark) {
         }
     }
     
+    // 🆕 Estratégia 4: GEOCODIFICAÇÃO POR ENDEREÇO (ASSÍNCRONA)
+    const addressEl = placemark.querySelector('address');
+    if (addressEl) {
+        const address = addressEl.textContent.trim();
+        if (address) {
+            // Adicionar delay pequeno para não sobrecarregar o serviço
+            await new Promise(resolve => setTimeout(resolve, 100));
+            return await geocodeAddress(address);
+        }
+    }
+    
     return null;
+}
+
+// =========================================================================
+// 🆕 GEOCODIFICAÇÃO DE ENDEREÇO USANDO NOMINATIM (GRATUITO)
+// =========================================================================
+async function geocodeAddress(address) {
+    try {
+        // Limpar e formatar endereço para busca
+        const cleanAddress = address
+            .replace(/^[A-Z]{2}\s+/, '') // Remover "RS ", "SP ", etc do início
+            .trim();
+        
+        console.log(`🔍 Geocodificando: "${cleanAddress}"`);
+        
+        // Usar Nominatim (OpenStreetMap) - gratuito e sem API key
+        const encodedAddress = encodeURIComponent(cleanAddress + ', Brasil');
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&countrycodes=br`;
+        
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mapeamento-Radio-E-Midias'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Geocoding HTTP ${response.status}`);
+        }
+        
+        const results = await response.json();
+        
+        if (results && results.length > 0) {
+            const result = results[0];
+            const lat = parseFloat(result.lat);
+            const lng = parseFloat(result.lon);
+            
+            if (!isNaN(lat) && !isNaN(lng)) {
+                console.log(`✅ Geocodificado: ${cleanAddress} -> ${lat}, ${lng}`);
+                return {
+                    type: 'geocoded',
+                    lat: lat,
+                    lng: lng,
+                    address: cleanAddress,
+                    source: 'nominatim'
+                };
+            }
+        }
+        
+        console.warn(`⚠️ Não foi possível geocodificar: ${cleanAddress}`);
+        return null;
+        
+    } catch (error) {
+        console.warn(`⚠️ Erro na geocodificação de "${address}":`, error);
+        return null;
+    }
 }
 
 // =========================================================================
