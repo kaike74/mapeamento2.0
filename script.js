@@ -247,79 +247,143 @@ async function initIndividualMode(radioId) {
 }
 
 // =========================================================================
-// 🆕 BUSCAR E PROCESSAR ÁREAS DE INTERESSE (MODO PROPOSTA) - CORRIGIDO
+// 🆕 BUSCAR E PROCESSAR ÁREAS DE INTERESSE (MODO PROPOSTA) - TEXTO OU ARQUIVOS
 // =========================================================================
 async function loadAndProcessAreasInteresse() {
     console.log('🎯 Buscando áreas de interesse na proposta...');
     
-    // Buscar arquivo em qualquer registro da proposta
-    let areasInteresseUrl = null;
+    // Buscar áreas de interesse em qualquer registro da proposta
+    let areasData = null;
     let radioComAreas = null;
     
     for (const radio of propostaData.radios) {
-        if (radio.areasInteresse && radio.areasInteresse.length > 0) {
-            // Notion retorna array de arquivos
-            areasInteresseUrl = radio.areasInteresse[0].file?.url || radio.areasInteresse[0].external?.url || radio.areasInteresse[0].url;
-            if (areasInteresseUrl) {
-                radioComAreas = radio.name;
-                console.log(`🎯 Arquivo de áreas encontrado na rádio: ${radio.name}`);
-                break;
-            }
+        if (radio.areasInteresse && radio.areasInteresse.data && radio.areasInteresse.data.length > 0) {
+            areasData = radio.areasInteresse;
+            radioComAreas = radio.name;
+            console.log(`🎯 Áreas de interesse encontradas na rádio: ${radio.name} (tipo: ${areasData.type})`);
+            break;
         }
     }
     
-    if (areasInteresseUrl) {
-        console.log('📁 Processando arquivo de áreas de interesse...');
-        await processAreasInteresseKML(areasInteresseUrl);
-        
-        if (areasInteresseData.length > 0) {
-            // 🎯 MODO PROPOSTA: Analisar cobertura para todas as áreas
-            analyzeAreasForProposta();
-            console.log(`✅ ${areasInteresseData.length} áreas de interesse processadas para proposta`);
-        } else {
-            console.warn('⚠️ Nenhuma área válida encontrada no arquivo KML');
-        }
-    } else {
-        console.log('ℹ️ Nenhum arquivo de áreas de interesse encontrado na proposta');
+    if (!areasData || areasData.data.length === 0) {
+        console.log('ℹ️ Nenhuma área de interesse encontrada na proposta');
         areasInteresseData = [];
+        return;
+    }
+    
+    // Processar baseado no tipo
+    if (areasData.type === 'text') {
+        // NOVO: Processar lista de cidades em texto
+        console.log('📝 Processando áreas de interesse em formato texto...');
+        await processAreasInteresseText(areasData.data);
+    } else if (areasData.type === 'files') {
+        // LEGADO: Processar arquivo KML
+        console.log('📁 Processando arquivo de áreas de interesse (modo legado)...');
+        const fileUrl = areasData.data[0]?.url;
+        if (fileUrl) {
+            await processAreasInteresseKML(fileUrl);
+        }
+    }
+    
+    if (areasInteresseData.length > 0) {
+        // Analisar cobertura para todas as áreas
+        analyzeAreasForProposta();
+        console.log(`✅ ${areasInteresseData.length} áreas de interesse processadas`);
+    } else {
+        console.warn('⚠️ Nenhuma área válida encontrada');
     }
 }
 
 // =========================================================================
-// 🆕 BUSCAR E PROCESSAR ÁREAS DE INTERESSE (MODO INDIVIDUAL) - CORRIGIDO
+// 🆕 BUSCAR E PROCESSAR ÁREAS DE INTERESSE (MODO INDIVIDUAL) - TEXTO OU ARQUIVOS
 // =========================================================================
 async function loadAndProcessAreasInteresseIndividual() {
     console.log('🎯 Buscando áreas de interesse para modo individual...');
     
-    // Para modo individual, buscar o arquivo da própria rádio
-    let areasInteresseUrl = null;
-    
-    // Verificar se tem arquivo na própria rádio
-    if (radioData.areasInteresse && radioData.areasInteresse.length > 0) {
-        areasInteresseUrl = radioData.areasInteresse[0].file?.url || radioData.areasInteresse[0].external?.url || radioData.areasInteresse[0].url;
-        console.log('🎯 Arquivo de áreas encontrado na própria rádio');
-    }
-    
-    if (areasInteresseUrl) {
-        console.log('📁 Processando arquivo de áreas de interesse...');
-        await processAreasInteresseKML(areasInteresseUrl);
-        
-        if (areasInteresseData.length > 0) {
-            // 🎯 MODO INDIVIDUAL: Filtrar apenas áreas cobertas por esta rádio
-            filterAreasForIndividualRadio();
-            console.log(`✅ ${filteredAreasInteresse.length} áreas cobertas por esta rádio`);
-        } else {
-            console.warn('⚠️ Nenhuma área válida encontrada no arquivo KML');
-        }
-    } else {
-        console.log('ℹ️ Nenhum arquivo de áreas de interesse encontrado');
+    // Verificar se tem áreas de interesse na própria rádio
+    if (!radioData.areasInteresse || !radioData.areasInteresse.data || radioData.areasInteresse.data.length === 0) {
+        console.log('ℹ️ Nenhuma área de interesse encontrada');
         areasInteresseData = [];
         filteredAreasInteresse = [];
+        return;
+    }
+    
+    const areasData = radioData.areasInteresse;
+    console.log(`🎯 Áreas de interesse encontradas (tipo: ${areasData.type})`);
+    
+    // Processar baseado no tipo
+    if (areasData.type === 'text') {
+        // NOVO: Processar lista de cidades em texto
+        console.log('📝 Processando áreas de interesse em formato texto...');
+        await processAreasInteresseText(areasData.data);
+    } else if (areasData.type === 'files') {
+        // LEGADO: Processar arquivo KML
+        console.log('📁 Processando arquivo de áreas de interesse (modo legado)...');
+        const fileUrl = areasData.data[0]?.url;
+        if (fileUrl) {
+            await processAreasInteresseKML(fileUrl);
+        }
+    }
+    
+    if (areasInteresseData.length > 0) {
+        // Filtrar apenas áreas cobertas por esta rádio
+        filterAreasForIndividualRadio();
+        console.log(`✅ ${filteredAreasInteresse.length} áreas cobertas por esta rádio`);
+    } else {
+        console.warn('⚠️ Nenhuma área válida encontrada');
     }
 }
 
 // =========================================================================
-// 🆕 PROCESSAR ARQUIVO KML DAS ÁREAS DE INTERESSE - COM VERIFICAÇÃO EXTRA
+// 🆕 PROCESSAR ÁREAS DE INTERESSE EM FORMATO TEXTO (NOVO)
+// =========================================================================
+async function processAreasInteresseText(cityNames) {
+    console.log('📝 Processando áreas de interesse em formato texto...');
+    console.log(`📍 ${cityNames.length} cidade(s) de interesse: ${cityNames.join(', ')}`);
+    
+    // Criar estrutura de áreas de interesse baseada em nomes de cidades
+    areasInteresseData = cityNames.map(cityText => {
+        // Parse "City-UF" format
+        const parts = cityText.split('-').map(p => p.trim());
+        const cityName = parts[0] || cityText;
+        const uf = parts[1] || '';
+        
+        return {
+            name: cityName,
+            uf: uf,
+            fullText: cityText,
+            normalizedName: normalizeCityName(cityName),
+            type: 'cidade_interesse',
+            priority: 'alta',
+            covered: false,
+            coveringRadios: [],
+            matchedCity: null // Will be filled when matching against KML2 data
+        };
+    });
+    
+    console.log(`✅ ${areasInteresseData.length} áreas de interesse criadas a partir do texto`);
+}
+
+// =========================================================================
+// 🆕 NORMALIZAR NOME DE CIDADE PARA MATCHING
+// =========================================================================
+function normalizeCityName(name) {
+    if (!name) return '';
+    
+    // Convert to lowercase
+    let normalized = name.toLowerCase();
+    
+    // Remove accents and special characters
+    normalized = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    
+    // Remove extra spaces
+    normalized = normalized.trim().replace(/\s+/g, ' ');
+    
+    return normalized;
+}
+
+// =========================================================================
+// 🆕 PROCESSAR ARQUIVO KML DAS ÁREAS DE INTERESSE - COM VERIFICAÇÃO EXTRA (LEGADO)
 // =========================================================================
 async function processAreasInteresseKML(kmlUrl) {
     try {
@@ -445,7 +509,7 @@ console.log(`   → LAT parseado: ${lat}`);
     return areas;
 }
 // =========================================================================
-// 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA - COM DEBUG VISUAL
+// 🆕 ADICIONAR ÁREAS DE INTERESSE AO MAPA - CHECKMARKS EM CIDADES OU MARCADORES SEPARADOS
 // =========================================================================
 function addAreasInteresseToMap() {
     if (!areasInteresseData || areasInteresseData.length === 0) {
@@ -453,15 +517,7 @@ function addAreasInteresseToMap() {
         return;
     }
     
-    console.log('🎯 Adicionando áreas de interesse ao mapa...');
-    
-    // Remover layer existente se houver
-    if (areasInteresseLayer) {
-        map.removeLayer(areasInteresseLayer);
-    }
-    
-    // Criar novo layer group para áreas de interesse
-    areasInteresseLayer = L.layerGroup();
+    console.log('🎯 Processando áreas de interesse...');
     
     const areasToShow = isPropostaMode ? areasInteresseData : filteredAreasInteresse;
     
@@ -470,14 +526,44 @@ function addAreasInteresseToMap() {
         return;
     }
     
+    // Check if areas are text-based (will show as checkmarks on cities)
+    const hasTextBasedAreas = areasToShow.some(area => area.type === 'cidade_interesse');
+    
+    if (hasTextBasedAreas) {
+        // Text-based areas are shown as checkmarks on city markers
+        const matchedAreas = areasToShow.filter(area => area.matchedCity);
+        console.log(`✅ ${matchedAreas.length}/${areasToShow.length} áreas de interesse marcadas com checkmarks em cidades existentes`);
+        
+        // Log which cities got checkmarks
+        matchedAreas.slice(0, 5).forEach((area, i) => {
+            console.log(`  ✅ ${i+1}. ${area.name} → ${area.matchedCity.name}-${area.matchedCity.uf}`);
+        });
+        
+        return; // Don't add separate markers for text-based areas
+    }
+    
+    // Legacy KML-based areas: add as separate markers
+    console.log('📍 Adicionando áreas de interesse como marcadores separados (modo legado)...');
+    
+    // Remove layer existente se houver
+    if (areasInteresseLayer) {
+        map.removeLayer(areasInteresseLayer);
+    }
+    
+    // Criar novo layer group para áreas de interesse
+    areasInteresseLayer = L.layerGroup();
+    
     let markersAdicionados = 0;
     let markersComProblema = 0;
     
-    console.log(`📍 Tentando adicionar ${areasToShow.length} áreas ao mapa`);
-    
     areasToShow.forEach((area, index) => {
         try {
-            // 🔧 VERIFICAÇÃO ANTES DE CRIAR O MARCADOR
+            // Only add markers for areas with valid coordinates (legacy KML-based)
+            if (!area.coordinates || !area.coordinates.lat || !area.coordinates.lng) {
+                markersComProblema++;
+                return;
+            }
+            
             const lat = area.coordinates.lat;
             const lng = area.coordinates.lng;
             
@@ -492,10 +578,8 @@ function addAreasInteresseToMap() {
                 areasInteresseLayer.addLayer(marker);
                 markersAdicionados++;
                 
-                // 🔧 LOG DETALHADO PARA PRIMEIROS MARCADORES
                 if (index < 3) {
                     console.log(`📍 Marcador ${index + 1} criado: "${area.name}"`);
-                    console.log(`   → Posição no mapa: LAT=${lat}, LNG=${lng}`);
                 }
             } else {
                 markersComProblema++;
@@ -509,23 +593,10 @@ function addAreasInteresseToMap() {
     // Adicionar ao mapa
     if (markersAdicionados > 0) {
         areasInteresseLayer.addTo(map);
-        console.log(`✅ ${markersAdicionados} áreas adicionadas ao mapa`);
+        console.log(`✅ ${markersAdicionados} áreas adicionadas ao mapa como marcadores separados`);
         if (markersComProblema > 0) {
             console.warn(`⚠️ ${markersComProblema} marcadores com problemas`);
         }
-        
-        // 🔧 DEBUG VISUAL: Mostrar bounds das áreas
-        setTimeout(() => {
-            const bounds = areasInteresseLayer.getBounds();
-            if (bounds.isValid()) {
-                console.log('🗺️ Bounds das áreas de interesse:');
-                console.log(`   → Norte: ${bounds.getNorth().toFixed(4)}`);
-                console.log(`   → Sul: ${bounds.getSouth().toFixed(4)}`);
-                console.log(`   → Leste: ${bounds.getEast().toFixed(4)}`);
-                console.log(`   → Oeste: ${bounds.getWest().toFixed(4)}`);
-            }
-        }, 1000);
-        
     } else {
         console.warn('⚠️ Nenhum marcador foi criado com sucesso');
     }
@@ -679,20 +750,34 @@ function analyzeAreasForProposta() {
     areasInteresseData.forEach((area, index) => {
         area.coveringRadios = [];
         area.covered = false;
+        area.matchedCity = null;
         
         // Verificar cobertura por cada rádio da proposta
         propostaData.radios.forEach(radio => {
-            if (isAreaCoveredByRadio(area, radio)) {
-                area.coveringRadios.push(radio);
-                area.covered = true;
+            // For text-based areas, try to match with cities in KML2 data
+            if (area.type === 'cidade_interesse' && radio.citiesData && radio.citiesData.length > 0) {
+                const matchedCity = findMatchingCity(area, radio.citiesData);
+                if (matchedCity) {
+                    area.matchedCity = matchedCity;
+                    area.covered = true;
+                    area.coveringRadios.push(radio);
+                    // Store the coordinates from the matched city
+                    area.coordinates = matchedCity.coordinates;
+                }
+            } else {
+                // For legacy KML-based areas, use old logic
+                if (isAreaCoveredByRadio(area, radio)) {
+                    area.coveringRadios.push(radio);
+                    area.covered = true;
+                }
             }
         });
         
         if (area.covered) areasCobertas++;
         
-        // 🔧 LOG DETALHADO APENAS SE NECESSÁRIO
+        // Log only first few for debugging
         if (index < 5) {
-            console.log(`📍 "${area.name}": ${area.coveringRadios.length} rádio(s)`);
+            console.log(`📍 "${area.name}": ${area.covered ? '✅ coberta' : '❌ não coberta'} por ${area.coveringRadios.length} rádio(s)`);
         }
     });
     
@@ -704,15 +789,57 @@ function filterAreasForIndividualRadio() {
     console.log('🎯 Filtrando áreas cobertas...');
     
     filteredAreasInteresse = areasInteresseData.filter(area => {
-        const covered = isAreaCoveredByRadio(area, radioData);
-        if (covered) {
-            area.covered = true;
-            area.coveringRadios = [radioData];
+        // For text-based areas, try to match with cities in KML2 data
+        if (area.type === 'cidade_interesse' && citiesData && citiesData.length > 0) {
+            const matchedCity = findMatchingCity(area, citiesData);
+            if (matchedCity) {
+                area.matchedCity = matchedCity;
+                area.covered = true;
+                area.coveringRadios = [radioData];
+                // Store the coordinates from the matched city
+                area.coordinates = matchedCity.coordinates;
+                return true;
+            }
+            return false;
+        } else {
+            // For legacy KML-based areas, use old logic
+            const covered = isAreaCoveredByRadio(area, radioData);
+            if (covered) {
+                area.covered = true;
+                area.coveringRadios = [radioData];
+            }
+            return covered;
         }
-        return covered;
     });
     
     console.log(`✅ ${filteredAreasInteresse.length}/${areasInteresseData.length} áreas cobertas`);
+}
+
+// 🆕 ENCONTRAR CIDADE CORRESPONDENTE NO KML2
+function findMatchingCity(areaInteresse, citiesData) {
+    const normalizedArea = areaInteresse.normalizedName;
+    const areaUF = areaInteresse.uf.toUpperCase();
+    
+    console.log(`🔍 Buscando match para: "${areaInteresse.name}" (normalizado: "${normalizedArea}", UF: "${areaUF}")`);
+    
+    // Try to find a matching city
+    for (const city of citiesData) {
+        const normalizedCity = normalizeCityName(city.name);
+        
+        // Match by normalized name
+        if (normalizedCity === normalizedArea) {
+            // If UF is specified in area, verify it matches
+            if (areaUF && city.uf && city.uf.toUpperCase() !== areaUF) {
+                console.log(`  ⚠️ Nome match mas UF diferente: ${city.name}-${city.uf} vs ${areaUF}`);
+                continue;
+            }
+            console.log(`  ✅ Match encontrado: ${city.name}-${city.uf}`);
+            return city;
+        }
+    }
+    
+    console.log(`  ❌ Nenhum match encontrado para "${areaInteresse.name}"`);
+    return null;
 }
 
 // Verificar se área está coberta por rádio
@@ -1183,25 +1310,38 @@ function createRadioAntennaMarker(radio) {
 function createCityMarker(city, radio) {
     const color = getQualityColor(city.quality);
     
+    // 🆕 Check if this city is an area of interest
+    const isAreaOfInterest = isPropostaMode ? 
+        areasInteresseData.some(area => area.matchedCity && area.matchedCity.name === city.name && area.matchedCity.uf === city.uf) :
+        filteredAreasInteresse.some(area => area.matchedCity && area.matchedCity.name === city.name && area.matchedCity.uf === city.uf);
+    
+    const checkmark = isAreaOfInterest ? '<div style="position: absolute; top: -8px; right: -8px; background: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">✅</div>' : '';
+    
     const cityIcon = L.divIcon({
         html: `
-            <div style="
-                width: 16px;
-                height: 16px;
-                background: ${color};
-                border: 2px solid white;
-                border-radius: 50%;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            "></div>
+            <div style="position: relative; width: 16px; height: 16px;">
+                <div style="
+                    width: 16px;
+                    height: 16px;
+                    background: ${color};
+                    border: 2px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                "></div>
+                ${checkmark}
+            </div>
         `,
         className: 'city-marker',
         iconSize: [16, 16],
         iconAnchor: [8, 8]
     });
     
+    const interestBadge = isAreaOfInterest ? '<p style="margin: 2px 0; font-weight: bold; color: #10B981;">✅ Área de Interesse</p>' : '';
+    
     const popupContent = `
         <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
             <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
+            ${interestBadge}
             <p style="margin: 2px 0; font-weight: bold; color: #FC1E75;">📻 ${radio.name} (${radio.dial})</p>
             <div style="text-align: left; font-size: 13px; color: #64748B;">
                 <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
@@ -1900,25 +2040,38 @@ function addCityMarkers() {
     citiesData.forEach(city => {
         const color = getQualityColor(city.quality);
         
+        // 🆕 Check if this city is an area of interest
+        const isAreaOfInterest = filteredAreasInteresse.some(area => 
+            area.matchedCity && area.matchedCity.name === city.name && area.matchedCity.uf === city.uf
+        );
+        
+        const checkmark = isAreaOfInterest ? '<div style="position: absolute; top: -8px; right: -8px; background: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">✅</div>' : '';
+        
         const cityIcon = L.divIcon({
             html: `
-                <div style="
-                    width: 16px;
-                    height: 16px;
-                    background: ${color};
-                    border: 2px solid white;
-                    border-radius: 50%;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                "></div>
+                <div style="position: relative; width: 16px; height: 16px;">
+                    <div style="
+                        width: 16px;
+                        height: 16px;
+                        background: ${color};
+                        border: 2px solid white;
+                        border-radius: 50%;
+                        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    "></div>
+                    ${checkmark}
+                </div>
             `,
             className: 'city-marker',
             iconSize: [16, 16],
             iconAnchor: [8, 8]
         });
         
+        const interestBadge = isAreaOfInterest ? '<p style="margin: 4px 0; font-weight: bold; color: #10B981;">✅ Área de Interesse</p>' : '';
+        
         const popupContent = `
             <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
                 <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
+                ${interestBadge}
                 <div style="text-align: left; font-size: 13px; color: #64748B;">
                     <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
                     <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()}</p>
