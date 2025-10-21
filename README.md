@@ -10,9 +10,17 @@ Sistema avançado para visualização interativa da cobertura geográfica de rá
 - **Rádio Individual**: `mapeamento.emidiastec.com.br/?id=NOTION_ID_DA_RADIO`
 - **🆕 Proposta (Múltiplas Rádios)**: `mapeamento.emidiastec.com.br/?idproposta=NOTION_DATABASE_ID`
 
-## 🚀 Novidades da Versão 2.1
+## 🚀 Novidades da Versão 2.2
 
-### ✨ **Modo Proposta (NOVO)**
+### ✨ **Áreas de Interesse - Texto Simples (NOVO)**
+
+- **📝 Campo de Texto**: Digite cidades diretamente no Notion sem precisar de arquivos KML
+- **✅ Checkmarks Visuais**: Cidades de interesse marcadas com ✅ sobre os marcadores existentes
+- **🎯 Matching Inteligente**: Comparação case-insensitive e sem acentos
+- **🔄 Compatibilidade**: Suporte a texto E arquivos KML (modo legado)
+- **📍 Formato Simples**: `Rio de Janeiro-RJ, São Paulo-SP, Mogi das Cruzes-SP`
+
+### ✨ **Modo Proposta (v2.1)**
 
 - **🗺️ Múltiplas Coberturas**: Todas as rádios da proposta no mesmo mapa
 - **🎛️ Controle Individual**: Seletor para mostrar/ocultar cada cobertura
@@ -116,6 +124,7 @@ Sua **database/tabela do Notion** deve ter os mesmos campos da versão individua
 | **KMZ2** | URL | Link do Google Drive para arquivo KMZ |
 | **KML2** | URL | Link do Google Drive para arquivo KML |
 | **Imagem** | URL | Logo da rádio (opcional - fallback se KMZ não tiver) |
+| **🆕 Areas_Interesse** | Text | **NOVO**: Cidades de interesse separadas por vírgula (ex: `São Paulo-SP, Rio de Janeiro-RJ`) |
 
 ### **🔑 Obter ID da Database (Proposta)**
 
@@ -153,6 +162,41 @@ link(
 **Onde conseguir o "ID da Database"**: É o ID fixo da sua database/tabela do Notion.
 
 ## 🎯 Como Usar
+
+### **🆕 Áreas de Interesse (v2.2)**
+
+#### **Configuração Simples**
+1. No Notion, crie ou edite o campo `Areas_Interesse`
+2. Tipo do campo: **Text** (não Files!)
+3. Digite cidades separadas por vírgula:
+   ```
+   Rio de Janeiro-RJ, São Paulo-SP, Mogi das Cruzes-SP
+   ```
+
+#### **Formato**
+- `NomeCidade-UF, OutraCidade-UF, ...`
+- Acentos são opcionais: `São Paulo-SP` = `Sao Paulo-SP`
+- Case insensitive: `SÃO PAULO-SP` = `são paulo-sp`
+- UF opcional se nome for único
+
+#### **O que Acontece**
+- Sistema compara com cidades do KML2
+- Cidades encontradas ganham checkmark ✅
+- Popup mostra badge "✅ Área de Interesse"
+- Apenas cidades cobertas são marcadas
+
+#### **Exemplo Visual**
+```
+Mapa antes:  ⭕ São Paulo
+Mapa depois: ⭕✅ São Paulo  (com checkmark)
+```
+
+#### **Compatibilidade**
+- ✅ Funciona em modo Individual
+- ✅ Funciona em modo Proposta
+- ✅ Arquivos KML ainda funcionam (legado)
+
+**📖 Guia Completo**: Veja `AREAS_INTERESSE_MIGRATION.md` para detalhes
 
 ### **📻 Modo Individual (Preservado)**
 
@@ -362,6 +406,26 @@ Para problemas ou dúvidas:
 
 ## 📝 Changelog
 
+### **v2.2.0 (2025-01-XX) - ÁREAS DE INTERESSE SIMPLIFICADAS**
+
+#### **🌟 Funcionalidade Principal**
+- ✨ **Campo de Texto para Áreas de Interesse**: Não precisa mais fazer upload de arquivos KML
+- ✨ **Formato Simples**: Digite cidades separadas por vírgula: `São Paulo-SP, Rio de Janeiro-RJ`
+- ✨ **Checkmarks Visuais**: Cidades de interesse exibem ✅ sobre os marcadores
+- ✨ **Matching Inteligente**: Case-insensitive, sem acentos, flexível
+- ✨ **Badge em Popups**: "✅ Área de Interesse" nos detalhes da cidade
+
+#### **🔧 Melhorias Técnicas**
+- 🔄 **Compatibilidade Total**: Suporte a texto E arquivos KML (modo legado)
+- 🎯 **Análise Automática**: Sistema compara com cidades do KML2 automaticamente
+- 📊 **Dual Mode**: Funciona em modo Individual e Proposta
+- 🔍 **Normalização**: Remove acentos e normaliza nomes para matching preciso
+
+#### **📚 Documentação**
+- 📖 **Migration Guide**: Guia completo em `AREAS_INTERESSE_MIGRATION.md`
+- ✅ **Exemplos**: Casos de uso e troubleshooting
+- 🎓 **Tutorial**: Como migrar de KML para texto
+
 ### **v2.1.0 (2025-01-16) - MODO PROPOSTA**
 
 #### **🌟 Novidades Principais**
@@ -395,17 +459,19 @@ Para problemas ou dúvidas:
 
 ## 🔮 Roadmap Futuro
 
-### **v2.2.0 (Planejado)**
+### **v2.3.0 (Planejado)**
 - 🔄 **Comparação de Propostas**: Visualizar múltiplas propostas simultaneamente
 - 📊 **Relatórios Avançados**: Gráficos e análises detalhadas
 - 🎯 **Filtros Dinâmicos**: Por região, qualidade, população
+- 🔔 **Notificações**: Alertas quando áreas de interesse são cobertas
 - 📱 **App Mobile**: Versão nativa para dispositivos móveis
 
-### **v2.3.0 (Planejado)**
+### **v2.4.0 (Planejado)**
 - 🤖 **IA Análise**: Sugestões automáticas de otimização
 - 🗺️ **Mapas 3D**: Visualização tridimensional da cobertura
 - 📈 **Dashboard Analytics**: Métricas em tempo real
 - 🔗 **API Pública**: Integração com outros sistemas
+- 🌐 **Geocoding**: Endereços completos para áreas de interesse
 
 ## 📄 Licença
 

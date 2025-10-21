@@ -142,40 +142,53 @@ async function processRadioData(notionData) {
     }
   };
 
-  // 🆕 FUNÇÃO HELPER PARA EXTRAIR TODOS OS ARQUIVOS (ÁREAS DE INTERESSE) - CORRIGIDA E ROBUSTA
-  const extractAllFiles = (prop) => {
-    if (!prop || prop.type !== 'files' || !prop.files || prop.files.length === 0) {
-      return [];
+  // 🆕 FUNÇÃO HELPER PARA EXTRAIR ÁREAS DE INTERESSE (TEXTO OU ARQUIVOS)
+  const extractAreasInteresse = (prop) => {
+    if (!prop) {
+      return { type: 'none', data: [] };
     }
     
-    console.log(`📁 Processando ${prop.files.length} arquivo(s) de áreas`);
-    
-    return prop.files.map((file, index) => {
-      const fileData = {
-        name: file.name || `Arquivo ${index + 1}`,
-        type: file.type || 'unknown'
-      };
-      
-      // 🔧 EXTRAIR URL DE MÚLTIPLAS FONTES POSSÍVEIS
-      if (file.file && file.file.url) {
-        fileData.file = file.file;
-        fileData.url = file.file.url;
-        console.log(`📄 Arquivo ${index + 1}: ${file.name} - URL interna encontrada`);
-      } else if (file.external && file.external.url) {
-        fileData.external = file.external;
-        fileData.url = file.external.url;
-        console.log(`📄 Arquivo ${index + 1}: ${file.name} - URL externa encontrada`);
-      } else {
-        console.warn(`⚠️ Arquivo ${index + 1}: ${file.name} - Nenhuma URL encontrada`);
-        fileData.url = null;
+    // SUPORTE A TEXTO (NOVO): Campo de texto com cidades separadas por vírgula
+    if (prop.type === 'rich_text') {
+      const text = prop.rich_text?.[0]?.text?.content || '';
+      if (text.trim()) {
+        console.log(`📝 Áreas de interesse em formato texto: "${text}"`);
+        // Parse comma-separated city names: "Rio de Janeiro-RJ, São Paulo-SP, Mogi das Cruzes-SP"
+        const cities = text.split(',').map(city => city.trim()).filter(city => city.length > 0);
+        console.log(`✅ ${cities.length} cidade(s) de interesse parseada(s)`);
+        return { type: 'text', data: cities };
       }
-      
-      return fileData;
-    });
+    }
+    
+    // SUPORTE A ARQUIVOS (LEGADO): Backward compatibility com KML uploads
+    if (prop.type === 'files' && prop.files && prop.files.length > 0) {
+      console.log(`📁 Processando ${prop.files.length} arquivo(s) de áreas (modo legado)`);
+      const files = prop.files.map((file, index) => {
+        const fileData = {
+          name: file.name || `Arquivo ${index + 1}`,
+          type: file.type || 'unknown'
+        };
+        
+        if (file.file && file.file.url) {
+          fileData.file = file.file;
+          fileData.url = file.file.url;
+        } else if (file.external && file.external.url) {
+          fileData.external = file.external;
+          fileData.url = file.external.url;
+        } else {
+          fileData.url = null;
+        }
+        
+        return fileData;
+      });
+      return { type: 'files', data: files };
+    }
+    
+    return { type: 'none', data: [] };
   };
 
-  // 🔧 BUSCAR ÁREAS DE INTERESSE COM MÚLTIPLAS VARIAÇÕES DE NOME - MAIS ROBUSTA
-  let areasInteresse = [];
+  // 🔧 BUSCAR ÁREAS DE INTERESSE (TEXTO OU ARQUIVOS)
+  let areasInteresse = { type: 'none', data: [] };
   const possibleAreasFields = [
     'Areas_Interesse',
     'areas_interesse', 
@@ -194,10 +207,10 @@ async function processRadioData(notionData) {
   for (const fieldName of possibleAreasFields) {
     if (properties[fieldName]) {
       console.log(`✅ Campo encontrado: "${fieldName}"`);
-      areasInteresse = extractAllFiles(properties[fieldName]);
+      areasInteresse = extractAreasInteresse(properties[fieldName]);
       
-      if (areasInteresse.length > 0) {
-        console.log(`🎯 ${areasInteresse.length} arquivo(s) extraído(s) do campo "${fieldName}"`);
+      if (areasInteresse.data.length > 0) {
+        console.log(`🎯 ${areasInteresse.data.length} área(s) de interesse extraída(s) (tipo: ${areasInteresse.type})`);
         break;
       } else {
         console.log(`⚠️ Campo "${fieldName}" encontrado mas vazio`);
@@ -205,7 +218,7 @@ async function processRadioData(notionData) {
     }
   }
   
-  if (areasInteresse.length === 0) {
+  if (areasInteresse.data.length === 0) {
     console.log('ℹ️ Nenhum campo de áreas de interesse encontrado ou populado');
   }
 
@@ -280,15 +293,22 @@ async function processRadioData(notionData) {
     console.warn('⚠️ KML2 URL não encontrada');
   }
 
-  // 🆕 LOG DE ÁREAS DE INTERESSE - CORRIGIDO E DETALHADO
-  if (radioData.areasInteresse.length > 0) {
-    console.log('🎯 Áreas de interesse encontradas:', radioData.areasInteresse.length);
-    radioData.areasInteresse.forEach((area, index) => {
-      console.log(`  📄 ${index + 1}. ${area.name} - URL: ${area.url ? 'OK' : 'ERRO'}`);
-      if (area.url) {
-        console.log(`    🔗 ${area.url.substring(0, 60)}...`);
-      }
-    });
+  // 🆕 LOG DE ÁREAS DE INTERESSE
+  if (areasInteresse.data.length > 0) {
+    if (areasInteresse.type === 'text') {
+      console.log(`🎯 Áreas de interesse (texto): ${areasInteresse.data.length} cidade(s)`);
+      areasInteresse.data.forEach((city, index) => {
+        console.log(`  📍 ${index + 1}. ${city}`);
+      });
+    } else if (areasInteresse.type === 'files') {
+      console.log(`🎯 Áreas de interesse (arquivos): ${areasInteresse.data.length} arquivo(s)`);
+      areasInteresse.data.forEach((file, index) => {
+        console.log(`  📄 ${index + 1}. ${file.name} - URL: ${file.url ? 'OK' : 'ERRO'}`);
+        if (file.url) {
+          console.log(`    🔗 ${file.url.substring(0, 60)}...`);
+        }
+      });
+    }
   } else {
     console.log('ℹ️ Nenhuma área de interesse encontrada');
   }

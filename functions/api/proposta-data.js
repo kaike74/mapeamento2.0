@@ -196,40 +196,53 @@ async function processRadioData(notionData) {
     }
   };
 
-  // 🆕 FUNÇÃO HELPER PARA EXTRAIR TODOS OS ARQUIVOS (ÁREAS DE INTERESSE) - CORRIGIDA E ROBUSTA
-  const extractAllFiles = (prop) => {
-    if (!prop || prop.type !== 'files' || !prop.files || prop.files.length === 0) {
-      return [];
+  // 🆕 FUNÇÃO HELPER PARA EXTRAIR ÁREAS DE INTERESSE (TEXTO OU ARQUIVOS)
+  const extractAreasInteresse = (prop) => {
+    if (!prop) {
+      return { type: 'none', data: [] };
     }
     
-    console.log(`📁 Processando ${prop.files.length} arquivo(s) de áreas`);
-    
-    return prop.files.map((file, index) => {
-      const fileData = {
-        name: file.name || `Arquivo ${index + 1}`,
-        type: file.type || 'unknown'
-      };
-      
-      // 🔧 EXTRAIR URL DE MÚLTIPLAS FONTES POSSÍVEIS
-      if (file.file && file.file.url) {
-        fileData.file = file.file;
-        fileData.url = file.file.url;
-        console.log(`📄 Arquivo ${index + 1}: ${file.name} - URL interna encontrada`);
-      } else if (file.external && file.external.url) {
-        fileData.external = file.external;
-        fileData.url = file.external.url;
-        console.log(`📄 Arquivo ${index + 1}: ${file.name} - URL externa encontrada`);
-      } else {
-        console.warn(`⚠️ Arquivo ${index + 1}: ${file.name} - Nenhuma URL encontrada`);
-        fileData.url = null;
+    // SUPORTE A TEXTO (NOVO): Campo de texto com cidades separadas por vírgula
+    if (prop.type === 'rich_text') {
+      const text = prop.rich_text?.[0]?.text?.content || '';
+      if (text.trim()) {
+        console.log(`📝 Áreas de interesse em formato texto: "${text}"`);
+        // Parse comma-separated city names: "Rio de Janeiro-RJ, São Paulo-SP, Mogi das Cruzes-SP"
+        const cities = text.split(',').map(city => city.trim()).filter(city => city.length > 0);
+        console.log(`✅ ${cities.length} cidade(s) de interesse parseada(s)`);
+        return { type: 'text', data: cities };
       }
-      
-      return fileData;
-    });
+    }
+    
+    // SUPORTE A ARQUIVOS (LEGADO): Backward compatibility com KML uploads
+    if (prop.type === 'files' && prop.files && prop.files.length > 0) {
+      console.log(`📁 Processando ${prop.files.length} arquivo(s) de áreas (modo legado)`);
+      const files = prop.files.map((file, index) => {
+        const fileData = {
+          name: file.name || `Arquivo ${index + 1}`,
+          type: file.type || 'unknown'
+        };
+        
+        if (file.file && file.file.url) {
+          fileData.file = file.file;
+          fileData.url = file.file.url;
+        } else if (file.external && file.external.url) {
+          fileData.external = file.external;
+          fileData.url = file.external.url;
+        } else {
+          fileData.url = null;
+        }
+        
+        return fileData;
+      });
+      return { type: 'files', data: files };
+    }
+    
+    return { type: 'none', data: [] };
   };
 
-  // 🔧 BUSCAR ÁREAS DE INTERESSE COM MÚLTIPLAS VARIAÇÕES DE NOME - MAIS ROBUSTA
-  let areasInteresse = [];
+  // 🔧 BUSCAR ÁREAS DE INTERESSE (TEXTO OU ARQUIVOS)
+  let areasInteresse = { type: 'none', data: [] };
   const possibleAreasFields = [
     'Areas_Interesse',
     'areas_interesse', 
@@ -249,10 +262,10 @@ async function processRadioData(notionData) {
   for (const fieldName of possibleAreasFields) {
     if (properties[fieldName]) {
       console.log(`✅ Campo encontrado: "${fieldName}"`);
-      areasInteresse = extractAllFiles(properties[fieldName]);
+      areasInteresse = extractAreasInteresse(properties[fieldName]);
       
-      if (areasInteresse.length > 0) {
-        console.log(`🎯 ${areasInteresse.length} arquivo(s) extraído(s) do campo "${fieldName}"`);
+      if (areasInteresse.data.length > 0) {
+        console.log(`🎯 ${areasInteresse.data.length} área(s) de interesse extraída(s) (tipo: ${areasInteresse.type})`);
         break;
       } else {
         console.log(`⚠️ Campo "${fieldName}" encontrado mas vazio`);
@@ -260,7 +273,7 @@ async function processRadioData(notionData) {
     }
   }
   
-  if (areasInteresse.length === 0) {
+  if (areasInteresse.data.length === 0) {
     console.log('ℹ️ Nenhum campo de áreas de interesse encontrado ou populado');
   }
 
@@ -317,11 +330,18 @@ async function processRadioData(notionData) {
   }
 
   // 🔧 LOG FINAL DE DEBUG PARA ÁREAS DE INTERESSE
-  if (radioData.areasInteresse.length > 0) {
-    console.log(`🎯 RÁDIO "${radioData.name}": ${radioData.areasInteresse.length} área(s) de interesse`);
-    radioData.areasInteresse.forEach((area, i) => {
-      console.log(`  📄 ${i+1}. ${area.name} - URL: ${area.url ? 'OK' : 'ERRO'}`);
-    });
+  if (areasInteresse.data.length > 0) {
+    if (areasInteresse.type === 'text') {
+      console.log(`🎯 RÁDIO "${radioData.name}": ${areasInteresse.data.length} cidade(s) de interesse (texto)`);
+      areasInteresse.data.slice(0, 3).forEach((city, i) => {
+        console.log(`  📍 ${i+1}. ${city}`);
+      });
+    } else if (areasInteresse.type === 'files') {
+      console.log(`🎯 RÁDIO "${radioData.name}": ${areasInteresse.data.length} arquivo(s) de interesse`);
+      areasInteresse.data.forEach((file, i) => {
+        console.log(`  📄 ${i+1}. ${file.name} - URL: ${file.url ? 'OK' : 'ERRO'}`);
+      });
+    }
   }
 
   return radioData;
@@ -335,7 +355,7 @@ function generateSummary(radiosData) {
     totalRadios: radiosData.length,
     radiosWithKmz: radiosData.filter(r => r.hasKmz).length,
     radiosWithKml: radiosData.filter(r => r.hasKml).length,
-    radiosWithAreas: radiosData.filter(r => r.areasInteresse && r.areasInteresse.length > 0).length,
+    radiosWithAreas: 0,
     estados: [...new Set(radiosData.map(r => r.uf).filter(uf => uf && uf !== 'N/A'))],
     regioes: [...new Set(radiosData.map(r => r.region).filter(region => region && region !== 'N/A'))],
     dialTypes: {}
@@ -352,17 +372,25 @@ function generateSummary(radiosData) {
 
   // 🆕 ANÁLISE DE ÁREAS DE INTERESSE
   let totalAreasFiles = 0;
+  let totalAreasText = 0;
   radiosData.forEach(radio => {
-    if (radio.areasInteresse && radio.areasInteresse.length > 0) {
-      totalAreasFiles += radio.areasInteresse.length;
+    if (radio.areasInteresse) {
+      if (radio.areasInteresse.type === 'text') {
+        totalAreasText += radio.areasInteresse.data.length;
+      } else if (radio.areasInteresse.type === 'files') {
+        totalAreasFiles += radio.areasInteresse.data.length;
+      }
     }
   });
 
+  summary.totalAreasText = totalAreasText;
   summary.totalAreasFiles = totalAreasFiles;
+  summary.radiosWithAreas = radiosData.filter(r => r.areasInteresse && r.areasInteresse.data.length > 0).length;
 
   console.log('📊 Resumo gerado:', {
     totalRadios: summary.totalRadios,
     radiosWithAreas: summary.radiosWithAreas,
+    totalAreasText: summary.totalAreasText,
     totalAreasFiles: summary.totalAreasFiles,
     estados: summary.estados.length
   });
