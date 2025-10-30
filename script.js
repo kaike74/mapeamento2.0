@@ -38,6 +38,127 @@ async function addStateBorders() {
 }
 
 // =========================================================================
+// 🚀 UTILITÁRIOS DE PERFORMANCE
+// =========================================================================
+
+// Debounce: Aguarda um tempo de inatividade antes de executar
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Throttle: Limita execução a uma vez por período
+function throttle(func, limit) {
+    let inThrottle;
+    return function(...args) {
+        if (!inThrottle) {
+            func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+// Verificar se um layer está visível no viewport atual
+function isLayerInViewport(bounds) {
+    if (!map || !bounds) return true; // Se não houver bounds, sempre mostrar
+
+    const mapBounds = map.getBounds();
+    const layerBounds = L.latLngBounds(bounds);
+
+    return mapBounds.intersects(layerBounds);
+}
+
+// Atualizar visibilidade dos layers baseado no viewport (com debounce)
+const updateLayersVisibility = debounce(function() {
+    if (!isPropostaMode || !propostaData.radios) return;
+
+    const mapBounds = map.getBounds();
+    const zoom = map.getZoom();
+    currentZoom = zoom;
+
+    // 🚀 Calcular opacidade dinâmica baseada no zoom
+    // Zoom 5-7: opacidade reduzida, Zoom 8+: opacidade normal
+    const opacity = zoom < 7 ? 0.4 : (zoom < 9 ? 0.5 : 0.6);
+
+    let visibleCount = 0;
+    let hiddenCount = 0;
+
+    propostaData.radios.forEach(radio => {
+        const layerGroup = radiosLayers[radio.id];
+        if (!layerGroup) return;
+
+        // Verificar se a rádio está visível no viewport
+        let isVisible = false;
+
+        // Usar bounds da imagem de cobertura se disponível
+        if (radio.coverageImage && radio.coverageImage.bounds) {
+            const radioBounds = L.latLngBounds(radio.coverageImage.bounds);
+            isVisible = mapBounds.intersects(radioBounds);
+        } else if (radio.antennaLocation) {
+            // Ou verificar se a antena está no viewport
+            isVisible = mapBounds.contains(L.latLng(radio.antennaLocation.lat, radio.antennaLocation.lng));
+        } else {
+            // Se não tiver informação de localização, manter visível
+            isVisible = true;
+        }
+
+        // Atualizar visibilidade do layer
+        if (isVisible && !visibleRadios.has(radio.id)) {
+            visibleRadios.add(radio.id);
+            if (!map.hasLayer(layerGroup)) {
+                layerGroup.addTo(map);
+                visibleCount++;
+            }
+        } else if (!isVisible && visibleRadios.has(radio.id)) {
+            visibleRadios.delete(radio.id);
+            if (map.hasLayer(layerGroup)) {
+                map.removeLayer(layerGroup);
+                hiddenCount++;
+            }
+        }
+
+        // 🚀 Ajustar opacidade da imagem de cobertura se estiver visível
+        if (isVisible && radio.coverageImage) {
+            layerGroup.eachLayer(layer => {
+                if (layer instanceof L.ImageOverlay) {
+                    layer.setOpacity(opacity);
+                }
+            });
+        }
+    });
+
+    if (visibleCount > 0 || hiddenCount > 0) {
+        console.log(`🎯 Viewport atualizado: +${visibleCount} visíveis, -${hiddenCount} ocultas (Total: ${visibleRadios.size}/${propostaData.radios.length}, Opacidade: ${opacity.toFixed(1)})`);
+    }
+}, 150); // Debounce de 150ms
+
+// Limpar blob URLs para evitar memory leaks
+function cleanupBlobUrl(url) {
+    if (url && url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+        const index = blobUrls.indexOf(url);
+        if (index > -1) {
+            blobUrls.splice(index, 1);
+        }
+    }
+}
+
+// Limpar todos os blob URLs
+function cleanupAllBlobUrls() {
+    blobUrls.forEach(url => URL.revokeObjectURL(url));
+    blobUrls = [];
+    console.log('🧹 Blob URLs limpos');
+}
+
+// =========================================================================
 // 🚀 MAPEAMENTO RÁDIO 2.0 - E-MÍDIAS - VERSÃO CORRIGIDA PARA BATCHGEO
 // =========================================================================
 
@@ -65,7 +186,7 @@ let filteredAreasInteresse = []; // Áreas filtradas por modo
 let loadingInterval = null;
 const loadingTexts = [
     "Localizando rádios escondidas...",
-    "Ajustando a sintonia...", 
+    "Ajustando a sintonia...",
     "Testando, som... som... 1, 2, 3...",
     "O mapa vai entrar no ar em instantes!",
     "Contando universo: 1, 2, 3... quase lá!",
@@ -76,9 +197,21 @@ const loadingTexts = [
     "📍 Analisando locais prioritários..."
 ];
 
+// 🚀 VARIÁVEIS PARA OTIMIZAÇÃO DE PERFORMANCE
+let visibleRadios = new Set(); // Rádios atualmente visíveis no viewport
+let currentZoom = 5; // Zoom atual do mapa
+let viewportUpdateTimeout = null; // Timeout para atualização de viewport
+let blobUrls = []; // Rastrear blob URLs para limpeza
+
 // =========================================================================
 // 🎯 INICIALIZAÇÃO PRINCIPAL
 // =========================================================================
+
+// 🚀 Limpar blob URLs ao sair da página para evitar memory leaks
+window.addEventListener('beforeunload', () => {
+    cleanupAllBlobUrls();
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         console.log('🚀 Iniciando Mapeamento 2.0 com Áreas de Interesse...');
@@ -688,32 +821,72 @@ function extractAreaPriorityFlexible(name, description) {
     return 'media';
 }
 
-// Analisar áreas para proposta
+// Analisar áreas para proposta - OTIMIZADO
 function analyzeAreasForProposta() {
     console.log('🎯 Analisando cobertura das áreas...');
-    
-    let areasCobertas = 0;
-    
-    areasInteresseData.forEach((area, index) => {
-        area.coveringRadios = [];
-        area.covered = false;
-        
-        // Verificar cobertura por cada rádio da proposta
-        propostaData.radios.forEach(radio => {
-            if (isAreaCoveredByRadio(area, radio)) {
-                area.coveringRadios.push(radio);
-                area.covered = true;
-            }
-        });
-        
-        if (area.covered) areasCobertas++;
-        
-        // 🔧 LOG DETALHADO APENAS SE NECESSÁRIO
-        if (index < 5) {
-            console.log(`📍 "${area.name}": ${area.coveringRadios.length} rádio(s)`);
+
+    // 🚀 OTIMIZAÇÃO: Pré-calcular bounds de todas as rádios uma vez
+    const radioBoundsCache = new Map();
+    propostaData.radios.forEach(radio => {
+        if (radio.coverageImage && radio.coverageImage.bounds) {
+            radioBoundsCache.set(radio.id, L.latLngBounds(radio.coverageImage.bounds));
         }
     });
-    
+
+    let areasCobertas = 0;
+
+    // 🚀 OTIMIZAÇÃO: Processar áreas em lotes se houver muitas
+    const batchSize = 50;
+    for (let i = 0; i < areasInteresseData.length; i += batchSize) {
+        const batch = areasInteresseData.slice(i, Math.min(i + batchSize, areasInteresseData.length));
+
+        batch.forEach((area, index) => {
+            area.coveringRadios = [];
+            area.covered = false;
+
+            // Verificar cobertura por cada rádio da proposta
+            for (const radio of propostaData.radios) {
+                // 🚀 OTIMIZAÇÃO: Usar bounds em cache para verificação rápida
+                const radioBounds = radioBoundsCache.get(radio.id);
+                if (radioBounds) {
+                    const areaLatLng = L.latLng(area.coordinates.lat, area.coordinates.lng);
+                    if (radioBounds.contains(areaLatLng)) {
+                        area.coveringRadios.push(radio);
+                        area.covered = true;
+                        continue; // Próxima rádio
+                    }
+                }
+
+                // Estratégia 2: Verificar por proximidade (só se não coberto por bounds)
+                if (!area.covered && radio.citiesData && radio.citiesData.length > 0) {
+                    const maxDistance = 50; // km
+                    const areaLat = area.coordinates.lat;
+                    const areaLng = area.coordinates.lng;
+
+                    for (const city of radio.citiesData) {
+                        const distance = calculateDistance(
+                            areaLat, areaLng,
+                            city.coordinates.lat, city.coordinates.lng
+                        );
+
+                        if (distance <= maxDistance) {
+                            area.coveringRadios.push(radio);
+                            area.covered = true;
+                            break; // 🚀 Parar no primeiro match para esta rádio
+                        }
+                    }
+                }
+            }
+
+            if (area.covered) areasCobertas++;
+
+            // 🔧 LOG DETALHADO APENAS SE NECESSÁRIO
+            if (i + index < 5) {
+                console.log(`📍 "${area.name}": ${area.coveringRadios.length} rádio(s)`);
+            }
+        });
+    }
+
     console.log(`✅ Análise completa: ${areasCobertas}/${areasInteresseData.length} áreas cobertas`);
 }
 
@@ -921,17 +1094,18 @@ function initializeMap() {
     const zoom = 5; // Zoom para mostrar todo o Brasil
     
     map = L.map('map', {
-        preferCanvas: false,
+        preferCanvas: true, // 🚀 Canvas é MUITO mais eficiente para múltiplos marcadores
         zoomControl: true,
         attributionControl: false,
         zoomSnap: 1,
         zoomDelta: 1,
-        wheelDebounceTime: 40,
+        wheelDebounceTime: 100, // 🚀 Aumentado para reduzir eventos durante zoom
         wheelPxPerZoomLevel: 60,
-        fadeAnimation: true,
+        fadeAnimation: false, // 🚀 Desabilitar animação para melhor performance
         zoomAnimation: true,
-        markerZoomAnimation: true,
-        maxBoundsViscosity: 1.0
+        markerZoomAnimation: false, // 🚀 Desabilitar animação de marcadores
+        maxBoundsViscosity: 1.0,
+        renderer: L.canvas({ tolerance: 5 }) // 🚀 Renderer Canvas otimizado
     }).setView([center.lat, center.lng], zoom);
     
     // 🗺️ DEFINIR APENAS 2 CAMADAS DE MAPA COM CONFIGURAÇÕES ESTÁVEIS
@@ -956,10 +1130,19 @@ function initializeMap() {
     
     // Adicionar camada padrão (Satélite primeiro)
     baseLayers['Satélite'].addTo(map);
-    
+
+    // 🚀 ADICIONAR EVENT LISTENERS PARA OTIMIZAÇÃO DE PERFORMANCE
+    if (isPropostaMode) {
+        // Atualizar visibilidade de layers ao mover ou dar zoom
+        map.on('moveend', updateLayersVisibility);
+        map.on('zoomend', updateLayersVisibility);
+
+        console.log('🚀 Event listeners de otimização adicionados');
+    }
+
     // Adicionar divisórias dos estados brasileiros
     addStateBorders();
-    
+
     // Aguardar um pouco para o mapa renderizar
     setTimeout(() => {
         map.invalidateSize();
@@ -1065,24 +1248,22 @@ function setupLayersControlForProposta() {
 // RESTANTE DAS FUNÇÕES AUXILIARES (PRESERVADAS DO CÓDIGO ORIGINAL)
 // =========================================================================
 
-// Adicionar todas as rádios ao mapa (modo proposta)
+// Adicionar todas as rádias ao mapa (modo proposta) - OTIMIZADO
 function addAllRadiosToMap() {
     console.log('🌟 Adicionando rádios ao mapa (otimizado)...');
-    
+
     let processedRadios = 0;
-    const batchSize = 2;
-    
+    const batchSize = 5; // 🚀 Aumentado de 2 para 5 para processar mais rápido
+
     function processBatch() {
         const endIndex = Math.min(processedRadios + batchSize, propostaData.radios.length);
-        
+
         for (let i = processedRadios; i < endIndex; i++) {
             const radio = propostaData.radios[i];
-            
-            const radioLayerGroup = L.layerGroup({
-                interactive: true,
-                bubblingMouseEvents: false,
-            });
-            
+
+            // 🚀 Usar FeatureGroup ao invés de layerGroup (mais eficiente)
+            const layers = [];
+
             // 1. Adicionar imagem de cobertura se disponível
             if (radio.coverageImage) {
                 const coverageLayer = L.imageOverlay(
@@ -1094,30 +1275,40 @@ function addAllRadiosToMap() {
                         crossOrigin: false,
                     }
                 );
-                radioLayerGroup.addLayer(coverageLayer);
+                layers.push(coverageLayer);
             }
-            
+
             // 2. Adicionar marcador da antena
             if (radio.antennaLocation) {
                 const antennaMarker = createRadioAntennaMarker(radio);
-                radioLayerGroup.addLayer(antennaMarker);
+                layers.push(antennaMarker);
             }
-            
-            // 3. Adicionar marcadores de cidades
+
+            // 3. 🚀 Criar marcadores de cidades em batch
             if (radio.citiesData && radio.citiesData.length > 0) {
-                radio.citiesData.forEach((city, cityIndex) => {
-                    const cityMarker = createCityMarker(city, radio);
-                    radioLayerGroup.addLayer(cityMarker);
-                });
+                // Criar todos os marcadores de uma vez
+                const cityMarkers = radio.citiesData.map(city => createCityMarker(city, radio));
+                layers.push(...cityMarkers);
             }
-            
-            // 4. Adicionar o grupo completo ao mapa
-            radioLayerGroup.addTo(map);
+
+            // 4. Criar FeatureGroup com todos os layers
+            const radioLayerGroup = L.featureGroup(layers, {
+                interactive: true,
+                bubblingMouseEvents: false,
+            });
+
+            // 5. 🚀 Só adicionar ao mapa se estiver no viewport inicial (primeiras rádios)
+            // As demais serão adicionadas sob demanda pela função updateLayersVisibility
+            if (i < 10) { // Adicionar apenas as primeiras 10 rádios automaticamente
+                radioLayerGroup.addTo(map);
+                visibleRadios.add(radio.id);
+            }
+
             radiosLayers[radio.id] = radioLayerGroup;
         }
-        
+
         processedRadios = endIndex;
-        
+
         // Continuar processamento ou finalizar
         if (processedRadios < propostaData.radios.length) {
             requestAnimationFrame(processBatch);
@@ -1125,16 +1316,21 @@ function addAllRadiosToMap() {
             finalizarAdicaoRadios();
         }
     }
-    
+
     processBatch();
 }
 
 function finalizarAdicaoRadios() {
     fitMapBoundsForProposta();
     console.log(`✅ ${propostaData.radios.length} rádios processadas no mapa`);
-    
+
     requestAnimationFrame(() => {
         setupLayersControlForProposta();
+
+        // 🚀 Atualizar visibilidade dos layers após configurar tudo
+        requestAnimationFrame(() => {
+            updateLayersVisibility();
+        });
     });
 }
 
@@ -1543,12 +1739,15 @@ async function parseKMZContent(kmlText, zip) {
             if (imageFile) {
                 const imageBlob = await imageFile.async('blob');
                 const imageUrl = URL.createObjectURL(imageBlob);
-                
+
+                // 🚀 Rastrear blob URL para limpeza posterior
+                blobUrls.push(imageUrl);
+
                 radioData.coverageImage = {
                     url: imageUrl,
                     bounds: [[south, west], [north, east]]
                 };
-                
+
                 console.log('✅ GroundOverlay extraído');
             }
         }
@@ -1563,6 +1762,10 @@ async function parseKMZContent(kmlText, zip) {
             if (imageFile) {
                 const imageBlob = await imageFile.async('blob');
                 legendImage = URL.createObjectURL(imageBlob);
+
+                // 🚀 Rastrear blob URL para limpeza posterior
+                blobUrls.push(legendImage);
+
                 console.log('✅ Legenda extraída');
             }
         }
@@ -2377,7 +2580,10 @@ async function parseRadioKMZContent(radio, kmlText, zip) {
             if (imageFile) {
                 const imageBlob = await imageFile.async('blob');
                 const imageUrl = URL.createObjectURL(imageBlob);
-                
+
+                // 🚀 Rastrear blob URL para limpeza posterior
+                blobUrls.push(imageUrl);
+
                 radio.coverageImage = {
                     url: imageUrl,
                     bounds: [[south, west], [north, east]]
