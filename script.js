@@ -168,6 +168,7 @@ let propostaData = {}; // Para modo proposta
 let citiesData = [];
 let filteredCities = [];
 let coverageImageLayer = null;
+let coveragePolygonLayer = null; // 🆕 Para polígono de cobertura (fallback)
 let legendImage = null;
 let cityMarkersIndividual = []; // Para modo individual apenas
 let baseLayers = {}; // Para controle de layers
@@ -1188,14 +1189,19 @@ function initializeMap() {
             if (radioData.coverageImage) {
                 addCoverageImage();
             }
-            
+
+            // 🆕 Adicionar polígono de cobertura (fallback) se disponível
+            if (radioData.coveragePolygon) {
+                addCoveragePolygon();
+            }
+
             if (radioData.antennaLocation) {
                 addAntennaMarker();
             }
-            
+
             addCityMarkers();
-            
-            if (citiesData.length > 0 || radioData.antennaLocation || radioData.coverageImage) {
+
+            if (citiesData.length > 0 || radioData.antennaLocation || radioData.coverageImage || radioData.coveragePolygon) {
                 fitMapBounds();
             }
             
@@ -1308,6 +1314,20 @@ function addAllRadiosToMap() {
                     }
                 );
                 layers.push(coverageLayer);
+            }
+
+            // 🆕 1.5. Adicionar polígono de cobertura (fallback) se disponível
+            if (radio.coveragePolygon && radio.coveragePolygon.length > 0) {
+                const polygonCoords = radio.coveragePolygon.map(coord => [coord.lat, coord.lng]);
+                const coveragePolygonLayer = L.polygon(polygonCoords, {
+                    color: '#3388ff',
+                    fillColor: '#3388ff',
+                    fillOpacity: 0.2,
+                    weight: 2,
+                    interactive: false
+                });
+                layers.push(coveragePolygonLayer);
+                console.log(`✅ Polígono de cobertura renderizado: ${radio.name}`);
             }
 
             // 2. Adicionar marcador da antena
@@ -1717,7 +1737,7 @@ async function processFiles() {
     if (!hasKML && radioData.kmlUrl && radioData.kmlUrl.trim() !== '') {
         console.log('🔄 Usando fallback: coluna KML');
         try {
-            await processKML(radioData.kmlUrl);
+            await processKMLFallback(radioData.kmlUrl);
             hasKML = !!radioData.citiesData && radioData.citiesData.length > 0;
         } catch (error) {
             console.warn('⚠️ Fallback KML falhou:', error.message);
@@ -1925,18 +1945,41 @@ async function processKML(driveUrl) {
     try {
         const directUrl = convertGoogleDriveUrl(driveUrl);
         const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
-        
+
         console.log('🏙️ Baixando KML...');
-        
+
         const response = await fetch(proxyUrl);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
+
         const kmlText = await response.text();
         console.log('📄 KML de cidades baixado');
         await parseKMLCities(kmlText);
-        
+
     } catch (error) {
         console.error('❌ Erro ao processar KML:', error);
+        throw error;
+    }
+}
+
+// 🆕 Processar KML de fallback (modo individual) com estrutura completa
+async function processKMLFallback(driveUrl) {
+    try {
+        const directUrl = convertGoogleDriveUrl(driveUrl);
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
+
+        console.log('🏙️ Baixando KML fallback...');
+
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const kmlText = await response.text();
+        console.log('📄 KML fallback baixado');
+
+        // Usar a mesma função do modo proposta
+        await parseKMLFallbackComplete(radioData, kmlText);
+
+    } catch (error) {
+        console.error('❌ Erro ao processar KML fallback:', error);
         throw error;
     }
 }
@@ -2092,7 +2135,7 @@ function getSignalQuality(styleUrl) {
 // Adicionar imagem de cobertura ao mapa
 function addCoverageImage() {
     if (!radioData.coverageImage) return;
-    
+
     coverageImageLayer = L.imageOverlay(
         radioData.coverageImage.url,
         radioData.coverageImage.bounds,
@@ -2101,14 +2144,30 @@ function addCoverageImage() {
             interactive: false
         }
     ).addTo(map);
-    
+
     console.log('🖼️ Imagem de cobertura adicionada');
+}
+
+// 🆕 Adicionar polígono de cobertura (fallback)
+function addCoveragePolygon() {
+    if (!radioData.coveragePolygon || radioData.coveragePolygon.length === 0) return;
+
+    const polygonCoords = radioData.coveragePolygon.map(coord => [coord.lat, coord.lng]);
+    coveragePolygonLayer = L.polygon(polygonCoords, {
+        color: '#3388ff',
+        fillColor: '#3388ff',
+        fillOpacity: 0.2,
+        weight: 2,
+        interactive: false
+    }).addTo(map);
+
+    console.log('🖼️ Polígono de cobertura adicionado (fallback)');
 }
 
 // Adicionar marcador da antena
 function addAntennaMarker() {
     let antennaIcon;
-    let logoUrl = radioData.logoUrlFromKMZ || radioData.notionIconUrl;
+    let logoUrl = radioData.logoUrlFromKMZ || radioData.logoUrlFromKML || radioData.notionIconUrl;
     
     if (logoUrl) {
         antennaIcon = L.divIcon({
@@ -2739,7 +2798,7 @@ async function parseKMLCitiesForRadio(kmlText) {
 // 🆕 FUNÇÕES DE FALLBACK PARA KML E COORDENADAS
 // =========================================================================
 
-// Processar KML fallback para uma rádio (modo proposta)
+// Processar KML fallback para uma rádio (modo proposta) - ESTRUTURA COMPLETA
 async function processRadioKMLFallback(radio) {
     try {
         const directUrl = convertGoogleDriveUrl(radio.kmlUrl);
@@ -2749,11 +2808,129 @@ async function processRadioKMLFallback(radio) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const kmlText = await response.text();
-        radio.citiesData = await parseKMLCitiesForRadio(kmlText);
+
+        // 🆕 Processar estrutura completa do KML de fallback
+        await parseKMLFallbackComplete(radio, kmlText);
 
     } catch (error) {
         console.warn(`⚠️ KML Fallback ${radio.name}: ${error.message}`);
         radio.citiesData = [];
+    }
+}
+
+// 🆕 Processar KML de fallback com estrutura completa (logo, cidades, polígono)
+async function parseKMLFallbackComplete(radio, kmlText) {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
+
+    // 1️⃣ EXTRAIR LOGO DA EMISSORA (IconStyle do primeiro Placemark)
+    const folders = xmlDoc.querySelectorAll('Folder');
+    let emissoraFolder = null;
+
+    for (const folder of folders) {
+        const folderName = folder.querySelector('name')?.textContent || '';
+        if (folderName.toLowerCase().includes('emissora')) {
+            emissoraFolder = folder;
+            break;
+        }
+    }
+
+    if (emissoraFolder) {
+        const firstPlacemark = emissoraFolder.querySelector('Placemark');
+        if (firstPlacemark) {
+            // Extrair logo do IconStyle (dentro de Style ou StyleUrl)
+            const styleUrl = firstPlacemark.querySelector('styleUrl')?.textContent;
+            if (styleUrl) {
+                const styleId = styleUrl.replace('#', '');
+                const style = xmlDoc.querySelector(`Style[id="${styleId}"]`);
+                if (style) {
+                    const iconHref = style.querySelector('IconStyle Icon href')?.textContent;
+                    if (iconHref) {
+                        radio.logoUrlFromKML = iconHref;
+                        console.log(`✅ Logo extraída do KML fallback: ${radio.name}`);
+                    }
+                }
+            }
+        }
+    }
+
+    // 2️⃣ EXTRAIR CIDADES DE COBERTURA
+    let cidadesFolder = null;
+    for (const folder of folders) {
+        const folderName = folder.querySelector('name')?.textContent || '';
+        if (folderName.toLowerCase().includes('cidade')) {
+            cidadesFolder = folder;
+            break;
+        }
+    }
+
+    const cities = [];
+    if (cidadesFolder) {
+        const placemarks = cidadesFolder.querySelectorAll('Placemark');
+
+        placemarks.forEach((placemark) => {
+            const name = placemark.querySelector('name')?.textContent || '';
+            const coordinates = placemark.querySelector('Point coordinates')?.textContent;
+
+            if (coordinates && name) {
+                const coords = coordinates.trim().split(',');
+                const lng = parseFloat(coords[0]);
+                const lat = parseFloat(coords[1]);
+
+                // Extrair distância do nome (ex: "Fortaleza (0.0 km)" ou "Caucaia (8.3 km)")
+                const distanceMatch = name.match(/\(([0-9.]+)\s*km\)/);
+                const distance = distanceMatch ? parseFloat(distanceMatch[1]) : null;
+                const cityName = name.replace(/\s*\([0-9.]+\s*km\)/, '').trim();
+
+                // Tentar separar cidade e UF
+                const nameParts = cityName.split(' - ');
+
+                const cityData = {
+                    name: nameParts[0] || cityName,
+                    uf: nameParts[1] || radio.uf || '',
+                    fullName: cityName,
+                    coordinates: { lat, lng },
+                    quality: 'unknown', // KML de fallback não tem styleUrl de qualidade
+                    totalPopulation: 0,
+                    urbanPopulation: 0,
+                    ruralPopulation: 0,
+                    distance: distance, // 🆕 Distância da antena
+                    isKMLFallback: true // Flag para identificar origem
+                };
+
+                cities.push(cityData);
+            }
+        });
+
+        console.log(`✅ KML Fallback ${radio.name}: ${cities.length} cidades extraídas`);
+    }
+
+    radio.citiesData = cities;
+
+    // 3️⃣ EXTRAIR POLÍGONO DE COBERTURA
+    let coberturaFolder = null;
+    for (const folder of folders) {
+        const folderName = folder.querySelector('name')?.textContent || '';
+        if (folderName.toLowerCase().includes('cobertura') || folderName.toLowerCase().includes('proje')) {
+            coberturaFolder = folder;
+            break;
+        }
+    }
+
+    if (coberturaFolder) {
+        const polygon = coberturaFolder.querySelector('Polygon coordinates');
+        if (polygon) {
+            const coordsText = polygon.textContent.trim();
+            const coordsPairs = coordsText.split(/\s+/).map(pair => {
+                const [lng, lat] = pair.split(',').map(parseFloat);
+                return { lat, lng };
+            }).filter(coord => !isNaN(coord.lat) && !isNaN(coord.lng));
+
+            if (coordsPairs.length > 0) {
+                radio.coveragePolygon = coordsPairs;
+                console.log(`✅ Polígono de cobertura extraído: ${coordsPairs.length} pontos`);
+            }
+        }
     }
 }
 
