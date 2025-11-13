@@ -1998,6 +1998,9 @@ async function processKMLFallback(driveUrl) {
         // Usar a mesma função do modo proposta
         await parseKMLFallbackComplete(radioData, kmlText);
 
+        // 🆕 Copiar dados para variável global (modo individual)
+        citiesData = radioData.citiesData || [];
+
     } catch (error) {
         console.error('❌ Erro ao processar KML fallback:', error);
         throw error;
