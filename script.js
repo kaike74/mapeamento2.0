@@ -235,7 +235,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             isPropostaMode = false;
             await initIndividualMode(radioId);
         } else {
-            throw new Error('Parâmetro obrigatório: ?id=RADIO_ID ou ?idproposta=DATABASE_ID');
+            // 🔄 REDIRECIONAMENTO: Sem parâmetros, redirecionar para site da E-Mídias
+            console.log('🔄 Nenhum parâmetro detectado, redirecionando para emidiastec.com.br...');
+            window.location.href = 'https://emidiastec.com.br';
+            return; // Interromper execução
         }
         
         // 🆕 OCULTAR LOADING PADRÃO EM AMBOS OS MODOS
