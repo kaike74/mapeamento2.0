@@ -1040,9 +1040,11 @@ async function processAllRadiosInProposta() {
 
             let hasKMZ = false;
             let hasKML = false;
+            const hasKMZ2Field = radio.kmz2Url && radio.kmz2Url.trim() !== '';
+            const hasKML2Field = radio.kml2Url && radio.kml2Url.trim() !== '';
 
-            // Processar KMZ se disponível - AGUARDAR CONCLUSÃO
-            if (radio.kmz2Url && radio.kmz2Url.trim() !== '') {
+            // Processar KMZ2 se disponível - AGUARDAR CONCLUSÃO
+            if (hasKMZ2Field) {
                 await processRadioKMZ(radio);
                 if (radio.coverageImage) {
                     withKMZ++;
@@ -1050,8 +1052,8 @@ async function processAllRadiosInProposta() {
                 }
             }
 
-            // Processar KML se disponível - AGUARDAR CONCLUSÃO
-            if (radio.kml2Url && radio.kml2Url.trim() !== '') {
+            // Processar KML2 se disponível - AGUARDAR CONCLUSÃO
+            if (hasKML2Field) {
                 await processRadioKML(radio);
                 if (radio.citiesData?.length > 0) {
                     withKML++;
@@ -1059,9 +1061,11 @@ async function processAllRadiosInProposta() {
                 }
             }
 
-            // 🆕 FALLBACK 1: Tentar coluna KML se KML2 não existe ou não funcionou
-            if (!hasKML && radio.kmlUrl && radio.kmlUrl.trim() !== '') {
-                console.log(`🔄 ${radio.name}: Usando fallback coluna KML`);
+            // 🆕 FALLBACK 1: Usar coluna KML quando AMBOS KML2 E KMZ2 estiverem vazios
+            const shouldUseFallback = !hasKML2Field && !hasKMZ2Field;
+
+            if (shouldUseFallback && radio.kmlUrl && radio.kmlUrl.trim() !== '') {
+                console.log(`🔄 ${radio.name}: Usando fallback coluna KML (KML2 e KMZ2 vazios)`);
                 try {
                     await processRadioKMLFallback(radio);
                     if (radio.citiesData?.length > 0) {
@@ -1074,7 +1078,7 @@ async function processAllRadiosInProposta() {
             }
 
             // 🆕 FALLBACK 2: Usar Latitude/Longitude se não há dados de cobertura
-            if (!hasKML && radio.latitude && radio.longitude) {
+            if (shouldUseFallback && !hasKML && radio.latitude && radio.longitude) {
                 console.log(`🔄 ${radio.name}: Usando fallback Latitude/Longitude`);
                 processCoordinatesFallback(radio);
             }
@@ -1448,7 +1452,7 @@ function createRadioAntennaMarker(radio) {
 // Criar marcador de cidade
 function createCityMarker(city, radio) {
     const color = getQualityColor(city.quality);
-    
+
     const cityIcon = L.divIcon({
         html: `
             <div style="
@@ -1464,19 +1468,31 @@ function createCityMarker(city, radio) {
         iconSize: [16, 16],
         iconAnchor: [8, 8]
     });
-    
-    const popupContent = `
-        <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
-            <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
-            <p style="margin: 2px 0; font-weight: bold; color: #FC1E75;">📻 ${radio.name} (${radio.dial})</p>
-            <div style="text-align: left; font-size: 13px; color: #64748B;">
-                <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
-                <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()}</p>
-                <p style="margin: 4px 0;"><strong>Qualidade:</strong> ${getQualityText(city.quality)}</p>
+
+    // 🆕 Popup diferente para fallback KML (sem dados de população)
+    let popupContent;
+    if (city.isKMLFallback) {
+        popupContent = `
+            <div style="text-align: center; font-family: var(--font-primary); min-width: 200px;">
+                <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name}</h4>
+                <p style="margin: 2px 0; font-weight: bold; color: #FC1E75;">📻 ${radio.name} (${radio.dial})</p>
+                ${city.distance !== null && city.distance !== undefined ? `<p style="margin: 4px 0; color: #64748B;"><strong>Distância:</strong> ${city.distance} km</p>` : ''}
             </div>
-        </div>
-    `;
-    
+        `;
+    } else {
+        popupContent = `
+            <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
+                <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
+                <p style="margin: 2px 0; font-weight: bold; color: #FC1E75;">📻 ${radio.name} (${radio.dial})</p>
+                <div style="text-align: left; font-size: 13px; color: #64748B;">
+                    <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
+                    <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()}</p>
+                    <p style="margin: 4px 0;"><strong>Qualidade:</strong> ${getQualityText(city.quality)}</p>
+                </div>
+            </div>
+        `;
+    }
+
     return L.marker([city.coordinates.lat, city.coordinates.lng], { icon: cityIcon })
         .bindPopup(popupContent);
 }
@@ -1720,22 +1736,26 @@ async function processFiles() {
 
     let hasKMZ = false;
     let hasKML = false;
+    const hasKMZ2Field = radioData.kmz2Url && radioData.kmz2Url.trim() !== '';
+    const hasKML2Field = radioData.kml2Url && radioData.kml2Url.trim() !== '';
 
-    if (radioData.kmz2Url) {
-        console.log('📦 Processando KMZ...');
+    if (hasKMZ2Field) {
+        console.log('📦 Processando KMZ2...');
         await processKMZ(radioData.kmz2Url);
         hasKMZ = !!radioData.coverageImage;
     }
 
-    if (radioData.kml2Url) {
-        console.log('🏙️ Processando KML de cidades...');
+    if (hasKML2Field) {
+        console.log('🏙️ Processando KML2 de cidades...');
         await processKML(radioData.kml2Url);
         hasKML = !!radioData.citiesData && radioData.citiesData.length > 0;
     }
 
-    // 🆕 FALLBACK 1: Tentar coluna KML se KML2 não existe ou não funcionou
-    if (!hasKML && radioData.kmlUrl && radioData.kmlUrl.trim() !== '') {
-        console.log('🔄 Usando fallback: coluna KML');
+    // 🆕 FALLBACK 1: Usar coluna KML quando AMBOS KML2 E KMZ2 estiverem vazios
+    const shouldUseFallback = !hasKML2Field && !hasKMZ2Field;
+
+    if (shouldUseFallback && radioData.kmlUrl && radioData.kmlUrl.trim() !== '') {
+        console.log('🔄 Usando fallback: coluna KML (KML2 e KMZ2 vazios)');
         try {
             await processKMLFallback(radioData.kmlUrl);
             hasKML = !!radioData.citiesData && radioData.citiesData.length > 0;
@@ -1745,7 +1765,7 @@ async function processFiles() {
     }
 
     // 🆕 FALLBACK 2: Usar Latitude/Longitude se não há dados de cobertura
-    if (!hasKML && radioData.latitude && radioData.longitude) {
+    if (shouldUseFallback && !hasKML && radioData.latitude && radioData.longitude) {
         console.log('🔄 Usando fallback: Latitude/Longitude');
         processCoordinatesFallback(radioData);
     }
@@ -2230,10 +2250,10 @@ function addAntennaMarker() {
 // Adicionar marcadores das cidades
 function addCityMarkers() {
     cityMarkersIndividual = [];
-    
+
     citiesData.forEach(city => {
         const color = getQualityColor(city.quality);
-        
+
         const cityIcon = L.divIcon({
             html: `
                 <div style="
@@ -2249,25 +2269,36 @@ function addCityMarkers() {
             iconSize: [16, 16],
             iconAnchor: [8, 8]
         });
-        
-        const popupContent = `
-            <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
-                <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
-                <div style="text-align: left; font-size: 13px; color: #64748B;">
-                    <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
-                    <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()}</p>
-                    <p style="margin: 4px 0;"><strong>Qualidade:</strong> ${getQualityText(city.quality)}</p>
+
+        // 🆕 Popup diferente para fallback KML (sem dados de população)
+        let popupContent;
+        if (city.isKMLFallback) {
+            popupContent = `
+                <div style="text-align: center; font-family: var(--font-primary); min-width: 200px;">
+                    <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name}</h4>
+                    ${city.distance !== null && city.distance !== undefined ? `<p style="margin: 4px 0; color: #64748B;"><strong>Distância:</strong> ${city.distance} km</p>` : ''}
                 </div>
-            </div>
-        `;
-        
+            `;
+        } else {
+            popupContent = `
+                <div style="text-align: center; font-family: var(--font-primary); min-width: 220px;">
+                    <h4 style="margin: 0 0 8px 0; color: #06055B;">${city.name} - ${city.uf}</h4>
+                    <div style="text-align: left; font-size: 13px; color: #64748B;">
+                        <p style="margin: 4px 0;"><strong>População Total:</strong> ${(city.totalPopulation || 0).toLocaleString()}</p>
+                        <p style="margin: 4px 0;"><strong>População Coberta:</strong> ${(city.coveredPopulation || 0).toLocaleString()}</p>
+                        <p style="margin: 4px 0;"><strong>Qualidade:</strong> ${getQualityText(city.quality)}</p>
+                    </div>
+                </div>
+            `;
+        }
+
         const marker = L.marker([city.coordinates.lat, city.coordinates.lng], { icon: cityIcon })
             .addTo(map)
             .bindPopup(popupContent);
-        
+
         cityMarkersIndividual.push(marker);
     });
-    
+
     console.log(`🏙️ ${cityMarkersIndividual.length} marcadores de cidades adicionados`);
 }
 
