@@ -1036,26 +1036,55 @@ async function processAllRadiosInProposta() {
         try {
             // Processar ícone do Notion para cada rádio (SEM ATUALIZAR HEADER)
             processRadioNotionIcon(radio);
-            
+
+            let hasKMZ = false;
+            let hasKML = false;
+
             // Processar KMZ se disponível - AGUARDAR CONCLUSÃO
             if (radio.kmz2Url && radio.kmz2Url.trim() !== '') {
                 await processRadioKMZ(radio);
-                if (radio.coverageImage) withKMZ++;
+                if (radio.coverageImage) {
+                    withKMZ++;
+                    hasKMZ = true;
+                }
             }
-            
-            // Processar KML se disponível - AGUARDAR CONCLUSÃO  
+
+            // Processar KML se disponível - AGUARDAR CONCLUSÃO
             if (radio.kml2Url && radio.kml2Url.trim() !== '') {
                 await processRadioKML(radio);
-                if (radio.citiesData?.length > 0) withKML++;
+                if (radio.citiesData?.length > 0) {
+                    withKML++;
+                    hasKML = true;
+                }
             }
-            
+
+            // 🆕 FALLBACK 1: Tentar coluna KML se KML2 não existe ou não funcionou
+            if (!hasKML && radio.kmlUrl && radio.kmlUrl.trim() !== '') {
+                console.log(`🔄 ${radio.name}: Usando fallback coluna KML`);
+                try {
+                    await processRadioKMLFallback(radio);
+                    if (radio.citiesData?.length > 0) {
+                        withKML++;
+                        hasKML = true;
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Fallback KML falhou para ${radio.name}:`, error.message);
+                }
+            }
+
+            // 🆕 FALLBACK 2: Usar Latitude/Longitude se não há dados de cobertura
+            if (!hasKML && radio.latitude && radio.longitude) {
+                console.log(`🔄 ${radio.name}: Usando fallback Latitude/Longitude`);
+                processCoordinatesFallback(radio);
+            }
+
             processed++;
-            
+
             // 🔧 LOG SIMPLIFICADO A CADA 5 RÁDIOS
             if (processed % 5 === 0 || processed === total) {
                 console.log(`📊 Progresso: ${processed}/${total} rádios processadas`);
             }
-            
+
         } catch (error) {
             console.error(`❌ Erro na rádio ${radio.name}:`, error.message);
             // Continuar com as outras rádios
@@ -1668,17 +1697,39 @@ function getQualityText(quality) {
 // Processar arquivos (modo individual)
 async function processFiles() {
     console.log('📄 Processando arquivos...');
-    
+
+    let hasKMZ = false;
+    let hasKML = false;
+
     if (radioData.kmz2Url) {
         console.log('📦 Processando KMZ...');
         await processKMZ(radioData.kmz2Url);
+        hasKMZ = !!radioData.coverageImage;
     }
-    
+
     if (radioData.kml2Url) {
         console.log('🏙️ Processando KML de cidades...');
         await processKML(radioData.kml2Url);
+        hasKML = !!radioData.citiesData && radioData.citiesData.length > 0;
     }
-    
+
+    // 🆕 FALLBACK 1: Tentar coluna KML se KML2 não existe ou não funcionou
+    if (!hasKML && radioData.kmlUrl && radioData.kmlUrl.trim() !== '') {
+        console.log('🔄 Usando fallback: coluna KML');
+        try {
+            await processKML(radioData.kmlUrl);
+            hasKML = !!radioData.citiesData && radioData.citiesData.length > 0;
+        } catch (error) {
+            console.warn('⚠️ Fallback KML falhou:', error.message);
+        }
+    }
+
+    // 🆕 FALLBACK 2: Usar Latitude/Longitude se não há dados de cobertura
+    if (!hasKML && radioData.latitude && radioData.longitude) {
+        console.log('🔄 Usando fallback: Latitude/Longitude');
+        processCoordinatesFallback(radioData);
+    }
+
     console.log('✅ Arquivos processados');
 }
 
@@ -2682,6 +2733,60 @@ async function parseKMLCitiesForRadio(kmlText) {
     });
     
     return cities;
+}
+
+// =========================================================================
+// 🆕 FUNÇÕES DE FALLBACK PARA KML E COORDENADAS
+// =========================================================================
+
+// Processar KML fallback para uma rádio (modo proposta)
+async function processRadioKMLFallback(radio) {
+    try {
+        const directUrl = convertGoogleDriveUrl(radio.kmlUrl);
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
+
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const kmlText = await response.text();
+        radio.citiesData = await parseKMLCitiesForRadio(kmlText);
+
+    } catch (error) {
+        console.warn(`⚠️ KML Fallback ${radio.name}: ${error.message}`);
+        radio.citiesData = [];
+    }
+}
+
+// Processar fallback de coordenadas (Latitude/Longitude) - adiciona logo no ponto
+function processCoordinatesFallback(radio) {
+    try {
+        const lat = parseFloat(radio.latitude);
+        const lng = parseFloat(radio.longitude);
+
+        if (isNaN(lat) || isNaN(lng)) {
+            console.warn(`⚠️ Coordenadas inválidas para ${radio.name}: lat=${radio.latitude}, lng=${radio.longitude}`);
+            return;
+        }
+
+        // Criar dados de cidade fictícia apenas com a posição da antena
+        radio.citiesData = [{
+            name: radio.praca || radio.name,
+            uf: radio.uf || '',
+            fullName: `${radio.praca || radio.name}${radio.uf ? ' - ' + radio.uf : ''}`,
+            coordinates: { lat, lng },
+            quality: 'unknown',
+            totalPopulation: 0,
+            urbanPopulation: 0,
+            ruralPopulation: 0,
+            isFallbackCoordinate: true // Flag para identificar que é fallback
+        }];
+
+        console.log(`✅ Fallback coordenadas aplicado: ${radio.name} em (${lat}, ${lng})`);
+
+    } catch (error) {
+        console.warn(`⚠️ Erro ao processar coordenadas fallback para ${radio.name}:`, error.message);
+        radio.citiesData = [];
+    }
 }
 
 // =========================================================================

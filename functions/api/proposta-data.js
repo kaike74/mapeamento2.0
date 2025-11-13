@@ -283,27 +283,32 @@ async function processRadioData(notionData) {
     id: notionData.id,
     name: extractValue(properties['Emissora'] || properties['emissora'], 'Rádio Desconhecida', 'Emissora'),
     dial: extractValue(properties['Dial'] || properties['dial'], 'N/A', 'Dial'),
-    
+
     // Localização
     region: extractValue(properties['Região'] || properties['regiao'], 'N/A', 'Região'),
     uf: extractValue(properties['UF'] || properties['uf'], 'N/A', 'UF'),
     praca: extractValue(properties['Praça'] || properties['praca'], 'N/A', 'Praça'),
-    
+
     // URLs dos arquivos KMZ2 e KML2
     kmz2Url: extractValue(properties['KMZ2'] || properties['kmz2'], '', 'KMZ2'),
     kml2Url: extractValue(properties['KML2'] || properties['kml2'], '', 'KML2'),
-    
+
+    // 🆕 URLs dos arquivos KML (fallback) e coordenadas (fallback do fallback)
+    kmlUrl: extractValue(properties['KML'] || properties['kml'], '', 'KML'),
+    latitude: extractValue(properties['Latitude'] || properties['latitude'], '', 'Latitude'),
+    longitude: extractValue(properties['Longitude'] || properties['longitude'], '', 'Longitude'),
+
     // URLs e mídias
     imageUrl: extractValue(properties['Imagem'] || properties['imagem'], '', 'Imagem'),
-    
+
     // 🆕 ÁREAS DE INTERESSE - CORRIGIDO E ROBUSTO
     areasInteresse: areasInteresse,
-    
+
     // Metadata
     source: 'notion_proposta',
     notionId: notionData.id,
     lastUpdate: new Date().toISOString(),
-    
+
     // Flags para controle
     hasKmz: !!extractValue(properties['KMZ2'] || properties['kmz2'], ''),
     hasKml: !!extractValue(properties['KML2'] || properties['kml2'], ''),
