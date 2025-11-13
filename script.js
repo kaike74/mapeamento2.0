@@ -1036,26 +1036,49 @@ async function processAllRadiosInProposta() {
         try {
             // Processar ícone do Notion para cada rádio (SEM ATUALIZAR HEADER)
             processRadioNotionIcon(radio);
-            
+
             // Processar KMZ se disponível - AGUARDAR CONCLUSÃO
             if (radio.kmz2Url && radio.kmz2Url.trim() !== '') {
                 await processRadioKMZ(radio);
                 if (radio.coverageImage) withKMZ++;
             }
-            
-            // Processar KML se disponível - AGUARDAR CONCLUSÃO  
+
+            // 🆕 SISTEMA DE FALLBACK EM CASCATA PARA KML
+            let hasKMLData = false;
+
+            // 1️⃣ TENTATIVA: KML2 (preferencial)
             if (radio.kml2Url && radio.kml2Url.trim() !== '') {
                 await processRadioKML(radio);
-                if (radio.citiesData?.length > 0) withKML++;
+                if (radio.citiesData?.length > 0) {
+                    withKML++;
+                    hasKMLData = true;
+                    console.log(`✅ ${radio.name}: KML2 processado com sucesso`);
+                }
             }
-            
+
+            // 2️⃣ FALLBACK 1: Coluna KML (sem o "2")
+            if (!hasKMLData && radio.kmlUrl && radio.kmlUrl.trim() !== '') {
+                console.log(`🔄 ${radio.name}: Tentando fallback com coluna KML`);
+                await processRadioKMLFallback(radio);
+                if (radio.citiesData?.length > 0) {
+                    withKML++;
+                    hasKMLData = true;
+                }
+            }
+
+            // 3️⃣ FALLBACK 2: Coordenadas Latitude/Longitude
+            if (!hasKMLData && radio.latitude && radio.longitude) {
+                console.log(`🔄 ${radio.name}: Tentando fallback com coordenadas Lat/Long`);
+                createFallbackMarkerFromCoordinates(radio);
+            }
+
             processed++;
-            
+
             // 🔧 LOG SIMPLIFICADO A CADA 5 RÁDIOS
             if (processed % 5 === 0 || processed === total) {
                 console.log(`📊 Progresso: ${processed}/${total} rádios processadas`);
             }
-            
+
         } catch (error) {
             console.error(`❌ Erro na rádio ${radio.name}:`, error.message);
             // Continuar com as outras rádios
@@ -1159,17 +1182,22 @@ function initializeMap() {
             if (radioData.coverageImage) {
                 addCoverageImage();
             }
-            
+
             if (radioData.antennaLocation) {
                 addAntennaMarker();
             }
-            
+
             addCityMarkers();
-            
-            if (citiesData.length > 0 || radioData.antennaLocation || radioData.coverageImage) {
+
+            // 🆕 FALLBACK: Adicionar marcador simples se não houver dados de KML/KMZ
+            if (!citiesData?.length && !radioData.antennaLocation && radioData.fallbackMarker) {
+                addFallbackMarker();
+            }
+
+            if (citiesData.length > 0 || radioData.antennaLocation || radioData.coverageImage || radioData.fallbackMarker) {
                 fitMapBounds();
             }
-            
+
             if (legendImage) {
                 document.getElementById('map-legend').style.display = 'block';
             }
@@ -1294,7 +1322,15 @@ function addAllRadiosToMap() {
                 layers.push(...cityMarkers);
             }
 
-            // 4. Criar FeatureGroup com todos os layers
+            // 🆕 4. FALLBACK: Criar marcador simples se não houver dados de KML/KMZ
+            if (!radio.citiesData?.length && !radio.antennaLocation && radio.fallbackMarker) {
+                const fallbackMarker = createFallbackMarker(radio);
+                if (fallbackMarker) {
+                    layers.push(fallbackMarker);
+                }
+            }
+
+            // 5. Criar FeatureGroup com todos os layers
             const radioLayerGroup = L.featureGroup(layers, {
                 interactive: true,
                 bubblingMouseEvents: false,
@@ -1396,10 +1432,77 @@ function createRadioAntennaMarker(radio) {
         .bindPopup(popupContent);
 }
 
+// 🆕 Criar marcador de fallback a partir de coordenadas (com logo da rádio)
+function createFallbackMarker(radio) {
+    if (!radio.fallbackMarker) return null;
+
+    // Tentar obter logo da rádio (várias fontes possíveis)
+    const logoUrl = radio.logoUrlFromKMZ || radio.notionIconUrl || radio.imageUrl || null;
+
+    let iconHtml;
+    if (logoUrl) {
+        // Se tiver logo, mostrar a logo
+        iconHtml = `
+            <div style="
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                overflow: hidden;
+                border: 3px solid #06055B;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                background: white;
+            ">
+                <img src="${logoUrl}"
+                     style="width: 100%; height: 100%; object-fit: cover;"
+                     onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;background:#06055B;display:flex;align-items:center;justify-content:center;color:white;font-size:20px;\\'>📻</div>'">
+            </div>
+        `;
+    } else {
+        // Se não tiver logo, mostrar ícone genérico
+        iconHtml = `
+            <div style="
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: #06055B;
+                border: 3px solid white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 20px;
+            ">📻</div>
+        `;
+    }
+
+    const fallbackIcon = L.divIcon({
+        html: iconHtml,
+        className: 'fallback-marker',
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+        popupAnchor: [0, -20]
+    });
+
+    const popupContent = `
+        <div style="text-align: center; font-family: var(--font-primary); min-width: 200px;">
+            <h4 style="margin: 0 0 12px 0; color: #06055B;">📻 ${radio.name}</h4>
+            <p style="margin: 4px 0;"><strong>${radio.dial}</strong></p>
+            <p style="margin: 4px 0;">${radio.praca || 'N/A'} - ${radio.uf || 'N/A'}</p>
+            <p style="margin: 8px 0 0 0; font-size: 11px; color: #666;">
+                <em>Localização aproximada (sem dados de cobertura)</em>
+            </p>
+        </div>
+    `;
+
+    return L.marker([radio.fallbackMarker.lat, radio.fallbackMarker.lng], { icon: fallbackIcon })
+        .bindPopup(popupContent);
+}
+
 // Criar marcador de cidade
 function createCityMarker(city, radio) {
     const color = getQualityColor(city.quality);
-    
+
     const cityIcon = L.divIcon({
         html: `
             <div style="
@@ -1436,22 +1539,28 @@ function createCityMarker(city, radio) {
 function fitMapBoundsForProposta() {
     const bounds = L.latLngBounds();
     let hasData = false;
-    
+
     propostaData.radios.forEach(radio => {
         if (radio.antennaLocation) {
             bounds.extend([radio.antennaLocation.lat, radio.antennaLocation.lng]);
             hasData = true;
         }
-        
+
         if (radio.citiesData) {
             radio.citiesData.forEach(city => {
                 bounds.extend([city.coordinates.lat, city.coordinates.lng]);
                 hasData = true;
             });
         }
-        
+
         if (radio.coverageImage) {
             bounds.extend(radio.coverageImage.bounds);
+            hasData = true;
+        }
+
+        // 🆕 FALLBACK: Incluir marcador de fallback nos limites do mapa
+        if (radio.fallbackMarker) {
+            bounds.extend([radio.fallbackMarker.lat, radio.fallbackMarker.lng]);
             hasData = true;
         }
     });
@@ -1668,17 +1777,45 @@ function getQualityText(quality) {
 // Processar arquivos (modo individual)
 async function processFiles() {
     console.log('📄 Processando arquivos...');
-    
+
+    // Processar KMZ se disponível
     if (radioData.kmz2Url) {
         console.log('📦 Processando KMZ...');
         await processKMZ(radioData.kmz2Url);
     }
-    
+
+    // 🆕 SISTEMA DE FALLBACK EM CASCATA PARA KML
+    let hasKMLData = false;
+
+    // 1️⃣ TENTATIVA: KML2 (preferencial)
     if (radioData.kml2Url) {
-        console.log('🏙️ Processando KML de cidades...');
+        console.log('🏙️ Processando KML2 de cidades...');
         await processKML(radioData.kml2Url);
+        if (citiesData && citiesData.length > 0) {
+            hasKMLData = true;
+            console.log(`✅ KML2 processado: ${citiesData.length} cidades`);
+        }
     }
-    
+
+    // 2️⃣ FALLBACK 1: Coluna KML (sem o "2")
+    if (!hasKMLData && radioData.kmlUrl && radioData.kmlUrl.trim() !== '') {
+        console.log('🔄 Tentando fallback com coluna KML...');
+        await processKML(radioData.kmlUrl);
+        if (citiesData && citiesData.length > 0) {
+            hasKMLData = true;
+            console.log(`✅ Fallback KML usado: ${citiesData.length} cidades`);
+        }
+    }
+
+    // 3️⃣ FALLBACK 2: Coordenadas Latitude/Longitude
+    if (!hasKMLData && radioData.latitude && radioData.longitude) {
+        console.log('🔄 Tentando fallback com coordenadas Lat/Long...');
+        createFallbackMarkerFromCoordinates(radioData);
+        if (radioData.fallbackMarker) {
+            console.log(`✅ Marcador de fallback criado em (${radioData.fallbackMarker.lat}, ${radioData.fallbackMarker.lng})`);
+        }
+    }
+
     console.log('✅ Arquivos processados');
 }
 
@@ -2117,6 +2254,76 @@ function addAntennaMarker() {
     console.log('📍 Marcador da antena adicionado');
 }
 
+// 🆕 Adicionar marcador de fallback (modo individual)
+function addFallbackMarker() {
+    if (!radioData.fallbackMarker) return;
+
+    // Tentar obter logo da rádio (várias fontes possíveis)
+    const logoUrl = radioData.logoUrlFromKMZ || radioData.notionIconUrl || radioData.imageUrl || null;
+
+    let iconHtml;
+    if (logoUrl) {
+        // Se tiver logo, mostrar a logo
+        iconHtml = `
+            <div style="
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                overflow: hidden;
+                border: 3px solid #06055B;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                background: white;
+            ">
+                <img src="${logoUrl}"
+                     style="width: 100%; height: 100%; object-fit: cover;"
+                     onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;background:#06055B;display:flex;align-items:center;justify-content:center;color:white;font-size:20px;\\'>📻</div>'">
+            </div>
+        `;
+    } else {
+        // Se não tiver logo, mostrar ícone genérico
+        iconHtml = `
+            <div style="
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: #06055B;
+                border: 3px solid white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 20px;
+            ">📻</div>
+        `;
+    }
+
+    const fallbackIcon = L.divIcon({
+        html: iconHtml,
+        className: 'fallback-marker',
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+        popupAnchor: [0, -20]
+    });
+
+    const popupContent = `
+        <div style="text-align: center; font-family: var(--font-primary); min-width: 200px;">
+            <h4 style="margin: 0 0 12px 0; color: #06055B;">📻 ${radioData.name}</h4>
+            <p style="margin: 4px 0;"><strong>${radioData.dial}</strong></p>
+            <p style="margin: 4px 0;">${radioData.praca || 'N/A'} - ${radioData.uf || 'N/A'}</p>
+            <p style="margin: 8px 0 0 0; font-size: 11px; color: #666;">
+                <em>Localização aproximada (sem dados de cobertura)</em>
+            </p>
+        </div>
+    `;
+
+    L.marker([radioData.fallbackMarker.lat, radioData.fallbackMarker.lng], { icon: fallbackIcon })
+        .addTo(map)
+        .bindPopup(popupContent);
+
+    console.log('📍 Marcador de fallback adicionado');
+}
+
 // Adicionar marcadores das cidades
 function addCityMarkers() {
     cityMarkersIndividual = [];
@@ -2163,28 +2370,33 @@ function addCityMarkers() {
 
 // Ajustar zoom do mapa
 function fitMapBounds() {
-    if (citiesData.length === 0 && !radioData.antennaLocation && !radioData.coverageImage && filteredAreasInteresse.length === 0) return;
-    
+    if (citiesData.length === 0 && !radioData.antennaLocation && !radioData.coverageImage && !radioData.fallbackMarker && filteredAreasInteresse.length === 0) return;
+
     const bounds = L.latLngBounds();
-    
+
     citiesData.forEach(city => {
         bounds.extend([city.coordinates.lat, city.coordinates.lng]);
     });
-    
+
     if (radioData.antennaLocation) {
         bounds.extend([radioData.antennaLocation.lat, radioData.antennaLocation.lng]);
     }
-    
+
     if (radioData.coverageImage) {
         bounds.extend(radioData.coverageImage.bounds);
     }
-    
+
+    // 🆕 FALLBACK: Incluir marcador de fallback nos limites do mapa
+    if (radioData.fallbackMarker) {
+        bounds.extend([radioData.fallbackMarker.lat, radioData.fallbackMarker.lng]);
+    }
+
     if (filteredAreasInteresse && filteredAreasInteresse.length > 0) {
         filteredAreasInteresse.forEach(area => {
             bounds.extend([area.coordinates.lat, area.coordinates.lng]);
         });
     }
-    
+
     if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [50, 50] });
     }
@@ -2642,26 +2854,79 @@ async function processRadioKML(radio) {
     }
 }
 
+// 🆕 FALLBACK: Processar KML (coluna KML, sem o "2") como fallback
+async function processRadioKMLFallback(radio) {
+    try {
+        const directUrl = convertGoogleDriveUrl(radio.kmlUrl);
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
+
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const kmlText = await response.text();
+        radio.citiesData = await parseKMLCitiesForRadio(kmlText);
+
+        console.log(`✅ Fallback KML usado para ${radio.name}: ${radio.citiesData?.length || 0} cidades`);
+
+    } catch (error) {
+        console.warn(`⚠️ Fallback KML falhou para ${radio.name}: ${error.message}`);
+        radio.citiesData = [];
+    }
+}
+
+// 🆕 FALLBACK DO FALLBACK: Criar marcador simples a partir de coordenadas
+function createFallbackMarkerFromCoordinates(radio) {
+    try {
+        // Converter strings para números
+        const lat = parseFloat(radio.latitude);
+        const lng = parseFloat(radio.longitude);
+
+        // Validar coordenadas
+        if (isNaN(lat) || isNaN(lng)) {
+            console.warn(`⚠️ Coordenadas inválidas para ${radio.name}: lat=${radio.latitude}, lng=${radio.longitude}`);
+            return;
+        }
+
+        // Validar que está no Brasil (aproximadamente)
+        if (lat < -35 || lat > 5 || lng < -75 || lng > -30) {
+            console.warn(`⚠️ Coordenadas fora do Brasil para ${radio.name}: lat=${lat}, lng=${lng}`);
+            return;
+        }
+
+        // Criar um marcador simples com a logo da rádio
+        radio.fallbackMarker = {
+            lat: lat,
+            lng: lng,
+            type: 'coordinates'
+        };
+
+        console.log(`✅ Marcador de fallback criado para ${radio.name} em (${lat}, ${lng})`);
+
+    } catch (error) {
+        console.warn(`⚠️ Erro ao criar marcador de fallback para ${radio.name}: ${error.message}`);
+    }
+}
+
 // Processar cidades do KML para uma rádio específica
 async function parseKMLCitiesForRadio(kmlText) {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
     const placemarks = xmlDoc.querySelectorAll('Placemark');
-    
+
     const cities = [];
-    
+
     placemarks.forEach((placemark) => {
         const name = placemark.querySelector('name')?.textContent || '';
         const coordinates = placemark.querySelector('Point coordinates')?.textContent;
         const styleUrl = placemark.querySelector('styleUrl')?.textContent || '';
-        
+
         if (coordinates && name) {
             const coords = coordinates.trim().split(',');
             const lng = parseFloat(coords[0]);
             const lat = parseFloat(coords[1]);
-            
+
             const cityData = parseExtendedData(placemark);
-            
+
             if (!cityData.totalPopulation) {
                 const description = placemark.querySelector('description')?.textContent || '';
                 if (description) {

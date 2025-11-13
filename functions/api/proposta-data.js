@@ -292,6 +292,11 @@ async function processRadioData(notionData) {
     // URLs dos arquivos KMZ2 e KML2
     kmz2Url: extractValue(properties['KMZ2'] || properties['kmz2'], '', 'KMZ2'),
     kml2Url: extractValue(properties['KML2'] || properties['kml2'], '', 'KML2'),
+
+    // 🆕 FALLBACK: Coluna KML (sem o "2") e coordenadas diretas
+    kmlUrl: extractValue(properties['KML'] || properties['kml'], '', 'KML'),
+    latitude: extractValue(properties['Latitude'] || properties['latitude'], '', 'Latitude'),
+    longitude: extractValue(properties['Longitude'] || properties['longitude'], '', 'Longitude'),
     
     // URLs e mídias
     imageUrl: extractValue(properties['Imagem'] || properties['imagem'], '', 'Imagem'),
